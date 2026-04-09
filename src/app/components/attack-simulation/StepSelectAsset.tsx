@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Search, Monitor, Server, Terminal, Laptop } from "lucide-react";
-import { Asset } from "@/types/simulation";
+import { Asset } from "@/app/types/simulation";
 
 const ASSETS: Asset[] = [
   { id: "ws-corp-042", name: "WS-CORP-042", os: "Windows 11", status: "Online" },
