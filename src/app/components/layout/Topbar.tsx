@@ -36,7 +36,6 @@ export default function Topbar() {
         {/* User avatar */}
         <div className="flex items-center gap-2.5 pl-3 border-l border-gray-800">
           <div className="flex flex-col items-end">
-            <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Consultant</span>
             <span className="text-sm text-white font-semibold -mt-0.5">John Doe</span>
           </div>
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white text-sm font-bold ring-2 ring-gray-800">

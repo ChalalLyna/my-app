@@ -1,19 +1,20 @@
 import type { Metadata } from "next";
 import "./globals.css";
- 
+import { AuthProvider } from "@/app/context/AuthContext";
+
 export const metadata: Metadata = {
-  title: "CyberLab – Attack Simulation Workspace",
+  title: "CyberLab – Simulation Platform",
   description: "Cybersecurity simulation platform",
 };
- 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="fr">
+      <body>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
     </html>
   );
 }
