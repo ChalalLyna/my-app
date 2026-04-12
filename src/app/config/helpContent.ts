@@ -1,5 +1,5 @@
 import { HelpSection } from "@/app/components/HelpPanel";
- 
+
 export const ATTACK_SIMULATION_HELP: HelpSection[] = [
   {
     title: "C'est quoi une simulation d'attaque ?",
@@ -30,5 +30,38 @@ export const ATTACK_SIMULATION_HELP: HelpSection[] = [
     content:
       "Avant de lancer, vérifiez la checklist : l'asset doit être en ligne, le profil adversaire chargé, et le SIEM actif pour capturer les événements générés par la simulation.",
     tip: "Le SIEM (Ludus) va enregistrer toutes les actions simulées. Après la simulation, analysez les alertes générées pour comprendre ce qu'un attaquant réel aurait pu faire.",
+  },
+];
+
+export const DETECTION_HELP: HelpSection[] = [
+  {
+    title: "C'est quoi une alerte SIEM ?",
+    content:
+      "Un SIEM (Security Information and Event Management) collecte les logs de tous vos systèmes et génère des alertes quand il détecte un comportement suspect. Chaque alerte correspond à un événement anormal détecté sur un asset.",
+    tip: "Une alerte n'est pas forcément une vraie attaque — c'est un signal qui mérite investigation. C'est à vous de décider si c'est un vrai positif ou un faux positif.",
+  },
+  {
+    title: "Lire une alerte — les champs clés",
+    content:
+      "Chaque alerte contient : la sévérité (Critical/High/Medium/Low), l'asset ciblé, le TTP MITRE associé, l'horodatage et la source de détection. Ces informations permettent de prioriser et contextualiser la menace.",
+    tip: "Commencez toujours par les alertes 'Critical' puis 'High'. Une alerte 'Medium' sur un DC (Domain Controller) est souvent plus dangereuse qu'une 'High' sur un laptop.",
+  },
+  {
+    title: "Les niveaux de sévérité",
+    content:
+      "Critical = compromission probable, action immédiate requise. High = activité suspecte avancée, investigation urgente. Medium = comportement anormal, à surveiller. Low = information, peut être un faux positif.",
+    tip: "Dans un vrai SOC, une alerte Critical doit être traitée en moins de 15 minutes.",
+  },
+  {
+    title: "Investiguer une alerte",
+    content:
+      "L'investigation consiste à analyser les logs bruts, comprendre la chaîne d'événements (kill chain), identifier si d'autres assets sont touchés et déterminer si l'alerte est un vrai ou faux positif.",
+    tip: "Regardez toujours le 'Raw Log' — les détails techniques (IP source, utilisateur, commande exécutée) sont essentiels pour comprendre ce qui s'est vraiment passé.",
+  },
+  {
+    title: "Rule Tuning — affiner les règles",
+    content:
+      "Le Rule Tuning permet d'ajuster les règles de détection pour réduire les faux positifs (alertes sur du comportement légitime) ou les faux négatifs (attaques non détectées). C'est un équilibre permanent.",
+    tip: "Si vous recevez beaucoup d'alertes Medium sur un même asset pour la même raison, c'est souvent un candidat pour le tuning.",
   },
 ];
