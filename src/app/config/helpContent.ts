@@ -1,5 +1,5 @@
 import { HelpSection } from "@/app/components/HelpPanel";
-
+ 
 export const ATTACK_SIMULATION_HELP: HelpSection[] = [
   {
     title: "C'est quoi une simulation d'attaque ?",
@@ -32,7 +32,7 @@ export const ATTACK_SIMULATION_HELP: HelpSection[] = [
     tip: "Le SIEM (Ludus) va enregistrer toutes les actions simulées. Après la simulation, analysez les alertes générées pour comprendre ce qu'un attaquant réel aurait pu faire.",
   },
 ];
-
+ 
 export const DETECTION_HELP: HelpSection[] = [
   {
     title: "C'est quoi une alerte SIEM ?",
@@ -63,5 +63,38 @@ export const DETECTION_HELP: HelpSection[] = [
     content:
       "Le Rule Tuning permet d'ajuster les règles de détection pour réduire les faux positifs (alertes sur du comportement légitime) ou les faux négatifs (attaques non détectées). C'est un équilibre permanent.",
     tip: "Si vous recevez beaucoup d'alertes Medium sur un même asset pour la même raison, c'est souvent un candidat pour le tuning.",
+  },
+];
+ 
+export const RULE_TUNING_HELP: HelpSection[] = [
+  {
+    title: "C'est quoi une règle de détection ?",
+    content:
+      "Une règle de détection est un ensemble de conditions qui, si elles sont réunies dans les logs, génèrent une alerte. Elle définit quoi surveiller (source de log), comment le détecter (conditions) et quelle sévérité attribuer.",
+    tip: "Un bon SOC a des centaines de règles actives. La qualité prime sur la quantité : mieux vaut 50 règles précises que 500 règles qui génèrent du bruit.",
+  },
+  {
+    title: "Le format Sigma YAML",
+    content:
+      "CyberLab utilise le format Sigma — un standard open source pour écrire des règles de détection portables. Une règle Sigma contient : title, logsource (d'où viennent les logs), detection (les conditions), et level (la sévérité).",
+    tip: "Sigma est portable : une même règle peut être convertie pour Splunk, Elastic, QRadar ou tout autre SIEM. C'est le format de référence dans l'industrie.",
+  },
+  {
+    title: "Structure d'une règle — detection",
+    content:
+      "Le bloc 'detection' est le cœur de la règle. Il contient des 'selections' (groupes de conditions) et une 'condition' qui les combine. Les opérateurs |contains, |startswith, |endswith permettent de filtrer les valeurs de champs.",
+    tip: "Utilisez 'filter' pour exclure les faux positifs connus : 'condition: selection and not filter'. C'est plus propre que de complexifier les sélections.",
+  },
+  {
+    title: "Faux positifs — falsepositives",
+    content:
+      "Le champ 'falsepositives' documente les comportements légitimes qui pourraient déclencher la règle. C'est crucial pour que l'analyste sache quand ignorer une alerte sans investigation approfondie.",
+    tip: "Listez toujours les faux positifs connus avant d'activer une règle. Cela évite la 'alert fatigue' qui pousse les analystes à ignorer toutes les alertes.",
+  },
+  {
+    title: "Tester avant d'activer",
+    content:
+      "Laissez une nouvelle règle en statut 'inactive' et testez-la en la simulant avec Caldera avant de l'activer. Vérifiez qu'elle déclenche sur l'attaque réelle et pas sur du trafic légitime.",
+    tip: "Le workflow idéal : créer (inactive) → tester avec simulation → ajuster → activer. Ne jamais activer une règle non testée en production.",
   },
 ];
