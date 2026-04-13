@@ -424,7 +424,6 @@ export default function RuleTuningPage() {
                 </div>
               </div>
  
-              {/* Table header */}
               <div className="flex items-center gap-4 px-5 py-2.5 border-b border-gray-800/40 bg-gray-900/60">
                 <span className="w-5 flex-shrink-0" />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-10">ID</span>
