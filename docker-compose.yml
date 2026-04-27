@@ -4,9 +4,51 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - WATCHPACK_POLLING=true    # gère le polling côté Next.js
-      - CHOKIDAR_USEPOLLING=true  # fallback pour les autres watchers
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=cyberlab
+      - DB_USER=cyberlab_user
+      - DB_PASSWORD=cyberlab_pass
     volumes:
-      - .:/app                    # votre code
-      - /app/node_modules         # node_modules isolé dans le conteneur
-      - /app/.next                # .next isolé aussi
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      mysql:
+        condition: service_healthy  # attend que MySQL soit prêt
+
+  mysql:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root_pass      # mot de passe root
+      MYSQL_DATABASE: cyberlab            # base créée automatiquement
+      MYSQL_USER: cyberlab_user           # utilisateur de l'app
+      MYSQL_PASSWORD: cyberlab_pass       # son mot de passe
+    ports:
+      - "3306:3306"                       # accessible depuis Windows aussi
+    volumes:
+      - mysql_data:/var/lib/mysql         # données persistantes
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_pass"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    restart: always
+    ports:
+      - "8080:80"                         # accès via http://localhost:8080
+    environment:
+      PMA_HOST: mysql                     # pointe vers le service mysql
+      PMA_USER: cyberlab_user
+      PMA_PASSWORD: cyberlab_pass
+      UPLOAD_LIMIT: 50M
+    depends_on:
+      - mysql
+
+volumes:
+  mysql_data:                             # volume nommé = données survivent au docker down
