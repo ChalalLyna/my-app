@@ -71,7 +71,7 @@ export default function LoginPage() {
             {/* Email */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-                last time isnhallah
+                final final
               </label>
               <input
                 type="email"
