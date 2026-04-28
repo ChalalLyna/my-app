@@ -4,26 +4,21 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - WATCHPACK_POLLING=false
-      - CHOKIDAR_USEPOLLING=false
       - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT}
       - DB_NAME=${MYSQL_DATABASE}
       - DB_USER=${MYSQL_USER}
       - DB_PASSWORD=${MYSQL_PASSWORD}
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/.next
     depends_on:
       mysql:
         condition: service_healthy
+    restart: unless-stopped
 
   mysql:
     image: mysql:8.0
     restart: always
     env_file:
-      - .env                              # ← lit directement le .env
+      - .env
     ports:
       - "3306:3306"
     volumes:

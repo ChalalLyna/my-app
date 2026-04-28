@@ -1,17 +1,21 @@
-# 1. On part d'un environnement Node.js léger
+# 1. Node léger
 FROM node:20-alpine
 
-# 2. On définit le dossier de travail dans le conteneur
+# 2. dossier app
 WORKDIR /app
 
-# 3. On copie d'abord les fichiers qui listent tes dépendances
+# 3. dépendances
 COPY package.json package-lock.json* ./
-
-# 4. On installe les dépendances
 RUN npm install
 
-# 5. On copie tout le reste de ton code
+# 4. code source
 COPY . .
 
-# 6. La commande pour lancer le mode développement de Next.js
-CMD ["npm", "run", "dev"]
+# 5. build Next.js (IMPORTANT)
+RUN npm run build
+
+# 6. port Next.js
+EXPOSE 3000
+
+# 7. lancement production
+CMD ["npm", "start"]
