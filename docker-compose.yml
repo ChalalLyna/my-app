@@ -6,33 +6,31 @@ services:
     environment:
       - WATCHPACK_POLLING=true
       - CHOKIDAR_USEPOLLING=true
-      - DB_HOST=mysql
-      - DB_PORT=3306
-      - DB_NAME=cyberlab
-      - DB_USER=cyberlab_user
-      - DB_PASSWORD=cyberlab_pass
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${MYSQL_DATABASE}
+      - DB_USER=${MYSQL_USER}
+      - DB_PASSWORD=${MYSQL_PASSWORD}
     volumes:
       - .:/app
       - /app/node_modules
       - /app/.next
     depends_on:
       mysql:
-        condition: service_healthy  # attend que MySQL soit prêt
+        condition: service_healthy
 
   mysql:
     image: mysql:8.0
     restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: root_pass      # mot de passe root
-      MYSQL_DATABASE: cyberlab            # base créée automatiquement
-      MYSQL_USER: cyberlab_user           # utilisateur de l'app
-      MYSQL_PASSWORD: cyberlab_pass       # son mot de passe
+    env_file:
+      - .env                              # ← lit directement le .env
     ports:
-      - "3306:3306"                       # accessible depuis Windows aussi
+      - "3306:3306"
     volumes:
-      - mysql_data:/var/lib/mysql         # données persistantes
+      - mysql_data:/var/lib/mysql
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_pass"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -41,14 +39,14 @@ services:
     image: phpmyadmin:latest
     restart: always
     ports:
-      - "8080:80"                         # accès via http://localhost:8080
+      - "8080:80"
     environment:
-      PMA_HOST: mysql                     # pointe vers le service mysql
-      PMA_USER: cyberlab_user
-      PMA_PASSWORD: cyberlab_pass
-      UPLOAD_LIMIT: 50M
+      - PMA_HOST=mysql
+      - PMA_USER=${MYSQL_USER}
+      - PMA_PASSWORD=${MYSQL_PASSWORD}
+      - UPLOAD_LIMIT=50M
     depends_on:
       - mysql
 
 volumes:
-  mysql_data:                             # volume nommé = données survivent au docker down
+  mysql_data:
