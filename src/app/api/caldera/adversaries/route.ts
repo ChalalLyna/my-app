@@ -5,6 +5,7 @@ export async function GET() {
     const res = await fetch(`${process.env.CALDERA_URL}/api/v2/adversaries`, {
       headers: { KEY: process.env.CALDERA_API_KEY! },
       cache: "no-store",
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) {
       return NextResponse.json({ error: `Caldera ${res.status}` }, { status: 502 });
