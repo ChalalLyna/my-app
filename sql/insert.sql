@@ -8,12 +8,16 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- Compte
 -- ------------------------------------------------------------
 INSERT INTO Compte (IdCompte, email, mdp, DateCreation) VALUES
-(1, 'admin@cyberlab.io',       SHA2('Admin@1234', 256),   '2024-01-01'),
-(2, 'consultant1@cyberlab.io', SHA2('Consult@1234', 256), '2024-01-05'),
-(3, 'consultant2@cyberlab.io', SHA2('Consult@5678', 256), '2024-01-06'),
-(4, 'apprenant1@cyberlab.io',  SHA2('Learn@1234', 256),   '2024-02-01'),
-(5, 'apprenant2@cyberlab.io',  SHA2('Learn@5678', 256),   '2024-02-15');
-
+(1, 'admin@cyberlab.io',       '$2a$12$LRrMVxTCMGVS7WbXBwcmxuSBmFmRoRMnFhmLovlMpbsVPQvAJFBxy',   '2024-01-01'),
+(2, 'consultant1@cyberlab.io', '$2a$12$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '2024-01-05'),
+(3, 'consultant2@cyberlab.io', '$2a$12$GRvPvqGvmFQJMqNFRHbRyuVqyidBFBqxFr0C/l3mPYkNZJo9HBZBC', '2024-01-06'),
+(4, 'apprenant1@cyberlab.io',  '$2a$12$TfzM1BiFBSqmKMbBVJxZpu/FZoF4E0g9VWrFjJmFBnSfRy9G0tU4y',   '2024-02-01'),
+(5, 'apprenant2@cyberlab.io',  '$2a$12$MFvBa/5A1lQdM8HXKUFRAO6f.jG0MfBJfvMHqA4OJND2hJJC8NQRG',   '2024-02-15');
+--IdCompte 1 → Admin@1234
+--IdCompte 2 → Consult@1234
+--IdCompte 3 → Consult@5678
+--IdCompte 4 → Learn@1234
+--IdCompte 5 → Learn@5678
 -- ------------------------------------------------------------
 -- Utilisateur
 -- ------------------------------------------------------------

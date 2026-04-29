@@ -6,9 +6,9 @@ import { Shield, Eye, EyeOff, Loader2, Terminal } from "lucide-react";
  
 // Hint credentials shown under form for demo
 const DEMO_ACCOUNTS = [
-  { role: "Admin", email: "admin@cyberlab.io", password: "admin123", color: "text-red-400" },
-  { role: "Consultant", email: "consultant@cyberlab.io", password: "consul123", color: "text-indigo-400" },
-  { role: "Apprenant", email: "apprenant@cyberlab.io", password: "learn123", color: "text-emerald-400" },
+  { role: "Admin", email: "admin@cyberlab.io", password: "Admin@1234", color: "text-red-400" },
+  { role: "Consultant1", email: "consultant1@cyberlab.io", password: "Consult@1234", color: "text-indigo-400" },
+  { role: "Apprenant1", email: "apprenant1@cyberlab.io", password: "Learn@1234", color: "text-emerald-400" },
 ];
  
 export default function LoginPage() {
@@ -71,7 +71,7 @@ export default function LoginPage() {
             {/* Email */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-                Lyna
+                Adresse Mail
               </label>
               <input
                 type="email"

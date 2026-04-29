@@ -1,21 +1,31 @@
-# 1. Node léger
-FROM node:20-alpine
+# ─── Build stage ──────────────────────────────────────────────────────────────
+FROM node:20-alpine AS builder
 
-# 2. dossier app
 WORKDIR /app
 
-# 3. dépendances
+# Dépendances d'abord (cache Docker optimisé)
 COPY package.json package-lock.json* ./
 RUN npm install
 
-# 4. code source
+# Code source
 COPY . .
 
-# 5. build Next.js (IMPORTANT)
+# Build Next.js
 RUN npm run build
 
-# 6. port Next.js
+# ─── Production stage ─────────────────────────────────────────────────────────
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Uniquement les fichiers nécessaires au runtime
+COPY --from=builder /app/public           ./public
+COPY --from=builder /app/.next            ./.next
+COPY --from=builder /app/node_modules     ./node_modules
+COPY --from=builder /app/package.json     ./package.json
+
 EXPOSE 3000
 
-# 7. lancement production
 CMD ["npm", "start"]
