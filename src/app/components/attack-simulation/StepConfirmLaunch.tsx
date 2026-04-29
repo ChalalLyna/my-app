@@ -137,7 +137,6 @@ export default function StepConfirmLaunch({ asset, step2 }: Props) {
               {adversary ? (
                 <>
                   <p className="text-white font-bold">{adversary.name}</p>
-                  <p className="text-gray-400 text-xs mt-0.5">{adversary.severity} severity</p>
                 </>
               ) : null}
               {selectedTTPs.length > 0 ? (

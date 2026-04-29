@@ -114,11 +114,8 @@ function AdversaryPanel({ adversary, selectedTTPs }: { adversary: Adversary; sel
     <div className="flex flex-col gap-4 animate-in fade-in duration-200">
       {/* Header */}
       <div className="bg-gray-800/70 rounded-xl p-3">
-        <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="mb-2">
           <p className="text-white font-bold text-sm leading-tight">{adversary.name}</p>
-          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border flex-shrink-0 ${SEVERITY_COLORS[adversary.severity]}`}>
-            {adversary.severity}
-          </span>
         </div>
         <p className="text-gray-500 text-[11px] leading-relaxed">{adversary.description}</p>
       </div>
@@ -151,13 +148,13 @@ function AdversaryPanel({ adversary, selectedTTPs }: { adversary: Adversary; sel
             TTPs sélectionnés ({selectedTTPs.length}/{adversary.ttps.length})
           </p>
         </div>
-        <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
+        <div className="flex flex-col gap-1.5">
           {adversary.ttps.map(ttp => {
             const isActive = selectedTTPs.some(t => t.id === ttp.id);
             const tc = TACTIC_COLORS[ttp.tactic] ?? "text-gray-400 bg-gray-800/40";
             return (
               <div key={ttp.id} className={`flex items-start gap-2 p-2 rounded-lg border transition-all ${isActive ? "border-brand/30 bg-brand/5" : "border-gray-800/50 bg-gray-800/20 opacity-40"}`}>
-                <span className="font-mono text-[10px] font-bold text-brand flex-shrink-0 mt-0.5">{ttp.id}</span>
+                <span className="font-mono text-[10px] font-bold text-brand shrink-0 mt-0.5">{ttp.id}</span>
                 <div className="flex-1 min-w-0">
                   <p className={`text-[10px] font-semibold ${isActive ? "text-white" : "text-gray-500"}`}>{ttp.name}</p>
                   <span className={`text-[9px] px-1 py-0.5 rounded ${tc}`}>{ttp.tactic}</span>
@@ -192,7 +189,7 @@ function TTPsOnlyPanel({ selectedTTPs }: { selectedTTPs: TTP[] }) {
               const tc = TACTIC_COLORS[ttp.tactic] ?? "text-gray-400 bg-gray-800/40";
               return (
                 <div key={ttp.id} className="flex items-start gap-2 p-2 rounded-lg border border-brand/30 bg-brand/5">
-                  <span className="font-mono text-[10px] font-bold text-brand flex-shrink-0 mt-0.5">{ttp.id}</span>
+                  <span className="font-mono text-[10px] font-bold text-brand shrink-0 mt-0.5">{ttp.id}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-[10px] font-semibold text-white">{ttp.name}</p>
                     <span className={`text-[9px] px-1 py-0.5 rounded ${tc}`}>{ttp.tactic}</span>
@@ -267,9 +264,9 @@ export default function DetailsPanel({ currentStep, asset, step2 }: Props) {
   }
  
   return (
-    <div className="w-56 bg-gray-900/60 border border-gray-800/60 rounded-2xl p-5 flex flex-col gap-4 flex-shrink-0 overflow-hidden">
-      <p className="text-xs font-bold uppercase tracking-widest text-gray-500 flex-shrink-0">{title}</p>
-      <div className="flex-1 overflow-y-auto">{content}</div>
+    <div className="w-56 bg-gray-900/60 border border-gray-800/60 rounded-2xl p-5 flex flex-col gap-4 shrink-0 overflow-hidden">
+      <p className="text-xs font-bold uppercase tracking-widest text-gray-500 shrink-0">{title}</p>
+      <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-700 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin] [scrollbar-color:#374151_transparent]">{content}</div>
     </div>
   );
 }

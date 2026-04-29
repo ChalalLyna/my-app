@@ -11,11 +11,12 @@ function formatTactic(raw: string): string {
   return raw.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 }
 
-function inferSeverity(name: string): "Critical" | "High" | "Medium" | "Low" {
-  const n = name.toLowerCase();
-  if (["apt", "lazarus", "cozy", "bear", "nation", "state"].some(k => n.includes(k))) return "Critical";
-  if (["ransomware", "fin", "carbanak", "wiper", "destructive"].some(k => n.includes(k))) return "High";
-  return "Medium";
+function inferSeverityFromTactics(ttps: TTP[]): "Critical" | "High" | "Medium" | "Low" {
+  const tactics = ttps.map(t => t.tactic.toLowerCase());
+  if (tactics.some(t => t.includes("impact") || t.includes("exfiltration"))) return "Critical";
+  if (tactics.some(t => t.includes("lateral") || t.includes("privilege"))) return "High";
+  if (tactics.some(t => t.includes("execution") || t.includes("persistence") || t.includes("command"))) return "Medium";
+  return "Low";
 }
 
 function deduplicateTTPs(ttps: TTP[]): TTP[] {
@@ -29,12 +30,6 @@ function deduplicateTTPs(ttps: TTP[]): TTP[] {
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 
-const SEVERITY_COLORS: Record<string, string> = {
-  Critical: "text-red-400 bg-red-900/30 border-red-800/50",
-  High:     "text-orange-400 bg-orange-900/30 border-orange-800/50",
-  Medium:   "text-yellow-400 bg-yellow-900/30 border-yellow-800/50",
-  Low:      "text-green-400 bg-green-900/30 border-green-800/50",
-};
 
 const TACTIC_COLORS: Record<string, string> = {
   "Initial Access":       "text-red-400 bg-red-900/20",
@@ -69,6 +64,7 @@ interface Props {
 export default function StepSelectAdversary({ selection, onSelectionChange }: Props) {
   const [mode, setMode] = useState<"adversary" | "ttp">("adversary");
   const [search, setSearch] = useState("");
+  const [tacticFilter, setTacticFilter] = useState<string | null>(null);
   const [adversaries, setAdversaries] = useState<Adversary[]>([]);
   const [allTtps, setAllTtps] = useState<TTP[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,17 +111,20 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
         // Map adversaries
         const mapped: Adversary[] = calderaAdversaries
           .filter(adv => adv.atomic_ordering?.length > 0)
-          .map(adv => ({
-            id:          adv.adversary_id,
-            name:        adv.name || "Unknown",
-            description: adv.description || "No description available.",
-            severity:    inferSeverity(adv.name || ""),
-            ttps:        deduplicateTTPs(
+          .map(adv => {
+            const ttps = deduplicateTTPs(
               (adv.atomic_ordering as string[])
                 .map(aid => abilityMap.get(aid))
                 .filter((t): t is TTP => !!t)
-            ),
-          }))
+            );
+            return {
+              id:          adv.adversary_id,
+              name:        adv.name || "Unknown",
+              description: adv.description || "No description available.",
+              severity:    inferSeverityFromTactics(ttps),
+              ttps,
+            };
+          })
           .filter(adv => adv.ttps.length > 0);
 
         setAdversaries(mapped);
@@ -146,11 +145,16 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
     a.ttps.some(t => t.id.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const filteredTTPs = ttpsToShow.filter(t =>
-    t.id.toLowerCase().includes(search.toLowerCase()) ||
-    t.name.toLowerCase().includes(search.toLowerCase()) ||
-    t.tactic.toLowerCase().includes(search.toLowerCase())
-  );
+  const uniqueTactics = [...new Set(ttpsToShow.map(t => t.tactic))].sort();
+
+  const filteredTTPs = ttpsToShow.filter(t => {
+    const matchesSearch =
+      t.id.toLowerCase().includes(search.toLowerCase()) ||
+      t.name.toLowerCase().includes(search.toLowerCase()) ||
+      t.tactic.toLowerCase().includes(search.toLowerCase());
+    const matchesTactic = tacticFilter === null || t.tactic === tacticFilter;
+    return matchesSearch && matchesTactic;
+  });
 
   // ── Handlers ──
   const handleSelectAdversary = (adv: Adversary) => {
@@ -207,7 +211,7 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
       {/* Mode toggle */}
       <div className="flex gap-2 p-1 bg-gray-800/60 rounded-xl shrink-0">
         <button
-          onClick={() => { setMode("adversary"); setSearch(""); }}
+          onClick={() => { setMode("adversary"); setSearch(""); setTacticFilter(null); }}
           className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
             mode === "adversary"
               ? "bg-gray-700 text-white shadow-sm"
@@ -218,7 +222,7 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
           <span className="ml-1.5 text-[10px] text-gray-500">({adversaries.length})</span>
         </button>
         <button
-          onClick={() => { setMode("ttp"); setSearch(""); }}
+          onClick={() => { setMode("ttp"); setSearch(""); setTacticFilter(null); }}
           className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
             mode === "ttp"
               ? "bg-gray-700 text-white shadow-sm"
@@ -262,7 +266,7 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
 
       {/* ── ADVERSARY MODE ── */}
       {mode === "adversary" && (
-        <div className="grid grid-cols-2 gap-3 overflow-y-auto flex-1">
+        <div className="grid grid-cols-2 gap-3 overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-700 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin] [scrollbar-color:#374151_transparent]">
           {filteredAdversaries.length === 0 && (
             <p className="col-span-2 text-sm text-gray-600 text-center py-8">Aucun adversaire trouvé</p>
           )}
@@ -288,9 +292,6 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
                       {adv.name}
                     </p>
                   </div>
-                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border shrink-0 ${SEVERITY_COLORS[adv.severity]}`}>
-                    {adv.severity}
-                  </span>
                 </div>
                 <p className={`text-xs leading-relaxed ${isSelected ? "text-indigo-600" : "text-gray-500"}`}>
                   {adv.description}
@@ -319,7 +320,34 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
 
       {/* ── TTP MODE ── */}
       {mode === "ttp" && (
-        <div className="flex flex-col gap-2 overflow-y-auto flex-1">
+        <div className="flex flex-col gap-2 flex-1 min-h-0">
+          {/* Tactic filter */}
+          <div className="flex flex-wrap gap-1.5 shrink-0">
+            <button
+              onClick={() => setTacticFilter(null)}
+              className={`text-[10px] px-2.5 py-1 rounded-full font-semibold transition-all ${
+                tacticFilter === null ? "bg-brand text-white" : "bg-gray-800 text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              Tous ({ttpsToShow.length})
+            </button>
+            {uniqueTactics.map(tactic => {
+              const color = TACTIC_COLORS[tactic] ?? "text-gray-400 bg-gray-800/40";
+              const count = ttpsToShow.filter(t => t.tactic === tactic).length;
+              return (
+                <button
+                  key={tactic}
+                  onClick={() => setTacticFilter(tacticFilter === tactic ? null : tactic)}
+                  className={`text-[10px] px-2.5 py-1 rounded-full font-semibold transition-all ${
+                    tacticFilter === tactic ? color + " ring-1 ring-current" : "bg-gray-800 text-gray-500 hover:text-gray-300"
+                  }`}
+                >
+                  {tactic} ({count})
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex flex-col gap-2 overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-700 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin] [scrollbar-color:#374151_transparent]">
           {filteredTTPs.length === 0 && (
             <p className="text-sm text-gray-600 text-center py-8">Aucun TTP trouvé</p>
           )}
@@ -358,6 +386,7 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
               </button>
             );
           })}
+          </div>
         </div>
       )}
     </div>
