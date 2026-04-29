@@ -1,9 +1,11 @@
 "use client";
 
-import { Search, Bell, ChevronDown } from "lucide-react";
-import Image from "next/image";
+import { Search, Bell } from "lucide-react";
+import { useAuth } from "@/app/context/AuthContext";
 
 export default function Topbar() {
+  const { user } = useAuth();
+
   return (
     <header className="fixed top-0 left-60 right-0 h-14 bg-gray-950/95 backdrop-blur-sm border-b border-gray-800/60 flex items-center px-6 gap-4 z-10">
       {/* Workspace label */}
@@ -33,15 +35,17 @@ export default function Topbar() {
           <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full" />
         </button>
 
-        {/* User avatar */}
-        <div className="flex items-center gap-2.5 pl-3 border-l border-gray-800">
-          <div className="flex flex-col items-end">
-            <span className="text-sm text-white font-semibold -mt-0.5">John Doe</span>
+        {/* User info */}
+        {user && (
+          <div className="flex items-center gap-2.5 pl-3 border-l border-gray-800">
+            <div className="flex flex-col items-end">
+              <span className="text-sm text-white font-semibold -mt-0.5">{user.name}</span>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-linear-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white text-sm font-bold ring-2 ring-gray-800">
+              {user.avatar}
+            </div>
           </div>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white text-sm font-bold ring-2 ring-gray-800">
-            JD
-          </div>
-        </div>
+        )}
       </div>
     </header>
   );
