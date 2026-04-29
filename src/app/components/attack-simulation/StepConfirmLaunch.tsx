@@ -55,6 +55,7 @@ export default function StepConfirmLaunch({ asset, step2 }: Props) {
  
   const handleLaunch = () => {
     if (!asset || selectedTTPs.length === 0) return;
+    localStorage.setItem("cyberlab_attack_launch", new Date().toISOString());
     setLaunched(true);
     setRunning(true);
     setLines([]);

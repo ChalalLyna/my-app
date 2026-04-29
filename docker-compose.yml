@@ -11,6 +11,10 @@ services:
       - DB_PASSWORD=${MYSQL_PASSWORD}
       - CALDERA_URL=${CALDERA_URL}
       - CALDERA_API_KEY=${CALDERA_API_KEY}
+      - WAZUH_URL=${WAZUH_URL}
+      - WAZUH_USER=${WAZUH_USER}
+      - WAZUH_PASSWORD=${WAZUH_PASSWORD}
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
     depends_on:
       mysql:
         condition: service_healthy
