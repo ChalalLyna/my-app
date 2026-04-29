@@ -13,6 +13,11 @@ export interface DetectionAlert {
   timestamp: string;
   source: string;
   rawLog: string;
+  // enriched Wazuh fields
+  ruleLevel?: number;
+  agentId?: string;
+  agentIp?: string;
+  ruleFiredTimes?: number;
 }
 
 export const MOCK_ALERTS: DetectionAlert[] = [

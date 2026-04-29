@@ -85,13 +85,6 @@ export default function DetectionPage() {
                 Aucune simulation d'attaque n'a encore été lancée. Les alertes Wazuh apparaîtront ici après une simulation.
               </p>
             </div>
-            <button
-              onClick={() => router.push("/detection/rule-tuning")}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white text-sm font-semibold shadow-md shadow-brand/20 transition-all"
-            >
-              <Sliders size={15} />
-              Rule Tuning
-            </button>
           </div>
         </div>
       </DashboardLayout>

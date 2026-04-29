@@ -11,6 +11,16 @@ function mapAlert(hit: any) {
   const src = hit._source ?? {};
   const rule = src.rule ?? {};
   const agent = src.agent ?? {};
+  const groups: string[] = Array.isArray(rule.groups) ? rule.groups : (rule.groups ? [rule.groups] : []);
+
+  const rawLog = src.full_log
+    ? src.full_log
+    : JSON.stringify(
+        { rule: src.rule, agent: src.agent, data: src.data, manager: src.manager, decoder: src.decoder },
+        null,
+        2,
+      );
+
   return {
     id: hit._id,
     title: rule.description ?? "Unknown Alert",
@@ -18,11 +28,15 @@ function mapAlert(hit: any) {
     severity: levelToSeverity(rule.level ?? 0),
     status: "New" as const,
     ttp: `R:${rule.id ?? "?"}`,
-    ttpName: Array.isArray(rule.groups) ? rule.groups.join(", ") : (rule.groups ?? ""),
+    ttpName: groups.join(", "),
     asset: agent.name ?? agent.ip ?? "unknown",
     timestamp: src["@timestamp"] ?? new Date().toISOString(),
     source: src.decoder?.name ?? "Wazuh",
-    rawLog: src.full_log ?? JSON.stringify(src.data ?? src, null, 2),
+    rawLog,
+    ruleLevel: rule.level as number | undefined,
+    agentId: agent.id as string | undefined,
+    agentIp: agent.ip as string | undefined,
+    ruleFiredTimes: rule.firedtimes as number | undefined,
   };
 }
 
