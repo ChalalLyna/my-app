@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import HelpPanel from "@/app/components/HelpPanel";
 import { RULE_TUNING_HELP } from "@/app/config/helpContent";
@@ -136,6 +136,8 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
   const [level,       setLevel]       = useState(rule?.level ?? 7);
   const [groups,      setGroups]      = useState(rule?.groups.join(", ") ?? "cyberlab");
 
+  const preRef = useRef<HTMLPreElement>(null);
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800/60 shrink-0">
@@ -238,14 +240,23 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
             <div className="px-3 py-1 rounded-md bg-gray-800 text-xs text-gray-300 font-mono">rule.xml</div>
           </div>
           <div className="flex-1 relative overflow-hidden">
-            <pre className="absolute inset-0 p-4 font-mono text-xs leading-relaxed overflow-auto pointer-events-none select-none">
+            <pre
+              ref={preRef}
+              className="absolute inset-0 p-4 font-mono text-xs leading-relaxed overflow-hidden pointer-events-none select-none"
+            >
               {renderXml(xml)}
             </pre>
             <textarea
               value={xml}
               onChange={e => setXml(e.target.value)}
+              onScroll={e => {
+                if (preRef.current) {
+                  preRef.current.scrollTop  = e.currentTarget.scrollTop;
+                  preRef.current.scrollLeft = e.currentTarget.scrollLeft;
+                }
+              }}
               spellCheck={false}
-              className="absolute inset-0 w-full h-full bg-transparent text-transparent caret-white font-mono text-xs leading-relaxed p-4 resize-none focus:outline-none selection:bg-brand/30"
+              className="absolute inset-0 w-full h-full bg-transparent text-transparent caret-white font-mono text-xs leading-relaxed p-4 resize-none focus:outline-none selection:bg-brand/30 overflow-auto"
               style={{ caretColor: "#a5b4fc" }}
             />
           </div>
@@ -370,8 +381,9 @@ function CtiModal({ onClose }: { onClose: () => void }) {
 
 export default function RuleTuningPage() {
   const { user } = useAuth();
-  const router   = useRouter();
-  const isApprenant = user?.role === "apprenant";
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const isApprenant  = user?.role === "apprenant";
 
   const [rules,          setRules]          = useState<WazuhRule[]>([]);
   const [loading,        setLoading]        = useState(false);
@@ -405,37 +417,40 @@ export default function RuleTuningPage() {
     }
   }, []);
 
-  // Read URL params on mount
+  // Sync search param from URL on mount
   useEffect(() => {
-    const url    = new URL(window.location.href);
-    const s      = url.searchParams.get("search");
-    const editId = url.searchParams.get("editRule");
+    const s = searchParams.get("search");
     if (s) setSearch(s);
-    if (editId) {
-      (async () => {
-        try {
-          const res  = await fetch(`/api/wazuh/rules/${encodeURIComponent(editId)}`);
-          const data = await res.json();
-          if (res.ok) {
-            setSaveError(null);
-            setEditorTarget({
-              id:              data.id,
-              wazuhId:         data.wazuhId,
-              name:            data.name,
-              description:     data.description,
-              level:           data.level,
-              severity:        data.severity,
-              status:          data.status,
-              groups:          data.groups,
-              filename:        data.filename,
-              relativeDirname: data.relativeDirname,
-              xml:             data.xml ?? XML_TEMPLATE,
-            });
-          }
-        } catch { /* silently ignore, user can search */ }
-      })();
-    }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Open editor when ?editRule=id is present — reactive so it works even if
+  // the component stays mounted across navigations (Next.js App Router)
+  const editId = searchParams.get("editRule");
+  useEffect(() => {
+    if (!editId) return;
+    (async () => {
+      try {
+        const res  = await fetch(`/api/wazuh/rules/${encodeURIComponent(editId)}`);
+        const data = await res.json();
+        if (res.ok) {
+          setSaveError(null);
+          setEditorTarget({
+            id:              data.id,
+            wazuhId:         data.wazuhId,
+            name:            data.name,
+            description:     data.description,
+            level:           data.level,
+            severity:        data.severity,
+            status:          data.status,
+            groups:          data.groups,
+            filename:        data.filename,
+            relativeDirname: data.relativeDirname,
+            xml:             data.xml ?? XML_TEMPLATE,
+          });
+        }
+      } catch { /* silently ignore */ }
+    })();
+  }, [editId]);
 
   // Debounced search → fetch
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
