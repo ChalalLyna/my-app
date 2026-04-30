@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import InvestigateModal from "@/app/components/detection/InvestigateModal";
+import RuleModal from "@/app/components/detection/RuleModal";
 import { DetectionAlert } from "@/app/data/alerts";
 import {
   Shield, AlertTriangle, Activity, RefreshCw, Sliders,
@@ -26,6 +27,7 @@ export default function DetectionPage() {
   // undefined = localStorage not yet read, null = no timestamp, string = has timestamp
   const [launchTimestamp, setLaunchTimestamp] = useState<string | null | undefined>(undefined);
   const [selectedAlert, setSelectedAlert] = useState<DetectionAlert | null>(null);
+  const [ruleAlert, setRuleAlert]           = useState<DetectionAlert | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [severityFilter, setSeverityFilter] = useState("all");
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
@@ -238,7 +240,7 @@ export default function DetectionPage() {
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-32 shrink-0">Agent</span>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-24 shrink-0">Règle</span>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-36 shrink-0">Timestamp</span>
-                <span className="w-24 shrink-0" />
+                <span className="w-48 shrink-0" />
               </div>
 
               {/* Rows */}
@@ -289,8 +291,18 @@ export default function DetectionPage() {
                           <span className="text-xs text-gray-400">{date}</span>
                         </div>
 
-                        <div className="w-24 shrink-0 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button className="px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-xs font-medium transition-all">
+                        {/* Actions — two buttons */}
+                        <div className="w-48 shrink-0 flex justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={e => { e.stopPropagation(); setRuleAlert(alert); }}
+                            className="px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-xs font-medium transition-all"
+                          >
+                            Voir règle
+                          </button>
+                          <button
+                            onClick={e => { e.stopPropagation(); setSelectedAlert(alert); }}
+                            className="px-2.5 py-1.5 rounded-lg bg-brand/20 hover:bg-brand/30 border border-brand/30 text-brand text-xs font-medium transition-all"
+                          >
                             Investiguer
                           </button>
                         </div>
@@ -306,6 +318,9 @@ export default function DetectionPage() {
 
       {selectedAlert && (
         <InvestigateModal alert={selectedAlert} onClose={() => setSelectedAlert(null)} />
+      )}
+      {ruleAlert && (
+        <RuleModal alert={ruleAlert} onClose={() => setRuleAlert(null)} />
       )}
     </DashboardLayout>
   );

@@ -1,5 +1,20 @@
 export type RuleSeverity = "Critical" | "High" | "Medium" | "Low";
 export type RuleStatus = "active" | "inactive";
+
+// Wazuh native rule (from Wazuh Manager API)
+export interface WazuhRule {
+  id: string;
+  wazuhId: number;
+  name: string;
+  description: string;
+  level: number;
+  severity: RuleSeverity;
+  status: RuleStatus;
+  groups: string[];
+  filename: string;
+  relativeDirname: string;
+  xml?: string;
+}
  
 export interface DetectionRule {
   id: string;
@@ -214,6 +229,16 @@ level: critical
   },
 ];
  
+export const XML_TEMPLATE = `<!-- CyberLab Custom Rule -->
+<!-- Les IDs custom doivent être entre 100000 et 199999 -->
+<group name="cyberlab,">
+  <rule id="100001" level="7">
+    <description>Nouvelle règle de détection CyberLab</description>
+    <group>cyberlab,</group>
+  </rule>
+</group>
+`;
+
 export const YAML_TEMPLATE = `title: Nouvelle Règle de Détection
 id: R006
 status: experimental
