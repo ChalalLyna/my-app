@@ -117,19 +117,13 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
     // Check live agents for every selected asset IP
     let cancelled = false;
     (async () => {
-  const aliveAgents = await fetchAliveAgents(); // ✅ ADD THIS BACK
-
-  const allAlive = assets.every((a) => {
-    const ip = a.ip;
-    if (!ip) return false;
-
-    return aliveAgents.some((ag) =>
-      (ag.host_ip_addrs as string[]).includes(ip)
-    );
-  });
-
-  setCheck((prev) => ({ ...prev, agentsAlive: allAlive }));
-})();
+      const aliveAgents = await fetchAliveAgents();
+      if (cancelled) return;
+      const allAlive = assets.every((a) =>
+        a.ip && aliveAgents.some((ag) => (ag.host_ip_addrs as string[]).includes(a.ip!))
+      );
+      setCheck((prev) => ({ ...prev, agentsAlive: allAlive }));
+    })();
 
     return () => { cancelled = true; };
   }, [assets, selectedTTPs]);
@@ -249,6 +243,8 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
       log("info",   "[*] Phase 3 — Matching agents & launching operations");
 
       const opIds: string[] = [];
+      // VMs that had to boot → agent needs more time to appear
+      const bootedVmids = new Set(needBoot.map((v) => v.vmid));
 
       for (const asset of assets) {
         log("system", `─── ${asset.name} : ${asset.nomMachine} ${"─".repeat(Math.max(0, 30 - asset.name.length))}`);
@@ -261,30 +257,43 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
         }
         log("info", `[*] Target IP (from DB) : ${targetIp}`);
 
-        // Wait for alive agent (up to 60s — agent appears quickly once VM is up)
-        log("info", "[*] Searching for alive Caldera agent...");
-        const agentFound = await waitAgentAlive(targetIp, 60_000);
+        // Bug 1 fix: if this VM had to boot, give the agent more time (150s vs 30s)
+        const justBooted = asset.vmidProxmox && bootedVmids.has(asset.vmidProxmox);
+        const agentWaitMs = justBooted ? 150_000 : 30_000;
+        log("info", `[*] Searching for alive Caldera agent (timeout=${agentWaitMs / 1000}s)...`);
+
+        const agentFound = await waitAgentAlive(targetIp, agentWaitMs);
         if (!agentFound) {
           const alive = (await fetchAliveAgents()).map((a) => a.host).join(", ") || "none";
-          log("error", `[✗] No alive agent at ${targetIp} after 60s — alive agents: ${alive}`);
+          log("error", `[✗] No alive agent at ${targetIp} after ${agentWaitMs / 1000}s — alive agents: ${alive}`);
           continue;
         }
 
-        // Re-fetch to get paw & group
+        // Re-fetch to get paw
         const aliveAgents = await fetchAliveAgents();
         const agent = aliveAgents.find((a) =>
           (a.host_ip_addrs as string[]).includes(targetIp)
         );
-        log("success", `[+] Agent : ${agent!.host} | paw=${agent!.paw} | group=${agent!.group || "(default)"}`);
+        log("success", `[+] Agent : ${agent!.host} | paw=${agent!.paw}`);
 
-        // Launch Caldera operation
+        // Bug 2 fix: use a unique per-paw group to avoid targeting all alive agents.
+        // We assign the agent to a dedicated group, then target that group.
+        const dedicatedGroup = `cyberlab-${asset.id}-${Date.now()}`;
+        log("info", `[*] Assigning agent ${agent!.paw} to group '${dedicatedGroup}'...`);
+        await fetch("/api/caldera/agents", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paw: agent!.paw, group: dedicatedGroup }),
+        });
+
+        // Launch Caldera operation targeting the dedicated group
         const opRes = await fetch("/api/caldera/operations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name:      `attack-${asset.name}-${Date.now()}`,
             adversary: { adversary_id: adversaryId },
-            group:     agent!.group || "",
+            group:     dedicatedGroup,
             planner:   { id: "atomic" },
             state:     "running",
           }),
@@ -323,20 +332,25 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
 
             for (const link of (result.chain ?? []) as any[]) {
               const key = `${opId}:${link.id}`;
-              if (shownLinks.has(key) || link.status === -2) continue;
-              shownLinks.add(key);
+              // Bug 3 fix: skip queued/pending links (-2 = discarded, 1 = running, -3 = queued)
+              // Only show & mark as done when link is in a final state: 0 (success) or -1 (failed)
+              const isFinal = link.status === 0 || link.status === -1;
+              if (shownLinks.has(key) || !isFinal) continue;
+              shownLinks.add(key); // mark only once final
 
               const techId = link.ability?.technique_id ?? "";
               const name   = link.ability?.name ?? "Unknown ability";
               const label  = techId ? `${techId} — ${name}` : name;
 
               if (link.status === 0) {
-                setLines((prev) => [...prev, { type: "run",     text: `[→] ${label}` }]);
-                const raw = link.output ? atob(link.output).trim() : "";
+                setLines((prev) => [...prev, { type: "run", text: `[→] ${label}` }]);
+                // output is base64-encoded by Caldera
+                let raw = "";
+                try { raw = link.output ? atob(link.output).trim() : ""; } catch { raw = ""; }
                 setLines((prev) => [...prev, {
                   type: "success",
                   text: raw
-                    ? `    [✓] ${raw.slice(0, 300)}${raw.length > 300 ? "…" : ""}`
+                    ? `    [✓] ${raw.slice(0, 400)}${raw.length > 400 ? "…" : ""}`
                     : "    [✓] Completed",
                 }]);
               } else if (link.status === -1) {
