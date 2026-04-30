@@ -1,6 +1,6 @@
 "use client";
  
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import HelpPanel from "@/app/components/HelpPanel";
@@ -383,7 +383,7 @@ function CtiModal({ onClose }: { onClose: () => void }) {
  
 // ─── Main page ────────────────────────────────────────────────────────────────
  
-export default function RuleTuningPage() {
+function RuleTuningPageInner() {
   const { user } = useAuth();
   const router       = useRouter();
   const searchParams = useSearchParams();
@@ -769,5 +769,13 @@ export default function RuleTuningPage() {
         />
       )}
     </DashboardLayout>
+  );
+}
+ 
+export default function RuleTuningPage() {
+  return (
+    <Suspense>
+      <RuleTuningPageInner />
+    </Suspense>
   );
 }
