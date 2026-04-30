@@ -239,10 +239,12 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
           <div className="flex items-center gap-1 px-4 py-2 border-b border-gray-800/40 bg-gray-900/60 shrink-0">
             <div className="px-3 py-1 rounded-md bg-gray-800 text-xs text-gray-300 font-mono">rule.xml</div>
           </div>
-          <div className="flex-1 relative overflow-hidden">
+          <div className="flex-1 relative" style={{ isolation: "isolate" }}>
             <pre
               ref={preRef}
-              className="absolute inset-0 p-4 font-mono text-xs leading-relaxed overflow-auto pointer-events-none select-none"
+              aria-hidden="true"
+              className="absolute inset-0 m-0 p-4 font-mono text-xs leading-relaxed overflow-auto pointer-events-none select-none"
+              style={{ zIndex: 1 }}
             >
               {renderXml(xml)}
             </pre>
@@ -256,8 +258,16 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
                 }
               }}
               spellCheck={false}
-              className="absolute inset-0 z-10 w-full h-full bg-transparent text-transparent caret-white font-mono text-xs leading-relaxed p-4 resize-none focus:outline-none selection:bg-brand/30 overflow-auto"
-              style={{ caretColor: "#a5b4fc" }}
+              autoCorrect="off"
+              autoCapitalize="off"
+              className="absolute inset-0 m-0 w-full h-full p-4 font-mono text-xs leading-relaxed resize-none focus:outline-none overflow-auto"
+              style={{
+                zIndex: 2,
+                background: "transparent",
+                color: "transparent",
+                caretColor: "#a5b4fc",
+                WebkitTextFillColor: "transparent",
+              }}
             />
           </div>
         </div>
