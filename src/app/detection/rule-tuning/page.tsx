@@ -658,6 +658,7 @@ export default function RuleTuningPage() {
         <div className={`bg-gray-900 border border-gray-800/60 rounded-2xl overflow-hidden flex-1 flex flex-col ${isEditorOpen ? "min-h-150" : ""}`}>
           {isEditorOpen ? (
             <EditorPanel
+              key={editorTarget?.id ?? "new"}
               rule={editorTarget}
               onSave={handleSave}
               onCancel={() => { setEditorTarget(undefined); setSaveError(null); }}
