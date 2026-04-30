@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Asset, Adversary, TTP } from "@/app/types/simulation";
-import { Monitor, Cpu, Wifi, Shield, Target, Hash, Layers, User, Tag, Loader2 } from "lucide-react";
+import { Monitor, Cpu, Wifi, Target, Hash, Layers, User, Tag, Loader2 } from "lucide-react";
 import { Step2Selection } from "./StepSelectAdversary";
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
@@ -25,34 +25,28 @@ const TACTIC_COLORS: Record<string, string> = {
 
 interface Props {
   currentStep: number;
-  asset: Asset | null;
+  assets: Asset[];
   step2: Step2Selection;
 }
 
 // ─── AssetPanel ───────────────────────────────────────────────────────────────
 
 function AssetPanel({ asset }: { asset: Asset }) {
-  const [proxmoxIp, setProxmoxIp]   = useState<string | null>(null);
-  const [proxmoxMac, setProxmoxMac] = useState<string | null>(null);
-  const [ipLoading, setIpLoading]   = useState(false);
+  const [proxmoxIp, setProxmoxIp] = useState<string | null>(null);
+  const [ipLoading, setIpLoading] = useState(false);
 
   useEffect(() => {
     if (!asset.vmidProxmox) return;
     setIpLoading(true);
     setProxmoxIp(null);
-    setProxmoxMac(null);
     fetch(`/api/proxmox/vm-ip?vmid=${asset.vmidProxmox}`)
       .then((r) => r.json())
-      .then((data) => {
-        if (data.ip)  setProxmoxIp(data.ip);
-        if (data.mac) setProxmoxMac(data.mac);
-      })
+      .then((data) => { if (data.ip) setProxmoxIp(data.ip); })
       .catch(() => {})
       .finally(() => setIpLoading(false));
   }, [asset.vmidProxmox]);
 
-  const displayIp  = proxmoxIp  ?? asset.ip  ?? "—";
-  const displayMac = proxmoxMac ?? "—";
+  const displayIp = proxmoxIp ?? asset.ip ?? "—";
 
   return (
     <div className="flex flex-col gap-4 animate-in fade-in duration-200">
@@ -63,9 +57,6 @@ function AssetPanel({ asset }: { asset: Asset }) {
           <p className="text-white font-bold text-sm truncate">{asset.name}</p>
         </div>
         <p className="text-gray-500 text-xs">{asset.os}</p>
-        <p className={`text-xs font-semibold mt-1 ${asset.status === "Online" ? "text-emerald-400" : "text-gray-600"}`}>
-          ● {asset.status}
-        </p>
       </div>
 
       {/* Category + Description */}
@@ -85,28 +76,21 @@ function AssetPanel({ asset }: { asset: Asset }) {
         </div>
       )}
 
-      {/* Network */}
+      {/* Network — IP only */}
       <div>
         <div className="flex items-center gap-1.5 mb-2">
           <Wifi size={11} className="text-gray-600" />
           <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-600">Network</p>
           {ipLoading && <Loader2 size={9} className="text-gray-600 animate-spin ml-auto" />}
         </div>
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-xs">
-            <span className="text-gray-600">IP</span>
-            <span className="text-gray-300 font-mono font-medium text-[11px]">
-              {ipLoading && !proxmoxIp ? (
-                <span className="text-gray-600 italic">loading…</span>
-              ) : (
-                displayIp
-              )}
-            </span>
-          </div>
-          <div className="flex justify-between text-xs">
-            <span className="text-gray-600">MAC</span>
-            <span className="text-gray-400 font-mono text-[10px]">{displayMac}</span>
-          </div>
+        <div className="flex justify-between text-xs">
+          <span className="text-gray-600">IP</span>
+          <span className="text-gray-300 font-mono font-medium text-[11px]">
+            {ipLoading && !proxmoxIp
+              ? <span className="text-gray-600 italic">loading…</span>
+              : displayIp
+            }
+          </span>
         </div>
       </div>
 
@@ -139,23 +123,6 @@ function AssetPanel({ asset }: { asset: Asset }) {
           </div>
         </div>
       )}
-
-      {/* Security posture */}
-      <div>
-        <div className="flex items-center gap-1.5 mb-2">
-          <Shield size={11} className="text-gray-600" />
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-600">Posture</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-linear-to-r from-brand to-indigo-400 rounded-full"
-              style={{ width: asset.status === "Online" ? "72%" : "0%" }}
-            />
-          </div>
-          <span className="text-xs text-gray-400 font-semibold">{asset.status === "Online" ? "72%" : "—"}</span>
-        </div>
-      </div>
     </div>
   );
 }
@@ -265,24 +232,45 @@ function TTPsOnlyPanel({ selectedTTPs }: { selectedTTPs: TTP[] }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function DetailsPanel({ currentStep, asset, step2 }: Props) {
+export default function DetailsPanel({ currentStep, assets, step2 }: Props) {
   const { adversary, selectedTTPs } = step2;
 
   let title = "Asset Details";
   let content: React.ReactNode;
 
   if (currentStep === 1) {
-    title = "Asset Details";
-    content = asset ? (
-      <AssetPanel asset={asset} />
-    ) : (
-      <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center">
-        <div className="w-12 h-12 rounded-xl bg-gray-800/60 flex items-center justify-center">
-          <Monitor size={20} className="text-gray-700" />
+    if (assets.length === 0) {
+      title = "Asset Details";
+      content = (
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center">
+          <div className="w-12 h-12 rounded-xl bg-gray-800/60 flex items-center justify-center">
+            <Monitor size={20} className="text-gray-700" />
+          </div>
+          <p className="text-xs text-gray-600 leading-relaxed">Sélectionnez un actif pour voir ses détails</p>
         </div>
-        <p className="text-xs text-gray-600 leading-relaxed">Sélectionnez un actif pour voir ses détails</p>
-      </div>
-    );
+      );
+    } else if (assets.length === 1) {
+      title = "Asset Details";
+      content = <AssetPanel asset={assets[0]} />;
+    } else {
+      title = `${assets.length} Assets sélectionnés`;
+      content = (
+        <div className="flex flex-col gap-2 animate-in fade-in duration-200">
+          {assets.map((a) => (
+            <div key={a.id} className="flex items-start gap-2 bg-gray-800/60 rounded-xl p-2.5">
+              <Monitor size={12} className="text-brand mt-0.5 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-white text-xs font-semibold truncate">{a.name}</p>
+                <p className="text-gray-500 text-[10px]">{a.os}</p>
+                {a.category && (
+                  <span className="text-[9px] text-brand bg-brand/10 px-1 py-0.5 rounded font-medium">{a.category}</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
   } else if (currentStep === 2) {
     if (adversary) {
       title = "Adversary Details";
@@ -295,18 +283,19 @@ export default function DetailsPanel({ currentStep, asset, step2 }: Props) {
     title = "Résumé";
     content = (
       <div className="flex flex-col gap-3 animate-in fade-in duration-200">
-        {asset && (
-          <div className="bg-gray-800/50 rounded-xl p-3">
-            <p className="text-[10px] text-gray-600 uppercase tracking-widest mb-1">Cible</p>
-            <p className="text-white font-bold text-sm">{asset.name}</p>
-            <p className="text-gray-500 text-xs">{asset.os}</p>
-            {asset.category && (
-              <span className="text-[10px] text-brand font-semibold bg-brand/10 px-1.5 py-0.5 rounded mt-1 inline-block">
-                {asset.category}
-              </span>
-            )}
+        <div className="bg-gray-800/50 rounded-xl p-3">
+          <p className="text-[10px] text-gray-600 uppercase tracking-widest mb-2">
+            Cible{assets.length > 1 ? "s" : ""} ({assets.length})
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {assets.map((a) => (
+              <div key={a.id}>
+                <p className="text-white font-bold text-xs">{a.name}</p>
+                <p className="text-gray-500 text-[10px]">{a.os}</p>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
         {adversary && (
           <div className="bg-gray-800/50 rounded-xl p-3">
             <p className="text-[10px] text-gray-600 uppercase tracking-widest mb-1">Adversaire</p>

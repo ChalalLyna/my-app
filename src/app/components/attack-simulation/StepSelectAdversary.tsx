@@ -91,37 +91,42 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
         const calderaAdversaries: any[] = await adversariesRes.json();
         const calderaAbilities: any[] = await abilitiesRes.json();
 
-        // Build technique_id → TTP map, collecting all ability_ids per technique
+        // Build ability_id → TTP map (keyed by ability_id so adversary lookup works)
         const abilityMap = new Map<string, TTP>();
+        // Track all ability_ids per technique for operation creation in manual TTP mode
+        const techAbilityIds = new Map<string, string[]>();
+
         for (const ab of calderaAbilities) {
           if (!ab.ability_id) continue;
-          const key = ab.technique_id || ab.ability_id;
-          const existing = abilityMap.get(key);
-          if (existing) {
-            existing.calderaAbilityIds = [...(existing.calderaAbilityIds ?? []), ab.ability_id];
-          } else {
-            abilityMap.set(key, {
-              id:                key,
-              name:              ab.technique_name || ab.name || "Unknown",
-              tactic:            formatTactic(ab.tactic || ""),
-              description:       ab.description || "",
-              calderaAbilityIds: [ab.ability_id],
-            });
-          }
+          const techKey = ab.technique_id || ab.ability_id;
+          abilityMap.set(ab.ability_id, {
+            id:          techKey,
+            name:        ab.technique_name || ab.name || "Unknown",
+            tactic:      formatTactic(ab.tactic || ""),
+            description: ab.description || "",
+          });
+          techAbilityIds.set(techKey, [...(techAbilityIds.get(techKey) ?? []), ab.ability_id]);
         }
 
-        // Unique TTPs by technique_id (for TTP mode)
-        const uniqueTtps = deduplicateTTPs([...abilityMap.values()]);
+        // Unique TTPs by technique_id (for TTP mode) — attach calderaAbilityIds
+        const uniqueTtps = deduplicateTTPs([...abilityMap.values()]).map(ttp => ({
+          ...ttp,
+          calderaAbilityIds: techAbilityIds.get(ttp.id) ?? [],
+        }));
         setAllTtps(uniqueTtps);
 
-        // Map adversaries
+        // Map adversaries — abilityMap keyed by ability_id, matching atomic_ordering UUIDs
         const mapped: Adversary[] = calderaAdversaries
           .filter(adv => adv.atomic_ordering?.length > 0)
           .map(adv => {
             const ttps = deduplicateTTPs(
               (adv.atomic_ordering as string[])
-                .map(aid => abilityMap.get(aid))
-                .filter((t): t is TTP => !!t)
+                .map(aid => {
+                  const ttp = abilityMap.get(aid);
+                  if (!ttp) return null;
+                  return { ...ttp, calderaAbilityIds: techAbilityIds.get(ttp.id) ?? [aid] } as TTP;
+                })
+                .filter((t): t is TTP => t !== null)
             );
             return {
               id:          adv.adversary_id,

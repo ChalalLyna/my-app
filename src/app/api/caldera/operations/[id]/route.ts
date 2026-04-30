@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(_req: NextRequest, ctx: RouteContext<"/api/caldera/operations/[id]">) {
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const { id } = await ctx.params;
+    const { id } = await params;
     const res = await fetch(`${process.env.CALDERA_URL}/api/v2/operations/${id}`, {
       headers: { KEY: process.env.CALDERA_API_KEY! },
       cache: "no-store",

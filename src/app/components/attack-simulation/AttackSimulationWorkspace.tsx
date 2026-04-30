@@ -23,27 +23,35 @@ export default function AttackSimulationWorkspace() {
   const isApprenant = user?.role === "apprenant";
  
   const [currentStep, setCurrentStep] = useState(1);
-  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [selectedAssets, setSelectedAssets] = useState<Asset[]>([]);
   const [step2, setStep2] = useState<Step2Selection>({ adversary: null, selectedTTPs: [] });
- 
+
   const canProceed = () => {
-    if (currentStep === 1) return selectedAsset !== null;
+    if (currentStep === 1) return selectedAssets.length > 0;
     if (currentStep === 2) return step2.selectedTTPs.length > 0;
     return false;
   };
- 
+
   const handleProceed = () => {
     if (currentStep < 3) setCurrentStep((s) => s + 1);
   };
- 
+
   const handleBack = () => {
     if (currentStep > 1) setCurrentStep((s) => s - 1);
   };
- 
+
   const handleReset = () => {
-    setSelectedAsset(null);
+    setSelectedAssets([]);
     setStep2({ adversary: null, selectedTTPs: [] });
     setCurrentStep(1);
+  };
+
+  const handleToggleAsset = (asset: Asset) => {
+    setSelectedAssets((prev) =>
+      prev.some((a) => a.id === asset.id)
+        ? prev.filter((a) => a.id !== asset.id)
+        : [...prev, asset]
+    );
   };
  
   return (
@@ -79,7 +87,7 @@ export default function AttackSimulationWorkspace() {
                       : "bg-gray-800/40 border-2 border-gray-800 text-gray-600 cursor-not-allowed"
                     }`}
                   >
-                    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
                       isActive ? "bg-brand text-white" : isCompleted ? "bg-gray-600 text-white" : "bg-gray-700 text-gray-500"
                     }`}>
                       {step.id}
@@ -97,8 +105,8 @@ export default function AttackSimulationWorkspace() {
               <div className="flex-1 bg-gray-900 border border-gray-800/60 rounded-2xl p-6 flex flex-col min-h-0">
                 {currentStep === 1 && (
                   <StepSelectAsset
-                    selectedAsset={selectedAsset}
-                    onSelectAsset={setSelectedAsset}
+                    selectedAssets={selectedAssets}
+                    onToggleAsset={handleToggleAsset}
                   />
                 )}
                 {currentStep === 2 && (
@@ -109,14 +117,14 @@ export default function AttackSimulationWorkspace() {
                 )}
                 {currentStep === 3 && (
                   <StepConfirmLaunch
-                    asset={selectedAsset}
+                    assets={selectedAssets}
                     step2={step2}
                   />
                 )}
  
                 {/* Footer buttons — hidden in step 3 (launch button is inside StepConfirmLaunch) */}
                 {currentStep < 3 && (
-                  <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-800/60 flex-shrink-0">
+                  <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-800/60 shrink-0">
                     <button
                       onClick={handleReset}
                       className="px-5 py-2.5 rounded-lg border border-gray-700 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
@@ -150,7 +158,7 @@ export default function AttackSimulationWorkspace() {
  
                 {/* Reset button for step 3 */}
                 {currentStep === 3 && (
-                  <div className="mt-4 pt-4 border-t border-gray-800/60 flex-shrink-0">
+                  <div className="mt-4 pt-4 border-t border-gray-800/60 shrink-0">
                     <div className="flex gap-3">
                       <button
                         onClick={handleBack}
@@ -172,7 +180,7 @@ export default function AttackSimulationWorkspace() {
               {/* Dynamic details panel */}
               <DetailsPanel
                 currentStep={currentStep}
-                asset={selectedAsset}
+                assets={selectedAssets}
                 step2={step2}
               />
             </div>
