@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { X, Terminal, Shield, Clock, Monitor, Hash, Wifi, RefreshCw, Tag, Server } from "lucide-react";
-import { DetectionAlert } from "@/app/data/alerts";
+import { DetectionAlert, AlertStatus } from "@/app/data/alerts";
 
 const SEVERITY_STYLES: Record<string, { text: string; bg: string; border: string }> = {
   Critical: { text: "text-red-400",    bg: "bg-red-900/20",    border: "border-red-800/50" },
@@ -14,21 +14,24 @@ const SEVERITY_STYLES: Record<string, { text: string; bg: string; border: string
 interface Props {
   alert: DetectionAlert;
   onClose: () => void;
+  onStatusChange?: (alertId: string, status: AlertStatus) => void;
 }
 
-export default function InvestigateModal({ alert, onClose }: Props) {
-  const sev = SEVERITY_STYLES[alert.severity];
+export default function InvestigateModal({ alert, onClose, onStatusChange }: Props) {
+  const sev  = SEVERITY_STYLES[alert.severity];
   const date = new Date(alert.timestamp).toLocaleString("fr-FR");
+
+  const [status, setStatus] = useState<AlertStatus>(alert.status);
+
+  const changeStatus = (next: AlertStatus) => {
+    setStatus(next);
+    onStatusChange?.(alert.id, next);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Modal */}
       <div className="relative w-full max-w-2xl mx-4 bg-gray-950 border border-gray-800/60 rounded-2xl shadow-2xl shadow-black/60 flex flex-col max-h-[90vh]">
 
         {/* Header */}
@@ -53,17 +56,17 @@ export default function InvestigateModal({ alert, onClose }: Props) {
         {/* Body */}
         <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
 
-          {/* Meta grid — all available fields */}
+          {/* Meta grid */}
           <div className="grid grid-cols-2 gap-2.5">
             {([
-              { icon: Monitor,   label: "Agent",          value: alert.asset },
-              { icon: Wifi,      label: "Agent IP",        value: alert.agentIp ?? "—" },
-              { icon: Hash,      label: "Rule ID",         value: alert.ttp },
-              { icon: Tag,       label: "Catégories",      value: alert.ttpName || "—" },
-              { icon: Shield,    label: "Niveau",          value: alert.ruleLevel != null ? `Level ${alert.ruleLevel}` : "—" },
-              { icon: RefreshCw, label: "Déclenchements",  value: alert.ruleFiredTimes != null ? `${alert.ruleFiredTimes}×` : "—" },
-              { icon: Clock,     label: "Timestamp",       value: date },
-              { icon: Server,    label: "Décodeur",        value: alert.source },
+              { icon: Monitor,   label: "Agent",         value: alert.asset },
+              { icon: Wifi,      label: "Agent IP",       value: alert.agentIp ?? "—" },
+              { icon: Hash,      label: "Rule ID",        value: alert.ttp },
+              { icon: Tag,       label: "Catégories",     value: alert.ttpName || "—" },
+              { icon: Shield,    label: "Niveau",         value: alert.ruleLevel != null ? `Level ${alert.ruleLevel}` : "—" },
+              { icon: RefreshCw, label: "Déclenchements", value: alert.ruleFiredTimes != null ? `${alert.ruleFiredTimes}×` : "—" },
+              { icon: Clock,     label: "Timestamp",      value: date },
+              { icon: Server,    label: "Décodeur",       value: alert.source },
             ] as { icon: React.ElementType; label: string; value: string }[]).map(({ icon: Icon, label, value }) => (
               <div key={label} className="bg-gray-900 border border-gray-800/50 rounded-xl p-3">
                 <div className="flex items-center gap-1.5 mb-1">
@@ -75,7 +78,7 @@ export default function InvestigateModal({ alert, onClose }: Props) {
             ))}
           </div>
 
-          {/* Agent ID if available */}
+          {/* Agent ID */}
           {alert.agentId && (
             <div className="flex items-center gap-2 text-xs text-gray-600">
               <span className="font-semibold uppercase tracking-widest">Agent ID</span>
@@ -83,15 +86,15 @@ export default function InvestigateModal({ alert, onClose }: Props) {
             </div>
           )}
 
-          {/* Status */}
+          {/* Status — live */}
           <div className="flex items-center gap-3">
             <p className="text-xs font-semibold uppercase tracking-widest text-gray-600">Statut</p>
-            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-              alert.status === "New"           ? "bg-blue-900/30 text-blue-400 border border-blue-800/40" :
-              alert.status === "Investigating" ? "bg-amber-900/30 text-amber-400 border border-amber-800/40" :
-                                                "bg-emerald-900/30 text-emerald-400 border border-emerald-800/40"
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${
+              status === "New"           ? "bg-blue-900/30 text-blue-400 border-blue-800/40" :
+              status === "Investigating" ? "bg-amber-900/30 text-amber-400 border-amber-800/40" :
+                                          "bg-emerald-900/30 text-emerald-400 border-emerald-800/40"
             }`}>
-              {alert.status}
+              {status}
             </span>
           </div>
 
@@ -126,10 +129,26 @@ export default function InvestigateModal({ alert, onClose }: Props) {
             Fermer
           </button>
           <div className="flex gap-2">
-            <button className="px-4 py-2 rounded-lg bg-amber-600/20 border border-amber-700/40 text-amber-400 hover:bg-amber-600/30 text-sm font-semibold transition-colors">
+            <button
+              onClick={() => changeStatus("Investigating")}
+              disabled={status === "Investigating"}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors border ${
+                status === "Investigating"
+                  ? "bg-amber-900/30 border-amber-700/40 text-amber-400 opacity-60 cursor-not-allowed"
+                  : "bg-amber-600/20 border-amber-700/40 text-amber-400 hover:bg-amber-600/30"
+              }`}
+            >
               Marquer "Investigating"
             </button>
-            <button className="px-4 py-2 rounded-lg bg-emerald-600/20 border border-emerald-700/40 text-emerald-400 hover:bg-emerald-600/30 text-sm font-semibold transition-colors">
+            <button
+              onClick={() => { changeStatus("Resolved"); onClose(); }}
+              disabled={status === "Resolved"}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors border ${
+                status === "Resolved"
+                  ? "bg-emerald-600/20 border-emerald-700/40 text-emerald-400 opacity-60 cursor-not-allowed"
+                  : "bg-emerald-600/20 border-emerald-700/40 text-emerald-400 hover:bg-emerald-600/30"
+              }`}
+            >
               Résoudre
             </button>
           </div>

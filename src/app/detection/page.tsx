@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import InvestigateModal from "@/app/components/detection/InvestigateModal";
 import RuleModal from "@/app/components/detection/RuleModal";
-import { DetectionAlert } from "@/app/data/alerts";
+import { DetectionAlert, AlertStatus } from "@/app/data/alerts";
 import {
   Shield, AlertTriangle, Activity, RefreshCw, Sliders,
   Search, Monitor, Clock, Hash,
@@ -24,13 +24,14 @@ export default function DetectionPage() {
   const [alerts, setAlerts] = useState<DetectionAlert[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // undefined = localStorage not yet read, null = no timestamp, string = has timestamp
   const [launchTimestamp, setLaunchTimestamp] = useState<string | null | undefined>(undefined);
   const [selectedAlert, setSelectedAlert] = useState<DetectionAlert | null>(null);
   const [ruleAlert, setRuleAlert]           = useState<DetectionAlert | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [severityFilter, setSeverityFilter] = useState("all");
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
+  // Per-alert status overrides (what the analyst set via InvestigateModal)
+  const [alertStatuses, setAlertStatuses] = useState<Record<string, AlertStatus>>({});
 
   useEffect(() => {
     const ts = localStorage.getItem("cyberlab_attack_launch");
@@ -54,10 +55,12 @@ export default function DetectionPage() {
   }, []);
 
   useEffect(() => {
-    if (launchTimestamp) {
-      fetchAlerts(launchTimestamp);
-    }
+    if (launchTimestamp) fetchAlerts(launchTimestamp);
   }, [launchTimestamp, fetchAlerts]);
+
+  const handleStatusChange = (alertId: string, status: AlertStatus) => {
+    setAlertStatuses(prev => ({ ...prev, [alertId]: status }));
+  };
 
   const filteredAlerts = alerts.filter(a => {
     const q = searchQuery.toLowerCase();
@@ -69,10 +72,8 @@ export default function DetectionPage() {
     return matchSearch && matchSev;
   });
 
-  // Still reading localStorage
   if (launchTimestamp === undefined) return null;
 
-  // No attack launched yet
   if (!launchTimestamp) {
     return (
       <DashboardLayout>
@@ -154,7 +155,6 @@ export default function DetectionPage() {
         {/* Main panel */}
         <div className="bg-gray-900 border border-gray-800/60 rounded-2xl overflow-hidden flex-1 flex flex-col">
 
-          {/* Error banner */}
           {error && (
             <div className="flex items-center gap-3 px-5 py-3 bg-red-900/20 border-b border-red-800/40 shrink-0">
               <AlertTriangle size={14} className="text-red-400 shrink-0" />
@@ -168,14 +168,12 @@ export default function DetectionPage() {
             </div>
           )}
 
-          {/* Initial loading */}
           {loading && alerts.length === 0 ? (
             <div className="flex-1 flex items-center justify-center gap-3 text-gray-500">
               <RefreshCw size={16} className="animate-spin" />
               <span className="text-sm">Chargement des alertes Wazuh...</span>
             </div>
 
-          /* Empty state — attack launched but no alerts yet */
           ) : !loading && alerts.length === 0 && !error ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-5">
               <div className="w-14 h-14 rounded-2xl bg-gray-800/60 border border-gray-800/60 flex items-center justify-center">
@@ -196,7 +194,6 @@ export default function DetectionPage() {
               </button>
             </div>
 
-          /* Alert list */
           ) : (
             <>
               {/* Toolbar */}
@@ -220,9 +217,7 @@ export default function DetectionPage() {
                         onClick={() => setSeverityFilter(f)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                           severityFilter === f
-                            ? f === "all"
-                              ? "bg-brand text-white"
-                              : `${sev!.text} ${sev!.bg} ${sev!.border} border`
+                            ? f === "all" ? "bg-brand text-white" : `${sev!.text} ${sev!.bg} ${sev!.border} border`
                             : "bg-gray-800/60 text-gray-500 hover:text-gray-300 border border-gray-800"
                         }`}
                       >
@@ -257,15 +252,21 @@ export default function DetectionPage() {
                   </div>
                 ) : (
                   filteredAlerts.map(alert => {
-                    const sev = SEVERITY_STYLES[alert.severity];
-                    const date = new Date(alert.timestamp).toLocaleString("fr-FR");
+                    const sev        = SEVERITY_STYLES[alert.severity];
+                    const date       = new Date(alert.timestamp).toLocaleString("fr-FR");
+                    const rowStatus  = alertStatuses[alert.id] ?? "New";
+                    const rowBorder  =
+                      rowStatus === "Investigating" ? "border-l-2 border-l-amber-500/60 bg-amber-900/5"  :
+                      rowStatus === "Resolved"      ? "border-l-2 border-l-emerald-500/60 bg-emerald-900/5 opacity-60" :
+                                                      "border-l-2 border-l-transparent";
+
                     return (
                       <div
                         key={alert.id}
                         onClick={() => setSelectedAlert(alert)}
-                        className="flex items-center gap-4 px-5 py-4 border-b border-gray-800/40 hover:bg-gray-800/20 transition-colors group cursor-pointer"
+                        className={`flex items-center gap-4 px-5 py-4 border-b border-gray-800/40 hover:bg-gray-800/20 transition-colors group cursor-pointer ${rowBorder}`}
                       >
-                        <div className="w-20 shrink-0">
+                        <div className="w-20 shrink-0 flex items-center gap-1.5">
                           <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${sev.text} ${sev.bg} ${sev.border}`}>
                             {alert.severity}
                           </span>
@@ -291,7 +292,7 @@ export default function DetectionPage() {
                           <span className="text-xs text-gray-400">{date}</span>
                         </div>
 
-                        {/* Actions — two buttons */}
+                        {/* Actions */}
                         <div className="w-48 shrink-0 flex justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={e => { e.stopPropagation(); setRuleAlert(alert); }}
@@ -317,7 +318,11 @@ export default function DetectionPage() {
       </div>
 
       {selectedAlert && (
-        <InvestigateModal alert={selectedAlert} onClose={() => setSelectedAlert(null)} />
+        <InvestigateModal
+          alert={selectedAlert}
+          onClose={() => setSelectedAlert(null)}
+          onStatusChange={handleStatusChange}
+        />
       )}
       {ruleAlert && (
         <RuleModal alert={ruleAlert} onClose={() => setRuleAlert(null)} />

@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  X, Shield, Hash, Tag, FileCode, ChevronRight,
+  X, Shield, Hash, Tag, FileCode,
   Sliders, Loader2, AlertTriangle,
 } from "lucide-react";
 import { DetectionAlert } from "@/app/data/alerts";
@@ -32,14 +32,12 @@ const SEVERITY_STYLES: Record<string, { text: string; bg: string; border: string
 };
 
 export default function RuleModal({ alert, onClose }: Props) {
-  const router = useRouter();
-  // alert.ttp format: "R:1234"
-  const ruleId = alert.ttp.replace(/^R:/, "");
+  const router  = useRouter();
+  const ruleId  = alert.ttp.replace(/^R:/, "");
 
-  const [detail, setDetail]     = useState<WazuhRuleDetail | null>(null);
-  const [loading, setLoading]   = useState(true);
+  const [detail,   setDetail]   = useState<WazuhRuleDetail | null>(null);
+  const [loading,  setLoading]  = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [showXml, setShowXml]   = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -56,7 +54,6 @@ export default function RuleModal({ alert, onClose }: Props) {
     })();
   }, [ruleId]);
 
-  // Fallback to alert data when Manager API is unavailable
   const info: WazuhRuleDetail = detail ?? {
     id:          ruleId,
     description: alert.description,
@@ -74,7 +71,7 @@ export default function RuleModal({ alert, onClose }: Props) {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative w-full max-w-xl mx-4 bg-gray-950 border border-gray-800/60 rounded-2xl shadow-2xl shadow-black/60 flex flex-col max-h-[85vh]">
+      <div className="relative w-full max-w-2xl mx-4 bg-gray-950 border border-gray-800/60 rounded-2xl shadow-2xl shadow-black/60 flex flex-col max-h-[90vh]">
 
         {/* Header */}
         <div className="flex items-start justify-between px-6 py-5 border-b border-gray-800/60 shrink-0">
@@ -87,10 +84,7 @@ export default function RuleModal({ alert, onClose }: Props) {
               <p className="text-gray-500 text-xs font-mono mt-0.5">ID : {ruleId}</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
-          >
+          <button onClick={onClose} className="p-1.5 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-colors">
             <X size={16} />
           </button>
         </div>
@@ -98,23 +92,14 @@ export default function RuleModal({ alert, onClose }: Props) {
         {/* Body */}
         <div className="overflow-y-auto flex-1 px-6 py-5 space-y-4">
 
-          {loading && (
-            <div className="flex items-center gap-2 py-3 text-gray-500">
-              <Loader2 size={14} className="animate-spin" />
-              <span className="text-xs">Chargement depuis Wazuh Manager...</span>
-            </div>
-          )}
-
           {!loading && apiError && (
             <div className="flex items-start gap-2 p-3 bg-amber-900/15 border border-amber-800/30 rounded-xl">
               <AlertTriangle size={13} className="text-amber-500 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-500/80">
-                Manager API indisponible — données partielles depuis l'alerte
-              </p>
+              <p className="text-xs text-amber-500/80">Manager API indisponible — données partielles depuis l'alerte</p>
             </div>
           )}
 
-          {/* Severity + status */}
+          {/* Badges */}
           <div className="flex items-center gap-2">
             <span className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded border ${sev.text} ${sev.bg} ${sev.border}`}>
               {info.severity}
@@ -152,24 +137,28 @@ export default function RuleModal({ alert, onClose }: Props) {
             <p className="text-sm text-gray-300 leading-relaxed">{info.description || "—"}</p>
           </div>
 
-          {/* XML (expandable) */}
-          {info.xml && (
-            <div>
-              <button
-                onClick={() => setShowXml(v => !v)}
-                className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-300 transition-colors mb-2"
-              >
-                <FileCode size={12} />
-                {showXml ? "Masquer" : "Voir"} le XML de la règle
-                <ChevronRight size={12} className={`transition-transform ${showXml ? "rotate-90" : ""}`} />
-              </button>
-              {showXml && (
-                <div className="bg-gray-900/80 border border-gray-800/50 rounded-xl p-4 font-mono text-[11px] text-emerald-400/80 leading-relaxed whitespace-pre-wrap max-h-52 overflow-y-auto">
-                  {info.xml}
-                </div>
-              )}
+          {/* XML — always visible */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <FileCode size={13} className="text-gray-600" />
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-600">Contenu XML de la règle</p>
             </div>
-          )}
+
+            {loading ? (
+              <div className="bg-gray-900/80 border border-gray-800/50 rounded-xl p-4 flex items-center gap-2 text-gray-600">
+                <Loader2 size={13} className="animate-spin" />
+                <span className="text-xs">Chargement depuis Wazuh Manager...</span>
+              </div>
+            ) : info.xml ? (
+              <div className="bg-gray-900/80 border border-gray-800/50 rounded-xl p-4 font-mono text-[11px] text-emerald-400/80 leading-relaxed whitespace-pre-wrap max-h-64 overflow-y-auto">
+                {info.xml}
+              </div>
+            ) : (
+              <div className="bg-gray-900/80 border border-gray-800/50 rounded-xl p-4 text-xs text-gray-600 italic">
+                XML non disponible (Wazuh Manager API inaccessible ou fichier introuvable)
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Footer */}
@@ -183,12 +172,12 @@ export default function RuleModal({ alert, onClose }: Props) {
           <button
             onClick={() => {
               onClose();
-              router.push(`/detection/rule-tuning?search=${encodeURIComponent(ruleId)}`);
+              router.push(`/detection/rule-tuning?editRule=${encodeURIComponent(ruleId)}`);
             }}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-semibold shadow-md shadow-brand/20 transition-all"
           >
             <Sliders size={14} />
-            Rule Tuning
+            Modifier dans Rule Tuning
           </button>
         </div>
       </div>

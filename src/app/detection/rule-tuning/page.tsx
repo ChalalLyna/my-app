@@ -11,7 +11,7 @@ import {
   ArrowLeft, Plus, Search, Sliders,
   CheckCircle, XCircle, Edit2, Trash2,
   Save, X, AlertTriangle,
-  Code2, Info, Hash, Shield, BookOpen, Loader2, RefreshCw,
+  Code2, Info, Hash, Shield, BookOpen, Loader2, RefreshCw, RotateCcw,
 } from "lucide-react";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -29,9 +29,9 @@ function renderXml(code: string) {
   return code.split("\n").map((line, i) => {
     const trimmed = line.trim();
     let cls = "text-gray-300";
-    if (trimmed.startsWith("<!--"))     cls = "text-gray-600 italic";
-    else if (trimmed.startsWith("</"))  cls = "text-indigo-400/70";
-    else if (trimmed.startsWith("<"))   cls = "text-indigo-300";
+    if (trimmed.startsWith("<!--"))    cls = "text-gray-600 italic";
+    else if (trimmed.startsWith("</")) cls = "text-indigo-400/70";
+    else if (trimmed.startsWith("<"))  cls = "text-indigo-300";
     return (
       <div key={i} className="flex">
         <span className="select-none text-gray-700 mr-4 text-right w-7 shrink-0">{i + 1}</span>
@@ -39,6 +39,82 @@ function renderXml(code: string) {
       </div>
     );
   });
+}
+
+// ─── Restart confirmation modal ───────────────────────────────────────────────
+
+type PendingAction = {
+  type: "create" | "modify" | "delete";
+  filename: string;
+  originalXml: string | null;
+};
+
+interface RestartModalProps {
+  action: PendingAction;
+  restarting: boolean;
+  error: string | null;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function RestartConfirmModal({ action, restarting, error, onConfirm, onCancel }: RestartModalProps) {
+  const label =
+    action.type === "create" ? "créée" :
+    action.type === "modify" ? "modifiée" : "supprimée";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="relative bg-gray-950 border border-gray-800 rounded-2xl p-6 max-w-md mx-4 shadow-2xl">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-amber-600/15 flex items-center justify-center shrink-0">
+            <RotateCcw size={18} className="text-amber-400" />
+          </div>
+          <div>
+            <h3 className="text-white font-bold">Redémarrer Wazuh Manager ?</h3>
+            <p className="text-gray-500 text-xs mt-0.5">
+              Règle {label} · <span className="font-mono">{action.filename}</span>
+            </p>
+          </div>
+        </div>
+
+        <p className="text-gray-400 text-sm leading-relaxed mb-2">
+          La règle a été <span className="text-white font-semibold">{label}</span> dans Wazuh.
+          Un <span className="text-white font-semibold">redémarrage du Manager</span> est nécessaire pour appliquer les changements.
+        </p>
+        <p className="text-amber-400/80 text-xs mb-5">
+          Si vous refusez, la modification sera <span className="font-semibold">annulée et restaurée</span> à son état précédent.
+        </p>
+
+        {error && (
+          <div className="flex items-start gap-2 p-2.5 bg-red-900/20 border border-red-800/40 rounded-xl mb-4">
+            <AlertTriangle size={12} className="text-red-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-red-400">{error}</p>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <button
+            onClick={onCancel}
+            disabled={restarting}
+            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-700 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition-colors disabled:opacity-40"
+          >
+            Non — Annuler les changements
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={restarting}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold transition-all disabled:opacity-40"
+          >
+            {restarting
+              ? <><Loader2 size={14} className="animate-spin" /> Redémarrage...</>
+              : <><RotateCcw size={14} /> Oui — Redémarrer</>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── XML Editor panel ─────────────────────────────────────────────────────────
@@ -52,7 +128,7 @@ interface EditorPanelProps {
 }
 
 function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelProps) {
-  const isNew = rule === null;
+  const isNew    = rule === null;
   const isSystem = rule ? !rule.relativeDirname.includes("etc") : false;
 
   const [xml,         setXml]         = useState(rule?.xml ?? XML_TEMPLATE);
@@ -62,7 +138,6 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
 
   return (
     <div className="flex flex-col h-full">
-      {/* Editor header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800/60 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-brand/15 rounded-lg flex items-center justify-center">
@@ -84,7 +159,7 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
         <div className="mx-6 mt-4 flex items-start gap-2 p-3 bg-amber-900/15 border border-amber-800/30 rounded-xl shrink-0">
           <AlertTriangle size={13} className="text-amber-500 shrink-0 mt-0.5" />
           <p className="text-xs text-amber-500/80">
-            Règle système — la modification créera un fichier custom <span className="font-mono">cyberlab_override_{rule?.wazuhId}.xml</span> dans Wazuh.
+            Règle système — la modification créera <span className="font-mono">cyberlab_override_{rule?.wazuhId}.xml</span> dans Wazuh.
           </p>
         </div>
       )}
@@ -111,16 +186,13 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
             </label>
             <div className="flex items-center gap-3">
               <input
-                type="number"
-                min={0} max={15}
+                type="number" min={0} max={15}
                 value={level}
                 onChange={e => setLevel(Math.min(15, Math.max(0, Number(e.target.value))))}
-                className="w-20 bg-gray-800/60 border border-gray-700/80 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all"
+                className="w-20 bg-gray-800/60 border border-gray-700/80 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand transition-all"
               />
               <span className={`text-xs font-bold ${
-                level >= 12 ? "text-red-400" :
-                level >= 8  ? "text-orange-400" :
-                level >= 4  ? "text-yellow-400" : "text-green-400"
+                level >= 12 ? "text-red-400" : level >= 8 ? "text-orange-400" : level >= 4 ? "text-yellow-400" : "text-green-400"
               }`}>
                 {level >= 12 ? "Critical" : level >= 8 ? "High" : level >= 4 ? "Medium" : "Low"}
               </span>
@@ -133,11 +205,10 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
               value={groups}
               onChange={e => setGroups(e.target.value)}
               placeholder="cyberlab, custom"
-              className="bg-gray-800/60 border border-gray-700/80 rounded-lg px-3 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all"
+              className="bg-gray-800/60 border border-gray-700/80 rounded-lg px-3 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-brand transition-all"
             />
           </div>
 
-          {/* Quick reference */}
           <div className="mt-auto p-3 bg-gray-800/30 border border-gray-800/40 rounded-xl">
             <div className="flex items-center gap-1.5 mb-2">
               <Info size={11} className="text-gray-600" />
@@ -145,12 +216,12 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
             </div>
             <div className="space-y-1.5 text-[10px] text-gray-500 font-mono">
               {[
-                ["<description>",  "texte de la règle"],
-                ["<if_sid>",       "règle parente déclenchée"],
-                ["<regex>",        "expression régulière"],
-                ["<match>",        "correspondance texte"],
-                ["<field>",        "champ du log"],
-                ["<group>",        "catégorie de la règle"],
+                ["<description>", "texte de la règle"],
+                ["<if_sid>",      "règle parente"],
+                ["<regex>",       "expression régulière"],
+                ["<match>",       "correspondance texte"],
+                ["<field>",       "champ du log"],
+                ["<group>",       "catégorie"],
               ].map(([tag, desc]) => (
                 <div key={tag} className="flex gap-2">
                   <span className="text-indigo-400 shrink-0">{tag}</span>
@@ -164,11 +235,8 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
         {/* Right: XML editor */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center gap-1 px-4 py-2 border-b border-gray-800/40 bg-gray-900/60 shrink-0">
-            <div className="px-3 py-1 rounded-md bg-gray-800 text-xs text-gray-300 font-mono">
-              rule.xml
-            </div>
+            <div className="px-3 py-1 rounded-md bg-gray-800 text-xs text-gray-300 font-mono">rule.xml</div>
           </div>
-
           <div className="flex-1 relative overflow-hidden">
             <pre className="absolute inset-0 p-4 font-mono text-xs leading-relaxed overflow-auto pointer-events-none select-none">
               {renderXml(xml)}
@@ -184,18 +252,15 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
         </div>
       </div>
 
-      {/* Footer */}
       <div className="flex items-center justify-between px-6 py-4 border-t border-gray-800/60 shrink-0">
         <div className="flex flex-col gap-1">
           {isNew && (
             <div className="flex items-center gap-2 text-xs text-gray-600">
               <AlertTriangle size={12} className="text-amber-500" />
-              Les nouvelles règles sont créées comme <span className="text-amber-400 font-semibold mx-1">inactives</span>.
+              Les nouvelles règles seront actives après le redémarrage.
             </div>
           )}
-          {saveError && (
-            <p className="text-xs text-red-400">{saveError}</p>
-          )}
+          {saveError && <p className="text-xs text-red-400">{saveError}</p>}
         </div>
         <div className="flex gap-2">
           <button
@@ -208,9 +273,7 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
             onClick={() => onSave(xml, { description, level, groups })}
             disabled={saving}
             className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
-              !saving
-                ? "bg-brand hover:bg-brand-dark text-white shadow-md shadow-brand/20"
-                : "bg-gray-800 text-gray-600 cursor-not-allowed"
+              !saving ? "bg-brand hover:bg-brand-dark text-white shadow-md shadow-brand/20" : "bg-gray-800 text-gray-600 cursor-not-allowed"
             }`}
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
@@ -234,41 +297,27 @@ interface RuleCardProps {
 
 function RuleCard({ rule, onEdit, onToggle, onDelete, loadingEdit }: RuleCardProps) {
   const sev = SEVERITY_STYLES[rule.severity];
-
   return (
     <div className={`flex items-center gap-4 px-5 py-4 border-b border-gray-800/40 hover:bg-gray-800/20 transition-colors group ${rule.status === "inactive" ? "opacity-50" : ""}`}>
-      {/* Status toggle */}
       <button onClick={onToggle} title={rule.status === "active" ? "Désactiver" : "Activer"} className="shrink-0">
         {rule.status === "active"
           ? <CheckCircle size={17} className="text-emerald-400 hover:text-emerald-300 transition-colors" />
           : <XCircle    size={17} className="text-gray-600 hover:text-gray-400 transition-colors" />
         }
       </button>
-
-      {/* ID */}
       <span className="text-[10px] font-mono text-gray-600 shrink-0 w-14">{rule.wazuhId}</span>
-
-      {/* Severity badge */}
       <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border shrink-0 w-16 text-center ${sev.text} ${sev.bg} ${sev.border}`}>
         {rule.severity}
       </span>
-
-      {/* Name + description */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-white truncate">{rule.name}</p>
         <p className="text-xs text-gray-500 truncate mt-0.5">{rule.groups.join(", ") || "—"}</p>
       </div>
-
-      {/* Level */}
       <div className="flex items-center gap-1.5 shrink-0 w-16">
         <Hash size={11} className="text-gray-600" />
         <span className="text-xs font-mono text-brand">L{rule.level}</span>
       </div>
-
-      {/* Filename */}
       <span className="text-xs text-gray-600 shrink-0 w-48 truncate font-mono">{rule.filename || "—"}</span>
-
-      {/* Actions */}
       <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
         <button
           onClick={onEdit}
@@ -324,24 +373,20 @@ export default function RuleTuningPage() {
   const router   = useRouter();
   const isApprenant = user?.role === "apprenant";
 
-  const [rules,        setRules]        = useState<WazuhRule[]>([]);
-  const [loading,      setLoading]      = useState(false);
-  const [apiError,     setApiError]     = useState<string | null>(null);
-  const [total,        setTotal]        = useState(0);
-  const [search,       setSearch]       = useState("");
-  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
-  const [editorTarget, setEditorTarget] = useState<WazuhRule | null | undefined>(undefined);
-  const [loadingEdit,  setLoadingEdit]  = useState<string | null>(null);
-  const [saving,       setSaving]       = useState(false);
-  const [saveError,    setSaveError]    = useState<string | null>(null);
-  const [showCti,      setShowCti]      = useState(false);
-
-  // Read ?search= from URL on mount
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const s   = url.searchParams.get("search");
-    if (s) setSearch(s);
-  }, []);
+  const [rules,          setRules]          = useState<WazuhRule[]>([]);
+  const [loading,        setLoading]        = useState(false);
+  const [apiError,       setApiError]       = useState<string | null>(null);
+  const [total,          setTotal]          = useState(0);
+  const [search,         setSearch]         = useState("");
+  const [filterStatus,   setFilterStatus]   = useState<"all" | "active" | "inactive">("all");
+  const [editorTarget,   setEditorTarget]   = useState<WazuhRule | null | undefined>(undefined);
+  const [loadingEdit,    setLoadingEdit]    = useState<string | null>(null);
+  const [saving,         setSaving]         = useState(false);
+  const [saveError,      setSaveError]      = useState<string | null>(null);
+  const [showCti,        setShowCti]        = useState(false);
+  const [pendingRestart, setPendingRestart] = useState<PendingAction | null>(null);
+  const [restarting,     setRestarting]     = useState(false);
+  const [restartError,   setRestartError]   = useState<string | null>(null);
 
   const fetchRules = useCallback(async (q: string) => {
     setLoading(true);
@@ -360,7 +405,39 @@ export default function RuleTuningPage() {
     }
   }, []);
 
-  // Debounced fetch when search changes
+  // Read URL params on mount
+  useEffect(() => {
+    const url    = new URL(window.location.href);
+    const s      = url.searchParams.get("search");
+    const editId = url.searchParams.get("editRule");
+    if (s) setSearch(s);
+    if (editId) {
+      (async () => {
+        try {
+          const res  = await fetch(`/api/wazuh/rules/${encodeURIComponent(editId)}`);
+          const data = await res.json();
+          if (res.ok) {
+            setSaveError(null);
+            setEditorTarget({
+              id:              data.id,
+              wazuhId:         data.wazuhId,
+              name:            data.name,
+              description:     data.description,
+              level:           data.level,
+              severity:        data.severity,
+              status:          data.status,
+              groups:          data.groups,
+              filename:        data.filename,
+              relativeDirname: data.relativeDirname,
+              xml:             data.xml ?? XML_TEMPLATE,
+            });
+          }
+        } catch { /* silently ignore, user can search */ }
+      })();
+    }
+  }, []);
+
+  // Debounced search → fetch
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
     clearTimeout(debounceRef.current);
@@ -384,7 +461,15 @@ export default function RuleTuningPage() {
       alert("Les règles système Wazuh ne peuvent pas être supprimées depuis cette interface.");
       return;
     }
-    if (!confirm(`Supprimer la règle "${rule.name}" (${rule.filename}) de Wazuh ?`)) return;
+    if (!confirm(`Supprimer "${rule.name}" (${rule.filename}) ?`)) return;
+
+    // Fetch original XML for rollback before deleting
+    let originalXml: string | null = null;
+    try {
+      const r = await fetch(`/api/wazuh/rules/${encodeURIComponent(rule.id)}`);
+      const d = await r.json();
+      if (r.ok) originalXml = d.xml ?? null;
+    } catch { /* ignore */ }
 
     try {
       const res = await fetch(`/api/wazuh/rules?filename=${encodeURIComponent(rule.filename)}`, {
@@ -396,6 +481,7 @@ export default function RuleTuningPage() {
         return;
       }
       setRules(prev => prev.filter(r => r.id !== rule.id));
+      setPendingRestart({ type: "delete", filename: rule.filename, originalXml });
     } catch (err: any) {
       alert(`Erreur : ${err.message}`);
     }
@@ -409,7 +495,6 @@ export default function RuleTuningPage() {
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       setEditorTarget({ ...rule, xml: data.xml ?? XML_TEMPLATE });
     } catch {
-      // Open editor with template if XML unavailable
       setEditorTarget({ ...rule, xml: XML_TEMPLATE });
     } finally {
       setLoadingEdit(null);
@@ -423,15 +508,15 @@ export default function RuleTuningPage() {
     setSaving(true);
     setSaveError(null);
 
+    const isNew      = editorTarget === null;
+    const originalXml = (!isNew && editorTarget?.xml) ? editorTarget.xml : null;
+
     let filename: string;
-    if (editorTarget === null) {
-      // New custom rule
+    if (isNew) {
       filename = `cyberlab_${Date.now()}.xml`;
     } else if (editorTarget!.relativeDirname.includes("etc")) {
-      // Existing custom rule — overwrite
       filename = editorTarget!.filename;
     } else {
-      // System rule — save as override file
       filename = `cyberlab_override_${editorTarget!.wazuhId}.xml`;
     }
 
@@ -446,11 +531,50 @@ export default function RuleTuningPage() {
 
       setEditorTarget(undefined);
       fetchRules(search);
+      setPendingRestart({ type: isNew ? "create" : "modify", filename, originalXml });
     } catch (err: any) {
       setSaveError(err.message);
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleConfirmRestart = async () => {
+    setRestarting(true);
+    setRestartError(null);
+    try {
+      const res  = await fetch("/api/wazuh/restart", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setPendingRestart(null);
+      fetchRules(search);
+    } catch (err: any) {
+      setRestartError(err.message);
+    } finally {
+      setRestarting(false);
+    }
+  };
+
+  const handleCancelRestart = async () => {
+    if (!pendingRestart) return;
+    const { type, filename, originalXml } = pendingRestart;
+
+    try {
+      if (type === "create") {
+        // Delete the newly created file
+        await fetch(`/api/wazuh/rules?filename=${encodeURIComponent(filename)}`, { method: "DELETE" });
+      } else if ((type === "modify" || type === "delete") && originalXml) {
+        // Restore original XML
+        await fetch("/api/wazuh/rules", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename, xml: originalXml }),
+        });
+      }
+    } catch { /* best effort */ }
+
+    setPendingRestart(null);
+    fetchRules(search);
   };
 
   const activeCount   = rules.filter(r => r.status === "active").length;
@@ -477,14 +601,12 @@ export default function RuleTuningPage() {
                 Rule Tuning
               </h1>
               <p className="text-gray-500 text-sm mt-0.5">
-                {total > 0 ? `${total} règles Wazuh` : "Règles Wazuh"}
-                {total > 0 && ` · ${activeCount} actives`}
+                {total > 0 ? `${total} règles Wazuh · ${activeCount} actives` : "Règles Wazuh"}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* CTI button */}
             <button
               onClick={() => setShowCti(true)}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600/15 border border-amber-700/30 text-amber-400 hover:bg-amber-600/25 text-sm font-semibold transition-all"
@@ -492,8 +614,6 @@ export default function RuleTuningPage() {
               <BookOpen size={15} />
               Règles CTI
             </button>
-
-            {/* New rule */}
             <button
               onClick={() => { setSaveError(null); setEditorTarget(null); }}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white text-sm font-semibold shadow-md shadow-brand/20 transition-all"
@@ -531,7 +651,6 @@ export default function RuleTuningPage() {
             />
           ) : (
             <>
-              {/* Toolbar */}
               <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-800/60 shrink-0">
                 <div className="relative flex-1 max-w-sm">
                   <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
@@ -567,7 +686,6 @@ export default function RuleTuningPage() {
                 </button>
               </div>
 
-              {/* Column headers */}
               <div className="flex items-center gap-4 px-5 py-2.5 border-b border-gray-800/40 bg-gray-900/60 shrink-0">
                 <span className="w-5 shrink-0" />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-14">ID</span>
@@ -578,7 +696,6 @@ export default function RuleTuningPage() {
                 <span className="w-28 shrink-0" />
               </div>
 
-              {/* Rows */}
               <div className="flex-1 overflow-y-auto">
                 {loading ? (
                   <div className="flex items-center justify-center py-16 gap-2 text-gray-600">
@@ -589,10 +706,7 @@ export default function RuleTuningPage() {
                   <div className="flex flex-col items-center justify-center py-16 gap-3">
                     <AlertTriangle size={28} className="text-red-500/60" />
                     <p className="text-sm text-red-400">Erreur Manager API : {apiError}</p>
-                    <button
-                      onClick={() => fetchRules(search)}
-                      className="text-xs text-gray-400 hover:text-white underline"
-                    >
+                    <button onClick={() => fetchRules(search)} className="text-xs text-gray-400 hover:text-white underline">
                       Réessayer
                     </button>
                   </div>
@@ -624,6 +738,16 @@ export default function RuleTuningPage() {
       )}
 
       {showCti && <CtiModal onClose={() => setShowCti(false)} />}
+
+      {pendingRestart && (
+        <RestartConfirmModal
+          action={pendingRestart}
+          restarting={restarting}
+          error={restartError}
+          onConfirm={handleConfirmRestart}
+          onCancel={handleCancelRestart}
+        />
+      )}
     </DashboardLayout>
   );
 }
