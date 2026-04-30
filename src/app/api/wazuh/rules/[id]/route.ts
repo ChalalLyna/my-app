@@ -41,16 +41,40 @@ export async function GET(
     // Fetch raw XML of the rule file
     let xml: string | null = null;
     if (rule.filename) {
+      // Try GET /rules/files/{filename}?raw=true
       const fileRes = await fetch(
-        `${baseUrl}/rules/files/${encodeURIComponent(rule.filename)}?raw=1`,
+        `${baseUrl}/rules/files/${encodeURIComponent(rule.filename)}?raw=true`,
         {
           headers: { Authorization: `Bearer ${token}` },
           cache: "no-store",
           signal: AbortSignal.timeout(10000),
         }
-      );
-      if (fileRes.ok) {
-        xml = await fileRes.text().catch(() => null);
+      ).catch(() => null);
+
+      if (fileRes?.ok) {
+        const text = await fileRes.text().catch(() => null);
+        if (text) {
+          // Wazuh sometimes returns JSON-wrapped content even with raw=true
+          if (text.trimStart().startsWith("{")) {
+            try { xml = JSON.parse(text)?.data?.contents ?? null; } catch { xml = text; }
+          } else {
+            xml = text;
+          }
+        }
+      } else if (rule.relative_dirname) {
+        // Fallback: GET /manager/files?path={relativeDirname}/{filename}&raw=true
+        const filePath = `${rule.relative_dirname}/${rule.filename}`;
+        const mgrRes = await fetch(
+          `${baseUrl}/manager/files?path=${encodeURIComponent(filePath)}&raw=true`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: "no-store",
+            signal: AbortSignal.timeout(10000),
+          }
+        ).catch(() => null);
+        if (mgrRes?.ok) {
+          xml = await mgrRes.text().catch(() => null);
+        }
       }
     }
 
