@@ -91,15 +91,21 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
         const calderaAdversaries: any[] = await adversariesRes.json();
         const calderaAbilities: any[] = await abilitiesRes.json();
 
-        // Build ability_id → TTP map
+        // Build technique_id → TTP map, collecting all ability_ids per technique
         const abilityMap = new Map<string, TTP>();
         for (const ab of calderaAbilities) {
-          if (ab.ability_id) {
-            abilityMap.set(ab.ability_id, {
-              id:          ab.technique_id  || ab.ability_id,
-              name:        ab.technique_name || ab.name || "Unknown",
-              tactic:      formatTactic(ab.tactic || ""),
-              description: ab.description || "",
+          if (!ab.ability_id) continue;
+          const key = ab.technique_id || ab.ability_id;
+          const existing = abilityMap.get(key);
+          if (existing) {
+            existing.calderaAbilityIds = [...(existing.calderaAbilityIds ?? []), ab.ability_id];
+          } else {
+            abilityMap.set(key, {
+              id:                key,
+              name:              ab.technique_name || ab.name || "Unknown",
+              tactic:            formatTactic(ab.tactic || ""),
+              description:       ab.description || "",
+              calderaAbilityIds: [ab.ability_id],
             });
           }
         }

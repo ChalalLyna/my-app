@@ -31,12 +31,16 @@ INSERT INTO Utilisateur (IdUtilisateur, nom, prenom, role, IdCompte) VALUES
 -- ------------------------------------------------------------
 -- MachineVirtuelle
 -- ------------------------------------------------------------
-INSERT INTO MachineVirtuelle (IdVM, nomMachine, OS, IP, Vlan, statut) VALUES
-(1, 'VM-Kali-01',    'Kali Linux 2024',   '10.0.1.10', 'VLAN10', 'active'),
-(2, 'VM-Windows-01', 'Windows Server 22', '10.0.1.20', 'VLAN10', 'active'),
-(3, 'VM-Ubuntu-01',  'Ubuntu 22.04',      '10.0.1.30', 'VLAN10', 'active'),
-(4, 'VM-Client-Web', 'Debian 12',         '10.0.2.10', 'VLAN20', 'active'),
-(5, 'VM-Client-DB',  'CentOS 9',          '10.0.2.20', 'VLAN20', 'inactive');
+INSERT INTO MachineVirtuelle 
+(nomMachine, OS, IP, Vlan, statut, VmIdProxmox, CPUmax, RAMmax, Disk)
+VALUES
+('GOADLightec7eaa-wazuh-server', 'kali linux','10.2.20.80', '20', 'running', 102, '4', '8589934592', '268435456000'),
+('GOADLightec7eaa-caldera-server', 'debian 12 ', '10.2.30.49', '30', 'running', 103, '2', '4294967296', '214748364800'),
+('GOADLightec7eaa-appli-web-server', 'debian 12', '10.2.40.90', '40', 'running', 105, '4', '4294967296', '214748364800'),
+('GOADLightec7eaa-router-debian11-x64', 'debian 11', NULL, NULL, 'running', 108, '2', '2147483648', '214748364800'),
+('GOADLightec7eaa-GOAD-DC01', 'Windows Server 2019', '10.2.10.10','10', 'running', 109, '2', '4294967296', '268435456000'),
+('GOADLightec7eaa-GOAD-DC02', 'Windows Server 2019', '10.2.10.11', '10', 'stopped', 110, '2', '4294967296', '268435456000'),
+('GOADLightec7eaa-GOAD-SRV02', 'Windows Server 2019', '10.2.10.22', '10', 'stopped', 111, '2', '4294967296', '268435456000');
 
 -- ------------------------------------------------------------
 -- ResultatMission
@@ -55,12 +59,12 @@ INSERT INTO Mission (IdMission, titre, client, statut, DateDebut, DateFin, descr
 -- ------------------------------------------------------------
 -- Actif
 -- ------------------------------------------------------------
-INSERT INTO Actif (IdActif, nom, description, DateCreation, TypeActif, IdVM, IdAdministrateur, IdMission) VALUES
-(1, 'Lab SQLi Debutant',      'Pratique des injections SQL',       '2024-01-10', 'lab',    1, 1, NULL),
-(2, 'Lab XSS Avance',         'Attaques Cross-Site Scripting',     '2024-01-15', 'lab',    2, 1, NULL),
-(3, 'Lab Priv Escalation',    'Escalade de privileges Linux',      '2024-02-01', 'lab',    3, 1, NULL),
-(4, 'Serveur Web BankSecure', 'Serveur frontal BankSecure',        '2024-03-01', 'client', 4, NULL, 1),
-(5, 'Base de donnees ShopCorp','BDD principale ShopCorp',          '2024-06-01', 'client', 5, NULL, 2);
+INSERT INTO Actif
+(nom, catégorie, description, TypeActif, IdVM, IdAdministrateur, IdMission)
+VALUES
+('GOAD-DC01 : kingslanding', 'active directory' ,'controleur de domaine', 'lab', 5, NULL, NULL),
+('GOAD-DC02 : winterfell', 'active directory' , 'controleur de domaine', 'lab', 6, NULL, NULL),
+('GOAD-SRV02 : castelblack ', 'active directory', 'serveur', 'lab', 7, NULL, NULL);
 
 -- ------------------------------------------------------------
 -- Technique

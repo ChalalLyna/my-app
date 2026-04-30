@@ -23,6 +23,10 @@ CREATE TABLE MachineVirtuelle (
     IP              VARCHAR(45),
     Vlan            VARCHAR(50),
     statut          VARCHAR(50),
+    VmIdProxmox 	INT			 NOT NULL,
+    CPUmax			VARCHAR(45),
+    RAMmax			VARCHAR(45),
+    Disk			VARCHAR(45),
     PRIMARY KEY (IdVM)
 );
 
@@ -109,8 +113,9 @@ CREATE TABLE Mission (
 CREATE TABLE Actif (
     IdActif             INT          NOT NULL AUTO_INCREMENT,
     nom                 VARCHAR(255) NOT NULL,
+    catégorie                 VARCHAR(255) NOT NULL,
     description         TEXT,
-    DateCreation        DATE         NOT NULL DEFAULT (CURRENT_DATE),
+    DateCreation        DATE         DEFAULT (CURRENT_DATE),
     TypeActif           ENUM('lab','client') NOT NULL,
     IdVM                INT          NOT NULL,
     IdAdministrateur    INT,            -- NULL si TypeActif = 'client'
