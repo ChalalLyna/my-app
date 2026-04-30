@@ -117,16 +117,19 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
     // Check live agents for every selected asset IP
     let cancelled = false;
     (async () => {
-      const allAlive = assets.every((a) => {
-  const ip = a.ip;
-  if (!ip) return false;
+  const aliveAgents = await fetchAliveAgents(); // ✅ ADD THIS BACK
 
-  return aliveAgents.some((ag) =>
-    (ag.host_ip_addrs as string[]).includes(ip)
-  );
-});
-      setCheck((prev) => ({ ...prev, agentsAlive: allAlive }));
-    })();
+  const allAlive = assets.every((a) => {
+    const ip = a.ip;
+    if (!ip) return false;
+
+    return aliveAgents.some((ag) =>
+      (ag.host_ip_addrs as string[]).includes(ip)
+    );
+  });
+
+  setCheck((prev) => ({ ...prev, agentsAlive: allAlive }));
+})();
 
     return () => { cancelled = true; };
   }, [assets, selectedTTPs]);
