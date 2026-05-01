@@ -16,6 +16,8 @@ services:
       - WAZUH_USER=${WAZUH_USER}
       - WAZUH_PASSWORD=${WAZUH_PASSWORD}
       - NODE_TLS_REJECT_UNAUTHORIZED=0
+      - PROXMOX_URL=${PROXMOX_URL}
+      - PROXMOX_TOKEN=${PROXMOX_TOKEN}
     depends_on:
       mysql:
         condition: service_healthy
