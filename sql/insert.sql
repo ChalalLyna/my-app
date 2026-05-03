@@ -140,7 +140,7 @@ INSERT INTO Attaque (IdAttaque, DateExecution, statut, type, IdResultatAttaque) 
 (1, '2024-03-10', 'terminee', 'mission',       1),
 (2, '2024-03-15', 'terminee', 'mission',       2),
 (3, '2024-03-20', 'terminee', 'apprentissage', 3),
-(4, '2024-06-12', 'en cours', 'mission',       4),
+(4, '2024-06-12', 'terminee', 'mission',       4),
 (5, '2024-04-05', 'terminee', 'amelioration',  5);
 
 -- ------------------------------------------------------------

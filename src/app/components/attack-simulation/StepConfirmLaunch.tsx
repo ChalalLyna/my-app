@@ -5,7 +5,7 @@ import { Asset } from "@/app/types/simulation";
 import { Step2Selection } from "./StepSelectAdversary";
 import {
   CheckCircle, Monitor, Shield, Zap, AlertTriangle,
-  Terminal, FileText, Loader2, Power, Pause, Play, Square,
+  Terminal, FileText, Loader2, Power, Square,
 } from "lucide-react";
 
 const LINE_COLORS: Record<string, string> = {
@@ -82,7 +82,6 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
   const [launched, setLaunched] = useState(false);
   const [done, setDone]         = useState(false);
   const [running, setRunning]   = useState(false);
-  const [paused, setPaused]     = useState(false);
   const [lines, setLines]       = useState<TerminalLine[]>([]);
   const opIdsRef                = useRef<string[]>([]);
 
@@ -415,24 +414,11 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
       )
     );
 
-  const handlePause = async () => {
-    await patchOpsState("pause");
-    setPaused(true);
-    log("warn", "[⏸] Operation(s) paused");
-  };
-
-  const handleResume = async () => {
-    await patchOpsState("running");
-    setPaused(false);
-    log("info", "[▶] Operation(s) resumed");
-  };
-
   const handleStop = async () => {
     if (pollRef.current) clearInterval(pollRef.current);
     await patchOpsState("finished");
     doneRef.current = true;
     setRunning(false);
-    setPaused(false);
     setDone(true);
     log("warn", "[■] Attack stopped by user");
   };
@@ -587,16 +573,10 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
             <div className="flex items-center gap-2.5">
               <Terminal size={14} className="text-emerald-400" />
               <span className="text-sm font-semibold text-white">Caldera Output</span>
-              {running && !paused && (
+              {running && (
                 <span className="flex items-center gap-1.5 text-xs text-amber-400">
                   <Loader2 size={11} className="animate-spin" />
                   Running…
-                </span>
-              )}
-              {running && paused && (
-                <span className="flex items-center gap-1.5 text-xs text-amber-500">
-                  <Pause size={11} />
-                  Paused
                 </span>
               )}
               {done && !running && (
@@ -608,26 +588,13 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
             </div>
             <div className="flex items-center gap-2">
               {running && (
-                <>
-                  <button
-                    onClick={paused ? handleResume : handlePause}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      paused
-                        ? "bg-emerald-700 hover:bg-emerald-600 text-white"
-                        : "bg-amber-700 hover:bg-amber-600 text-white"
-                    }`}
-                  >
-                    {paused ? <Play size={12} /> : <Pause size={12} />}
-                    {paused ? "Resume" : "Suspend"}
-                  </button>
-                  <button
-                    onClick={handleStop}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-700 hover:bg-red-600 text-white text-xs font-semibold transition-all"
-                  >
-                    <Square size={12} />
-                    Stop
-                  </button>
-                </>
+                <button
+                  onClick={handleStop}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-700 hover:bg-red-600 text-white text-xs font-semibold transition-all"
+                >
+                  <Square size={12} />
+                  Stop
+                </button>
               )}
               {done && (
                 <button

@@ -188,11 +188,12 @@ CREATE TABLE CouvertureDetection (
 -- Labs (tables de participation aux attaques)
 
 CREATE TABLE LabApprentissage (
+    IdLabApprentissage INT NOT NULL,
     IdUtilisateur   INT NOT NULL,
     IdActif         INT NOT NULL,
     IdTechnique     INT NOT NULL,
     IdAttaque       INT NOT NULL,
-    PRIMARY KEY (IdUtilisateur, IdActif, IdTechnique, IdAttaque),
+    PRIMARY KEY (IdLabApprentissage, IdUtilisateur, IdActif, IdTechnique, IdAttaque),
     CONSTRAINT fk_la_utilisateur FOREIGN KEY (IdUtilisateur)
         REFERENCES Utilisateur(IdUtilisateur),
     CONSTRAINT fk_la_actif       FOREIGN KEY (IdActif)
