@@ -376,7 +376,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
 
         // Bug 1 fix: if this VM had to boot, give the agent more time (150s vs 30s)
         const justBooted = asset.vmidProxmox && bootedVmids.has(asset.vmidProxmox);
-        const agentWaitMs = justBooted ? 150_000 : 30_000;
+        const agentWaitMs = justBooted ? 300_000 : 60_000;
         log("info", `[*] Searching for alive Caldera agent (timeout=${agentWaitMs / 1000}s)...`);
 
         const agentFound = await waitAgentAlive(targetIp, agentWaitMs);
@@ -556,11 +556,17 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? res.status);
 
-      const html = buildPrintHtml(data.report);
-      const blob = new Blob([html], { type: "text/html" });
-      const url  = URL.createObjectURL(blob);
-      window.open(url, "_blank");
-      log("success", "[✓] Report opened — use the print dialog to save as PDF");
+      const html     = buildPrintHtml(data.report);
+      const blob     = new Blob([html], { type: "text/html" });
+      const url      = URL.createObjectURL(blob);
+      const a        = document.createElement("a");
+      a.href         = url;
+      a.download     = `cyberlab-report-${Date.now()}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      log("success", "[✓] Report downloaded — open the file and print (Ctrl+P) to save as PDF");
     } catch (err: any) {
       log("error", `[✗] Report generation failed: ${err.message}`);
     } finally {
