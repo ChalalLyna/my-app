@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent";
+const GROQ_URL   = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,9 +9,9 @@ export async function POST(req: NextRequest) {
     if (!operationIds?.length)
       return NextResponse.json({ error: "operationIds requis" }, { status: 400 });
 
-    const key = process.env.GEMINI_API_KEY;
+    const key = process.env.GROQ_API_KEY;
     if (!key)
-      return NextResponse.json({ error: "GEMINI_API_KEY non configurée" }, { status: 500 });
+      return NextResponse.json({ error: "GROQ_API_KEY non configurée" }, { status: 500 });
 
     // ── 1. Fetch full Caldera report JSON for each operation ──────────────
     const headers = { KEY: process.env.CALDERA_API_KEY!, "Content-Type": "application/json" };
@@ -106,27 +106,31 @@ Rules:
 - Use Markdown formatting (headers, bold, bullet lists, code blocks for outputs).
 - Output ONLY the Markdown report, no preamble.`;
 
-    // ── 3. Call Gemini ─────────────────────────────────────────────────────
-    const geminiRes = await fetch(`${GEMINI_URL}?key=${key}`, {
+    // ── 3. Call Groq ───────────────────────────────────────────────────────
+    const groqRes = await fetch(GROQ_URL, {
       method:  "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type":  "application/json",
+        "Authorization": `Bearer ${key}`,
+      },
       body: JSON.stringify({
-        contents:         [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 8192 },
+        model:       GROQ_MODEL,
+        messages:    [{ role: "user", content: prompt }],
+        temperature: 0.3,
+        max_tokens:  8192,
       }),
       signal: AbortSignal.timeout(90_000),
     });
 
-    if (!geminiRes.ok) {
-      const txt = await geminiRes.text();
-      throw new Error(`Gemini ${geminiRes.status}: ${txt.slice(0, 300)}`);
+    if (!groqRes.ok) {
+      const txt = await groqRes.text();
+      throw new Error(`Groq ${groqRes.status}: ${txt.slice(0, 300)}`);
     }
 
-    const geminiData = await geminiRes.json();
-    const report: string =
-      geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const groqData = await groqRes.json();
+    const report: string = groqData.choices?.[0]?.message?.content ?? "";
 
-    if (!report) throw new Error("Gemini returned an empty response");
+    if (!report) throw new Error("Groq returned an empty response");
 
     return NextResponse.json({ report });
   } catch (err: any) {

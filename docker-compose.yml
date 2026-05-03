@@ -18,7 +18,7 @@ services:
       - NODE_TLS_REJECT_UNAUTHORIZED=0
       - PROXMOX_URL=${PROXMOX_URL}
       - PROXMOX_TOKEN=${PROXMOX_TOKEN}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
     depends_on:
       mysql:
         condition: service_healthy
