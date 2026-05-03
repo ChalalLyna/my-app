@@ -32,8 +32,7 @@ const env = (k) => process.env[k] ?? envVars[k] ?? "";
 
 const CALDERA_URL     = env("CALDERA_URL");
 const CALDERA_API_KEY = env("CALDERA_API_KEY");
-const DB_HOST_RAW     = env("DB_HOST");
-const DB_HOST         = DB_HOST_RAW === "mysql" ? "127.0.0.1" : (DB_HOST_RAW || "127.0.0.1");
+const DB_HOST         = env("DB_HOST") || "127.0.0.1";
 const DB_PORT         = Number(env("DB_PORT") || 3306);
 const DB_NAME         = env("MYSQL_DATABASE");
 const DB_USER         = env("MYSQL_USER");
