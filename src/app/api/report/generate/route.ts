@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent";
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,26 +18,42 @@ export async function POST(req: NextRequest) {
 
     const reportData = await Promise.all(
       operationIds.map(async (id) => {
-        // /report gives the complete structured report (steps, facts, relationships…)
         const [opRes, repRes] = await Promise.all([
-          fetch(`${process.env.CALDERA_URL}/api/v2/operations/${id}`,         { headers, cache: "no-store" }),
-          fetch(`${process.env.CALDERA_URL}/api/v2/operations/${id}/report`,  { headers, cache: "no-store" }),
+          fetch(`${process.env.CALDERA_URL}/api/v2/operations/${id}`,        { headers, cache: "no-store" }),
+          fetch(`${process.env.CALDERA_URL}/api/v2/operations/${id}/report`, { headers, cache: "no-store" }),
         ]);
 
         const op  = opRes.ok  ? await opRes.json()  : {};
         const rep = repRes.ok ? await repRes.json() : {};
 
-        // Decode base64 outputs in the report steps
-        if (rep.steps) {
-          for (const agentSteps of Object.values(rep.steps) as any[]) {
-            for (const step of agentSteps?.steps ?? []) {
-              try { if (step.output) step.output = atob(step.output).trim().slice(0, 800); }
-              catch { step.output = ""; }
-            }
+        // Slim down: keep only what matters for the report
+        const steps: any[] = [];
+        for (const [agent, data] of Object.entries(rep.steps ?? {}) as any[]) {
+          for (const step of data?.steps ?? []) {
+            let output = "";
+            try { output = step.output ? atob(step.output).trim().slice(0, 300) : ""; } catch { /**/ }
+            steps.push({
+              agent,
+              technique_id:   step.ability?.technique_id   ?? "",
+              technique_name: step.ability?.technique_name ?? "",
+              tactic:         step.ability?.tactic         ?? "",
+              ability:        step.ability?.name           ?? "",
+              status:         step.status === 0 ? "success" : step.status === -1 ? "failed" : "other",
+              output,
+            });
           }
         }
 
-        return { operation: op, report: rep };
+        return {
+          name:      op.name,
+          state:     op.state,
+          start:     op.start,
+          finish:    op.finish,
+          adversary: op.adversary?.name ?? "Manual TTP selection",
+          group:     op.group,
+          steps,
+          facts:     (rep.facts ?? []).slice(0, 30).map((f: any) => ({ trait: f.trait, value: String(f.value).slice(0, 100) })),
+        };
       })
     );
 
@@ -46,7 +62,7 @@ export async function POST(req: NextRequest) {
 
 ## Caldera Full Report JSON
 \`\`\`json
-${JSON.stringify(reportData, null, 2).slice(0, 28000)}
+${JSON.stringify(reportData, null, 2).slice(0, 12000)}
 \`\`\`
 
 ## Report Structure (use exactly these Markdown headings)
