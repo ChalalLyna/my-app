@@ -76,15 +76,105 @@ async function waitAgentAlive(ip: string, maxWaitMs = 60_000): Promise<boolean> 
   return false;
 }
 
+// ── Markdown → HTML (minimal, no dependency) ──────────────────────────────
+function mdToHtml(md: string): string {
+  const lines = md.split("\n");
+  let html = "";
+  let inUl = false;
+  let inCode = false;
+  let codeBuf = "";
+
+  const inline = (s: string) =>
+    s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+     .replace(/\*(.+?)\*/g,     "<em>$1</em>")
+     .replace(/`(.+?)`/g,       "<code>$1</code>");
+
+  for (const raw of lines) {
+    if (raw.startsWith("```")) {
+      if (!inCode) { inCode = true; codeBuf = ""; }
+      else {
+        inCode = false;
+        html += `<pre><code>${codeBuf.replace(/</g, "&lt;")}</code></pre>`;
+      }
+      continue;
+    }
+    if (inCode) { codeBuf += raw + "\n"; continue; }
+
+    const closeList = () => { if (inUl) { html += "</ul>"; inUl = false; } };
+
+    if      (raw.startsWith("#### ")) { closeList(); html += `<h4>${inline(raw.slice(5))}</h4>`; }
+    else if (raw.startsWith("### "))  { closeList(); html += `<h3>${inline(raw.slice(4))}</h3>`; }
+    else if (raw.startsWith("## "))   { closeList(); html += `<h2>${inline(raw.slice(3))}</h2>`; }
+    else if (raw.startsWith("# "))    { closeList(); html += `<h1>${inline(raw.slice(2))}</h1>`; }
+    else if (raw.match(/^[-*] /))     {
+      if (!inUl) { html += "<ul>"; inUl = true; }
+      html += `<li>${inline(raw.slice(2))}</li>`;
+    }
+    else if (raw.trim() === "---")    { closeList(); html += "<hr>"; }
+    else if (raw.trim() === "")       { closeList(); html += "<br>"; }
+    else                              { closeList(); html += `<p>${inline(raw)}</p>`; }
+  }
+  if (inUl) html += "</ul>";
+  return html;
+}
+
+function buildPrintHtml(markdown: string): string {
+  const body = mdToHtml(markdown);
+  const date = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Security Report — CyberLab</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Georgia,serif;max-width:900px;margin:40px auto;padding:0 24px;color:#1a1a1a;line-height:1.7;font-size:15px}
+  .cover{border-bottom:4px solid #c0392b;padding-bottom:28px;margin-bottom:40px}
+  .cover-label{font-size:11px;letter-spacing:2px;color:#888;text-transform:uppercase;margin-bottom:12px}
+  .cover h1{font-size:2em;color:#c0392b;margin-bottom:8px}
+  .cover-meta{font-size:13px;color:#555}
+  h1{font-size:1.6em;color:#c0392b;border-bottom:2px solid #e8d0ce;padding-bottom:6px;margin:36px 0 14px}
+  h2{font-size:1.25em;color:#2c3e50;border-bottom:1px solid #ddd;padding-bottom:4px;margin:28px 0 12px}
+  h3{font-size:1.05em;color:#34495e;margin:20px 0 8px}
+  h4{font-size:1em;color:#555;margin:16px 0 6px}
+  p{margin-bottom:10px}
+  ul{padding-left:22px;margin-bottom:12px}
+  li{margin-bottom:4px}
+  code{background:#f0f0f0;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:13px}
+  pre{background:#f7f7f7;border:1px solid #ddd;border-radius:4px;padding:14px;overflow-x:auto;margin:12px 0}
+  pre code{background:none;padding:0}
+  hr{border:none;border-top:1px solid #ddd;margin:24px 0}
+  strong{color:#111}
+  @media print{
+    body{margin:15mm 20mm;max-width:none}
+    h1,h2{page-break-after:avoid}
+    pre,ul{page-break-inside:avoid}
+    .cover{page-break-after:always}
+  }
+</style>
+</head>
+<body>
+<div class="cover">
+  <p class="cover-label">Confidential — Cybersecurity Assessment Report</p>
+  <h1>Adversary Emulation Report</h1>
+  <p class="cover-meta">Generated: ${date} &nbsp;|&nbsp; Platform: CyberLab &nbsp;|&nbsp; Engine: MITRE Caldera</p>
+</div>
+${body}
+<script>window.onload=()=>{window.focus();window.print();}</script>
+</body>
+</html>`;
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 export default function StepConfirmLaunch({ assets, step2 }: Props) {
   const { adversary, selectedTTPs } = step2;
   const { user } = useAuth();
 
-  const [launched, setLaunched] = useState(false);
-  const [done, setDone]         = useState(false);
-  const [running, setRunning]   = useState(false);
-  const [lines, setLines]       = useState<TerminalLine[]>([]);
+  const [launched, setLaunched]     = useState(false);
+  const [done, setDone]             = useState(false);
+  const [running, setRunning]       = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [lines, setLines]           = useState<TerminalLine[]>([]);
   const opIdsRef                = useRef<string[]>([]);
 
   // Live checklist
@@ -452,6 +542,32 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
     registerAttack("stoppé");
   };
 
+  // ── Report generation ───────────────────────────────────────────────────
+  const handleGenerateReport = async () => {
+    if (!opIdsRef.current.length) return;
+    setGenerating(true);
+    log("info", "[*] Generating report via Gemini — this may take ~30 s...");
+    try {
+      const res  = await fetch("/api/report/generate", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ operationIds: opIdsRef.current }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? res.status);
+
+      const html = buildPrintHtml(data.report);
+      const blob = new Blob([html], { type: "text/html" });
+      const url  = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      log("success", "[✓] Report opened — use the print dialog to save as PDF");
+    } catch (err: any) {
+      log("error", `[✗] Report generation failed: ${err.message}`);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   // ── Checklist (pre-launch UI) ───────────────────────────────────────────
   const canLaunch = check.assetsSelected && check.ttpsSelected && check.vmidsOk;
 
@@ -627,11 +743,14 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
               )}
               {done && (
                 <button
-                  onClick={() => alert("Génération du rapport — à implémenter")}
-                  className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all shadow-md shadow-indigo-900/30"
+                  onClick={handleGenerateReport}
+                  disabled={generating}
+                  className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-wait text-white text-xs font-semibold transition-all shadow-md shadow-indigo-900/30"
                 >
-                  <FileText size={13} />
-                  Générer un rapport
+                  {generating
+                    ? <Loader2 size={13} className="animate-spin" />
+                    : <FileText size={13} />}
+                  {generating ? "Generating…" : "Generate Report"}
                 </button>
               )}
             </div>
