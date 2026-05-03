@@ -34,9 +34,9 @@ const CALDERA_URL     = env("CALDERA_URL");
 const CALDERA_API_KEY = env("CALDERA_API_KEY");
 const DB_HOST         = env("DB_HOST") || "127.0.0.1";
 const DB_PORT         = Number(env("DB_PORT") || 3306);
-const DB_NAME         = env("MYSQL_DATABASE");
-const DB_USER         = env("MYSQL_USER");
-const DB_PASS         = env("MYSQL_PASSWORD");
+const DB_NAME         = env("MYSQL_DATABASE") || env("DB_NAME");
+const DB_USER         = env("MYSQL_USER")     || env("DB_USER");
+const DB_PASS         = env("MYSQL_PASSWORD") || env("DB_PASSWORD");
 
 // Self-signed cert in lab
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
