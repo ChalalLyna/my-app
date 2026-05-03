@@ -13,100 +13,85 @@ export async function POST(req: NextRequest) {
     if (!key)
       return NextResponse.json({ error: "GROQ_API_KEY non configurée" }, { status: 500 });
 
-    // ── 1. Fetch full Caldera report JSON for each operation ──────────────
-    const headers = { KEY: process.env.CALDERA_API_KEY!, "Content-Type": "application/json" };
+    // ── 1. Fetch raw Caldera JSON (operation + full report) ───────────────
+    const calderaHeaders = { KEY: process.env.CALDERA_API_KEY!, "Content-Type": "application/json" };
 
-    const reportData = await Promise.all(
+    const rawReports = await Promise.all(
       operationIds.map(async (id) => {
         const [opRes, repRes] = await Promise.all([
-          fetch(`${process.env.CALDERA_URL}/api/v2/operations/${id}`,        { headers, cache: "no-store" }),
-          fetch(`${process.env.CALDERA_URL}/api/v2/operations/${id}/report`, { headers, cache: "no-store" }),
+          fetch(`${process.env.CALDERA_URL}/api/v2/operations/${id}`,        { headers: calderaHeaders, cache: "no-store" }),
+          fetch(`${process.env.CALDERA_URL}/api/v2/operations/${id}/report`, { headers: calderaHeaders, cache: "no-store" }),
         ]);
 
-        const op  = opRes.ok  ? await opRes.json()  : {};
-        const rep = repRes.ok ? await repRes.json() : {};
+        const operation = opRes.ok  ? await opRes.json()  : {};
+        const report    = repRes.ok ? await repRes.json() : {};
 
-        // Slim down: keep only what matters for the report
-        const steps: any[] = [];
-        for (const [agent, data] of Object.entries(rep.steps ?? {}) as any[]) {
-          for (const step of data?.steps ?? []) {
-            let output = "";
-            try { output = step.output ? atob(step.output).trim().slice(0, 300) : ""; } catch { /**/ }
-            steps.push({
-              agent,
-              technique_id:   step.ability?.technique_id   ?? "",
-              technique_name: step.ability?.technique_name ?? "",
-              tactic:         step.ability?.tactic         ?? "",
-              ability:        step.ability?.name           ?? "",
-              status:         step.status === 0 ? "success" : step.status === -1 ? "failed" : "other",
-              output,
-            });
+        // Only decode base64 outputs so the model can read them — everything else is untouched
+        if (report.steps) {
+          for (const agentData of Object.values(report.steps) as any[]) {
+            for (const step of agentData?.steps ?? []) {
+              try {
+                if (step.output) step.output = atob(step.output).trim();
+              } catch { step.output = ""; }
+            }
           }
         }
 
-        return {
-          name:      op.name,
-          state:     op.state,
-          start:     op.start,
-          finish:    op.finish,
-          adversary: op.adversary?.name ?? "Manual TTP selection",
-          group:     op.group,
-          steps,
-          facts:     (rep.facts ?? []).slice(0, 30).map((f: any) => ({ trait: f.trait, value: String(f.value).slice(0, 100) })),
-        };
+        return { operation, report };
       })
     );
 
-    // ── 2. Build Gemini prompt ─────────────────────────────────────────────
-    const prompt = `You are a senior cybersecurity analyst. Based on the following Caldera adversary emulation full report JSON, write a comprehensive, professional penetration testing report in English.
+    // ── 2. Build prompt with the raw Caldera JSON ─────────────────────────
+    const calderaJson = JSON.stringify(rawReports, null, 2);
 
-## Caldera Full Report JSON
+    const prompt = `You are a senior cybersecurity analyst. Below is the raw JSON exported directly from a MITRE Caldera adversary emulation platform. It contains the full operation details and the complete report (steps per agent, abilities, outputs, facts, relationships).
+
+## Raw Caldera JSON
 \`\`\`json
-${JSON.stringify(reportData, null, 2).slice(0, 12000)}
+${calderaJson}
 \`\`\`
 
-## Report Structure (use exactly these Markdown headings)
+Based strictly on this data, write a comprehensive, professional penetration testing report in English with the following sections:
 
 # Executive Summary
-High-level overview: what was tested, key findings, overall risk rating (Critical / High / Medium / Low).
+High-level overview of what was tested, key findings, and overall risk rating (Critical / High / Medium / Low).
 
 # Simulation Overview
-- Date and duration
-- Adversary profile
-- Target systems / groups
+- Operation name, date, duration
+- Adversary profile used
+- Target group / agents
 - Scope
 
 # Attack Chain & Timeline
-Ordered list of every executed technique with its outcome.
+Chronological ordered list of every step executed, with technique ID, name, tactic, agent, and outcome (success/failed).
 
 # MITRE ATT&CK Techniques Analysis
-For each unique technique: ID, name, tactic, description of what it does, success/failure, observed output evidence (quote relevant output if any).
+For each unique technique: ID, name, tactic, what it does, whether it succeeded, and any relevant observed output (quote from the JSON).
 
 # Key Findings
-Numbered list, each with:
-- Finding title
+Numbered list. For each finding:
+- Title
 - Risk level (Critical / High / Medium / Low)
 - Description
-- Evidence
+- Evidence from the data
 
 # Impact Assessment
-What a real attacker could have achieved based on the successful techniques.
+What a real attacker could have achieved with the successful techniques.
 
 # Recommendations
-Specific, actionable remediation for each finding. Include tool/configuration suggestions where relevant.
+Specific, actionable remediation steps for each finding.
 
 # Conclusion
-Summary of the engagement and next steps.
+Summary and next steps.
 
 ---
 Rules:
-- Be detailed and technical but clear.
+- Do NOT invent or assume data not present in the JSON.
 - Reference MITRE ATT&CK IDs (e.g. T1059.001) throughout.
-- Do NOT invent data — only use what is in the JSON.
-- Use Markdown formatting (headers, bold, bullet lists, code blocks for outputs).
-- Output ONLY the Markdown report, no preamble.`;
+- Use Markdown formatting (headers, bold, bullet lists, code blocks for command outputs).
+- Output ONLY the Markdown report, no preamble or explanation.`;
 
-    // ── 3. Call Groq ───────────────────────────────────────────────────────
+    // ── 3. Call Groq ──────────────────────────────────────────────────────
     const groqRes = await fetch(GROQ_URL, {
       method:  "POST",
       headers: {
