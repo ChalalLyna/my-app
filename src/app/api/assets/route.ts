@@ -12,7 +12,6 @@ export async function GET() {
         mv.nomMachine,
         mv.OS            AS os,
         mv.IP            AS ip,
-        mv.statut        AS rawStatus,
         mv.VmIdProxmox   AS vmidProxmox,
         mv.CPUmax        AS cpu,
         mv.RAMmax        AS ram,
@@ -30,7 +29,6 @@ export async function GET() {
       nomMachine:   row.nomMachine ?? "",
       os:           row.os ?? "",
       ip:           row.ip ?? "",
-      status:       normalizeStatus(row.rawStatus),
       vmidProxmox:  row.vmidProxmox != null ? Number(row.vmidProxmox) : undefined,
       cpu:          row.cpu ?? "",
       ram:          row.ram ?? "",
@@ -41,9 +39,4 @@ export async function GET() {
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
-}
-
-function normalizeStatus(raw: string | null): "Online" | "Offline" {
-  const v = (raw ?? "").toLowerCase();
-  return v === "online" || v === "running" || v === "active" ? "Online" : "Offline";
 }

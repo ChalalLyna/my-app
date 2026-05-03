@@ -22,7 +22,6 @@ CREATE TABLE MachineVirtuelle (
     OS              VARCHAR(100),
     IP              VARCHAR(45),
     Vlan            VARCHAR(50),
-    statut          VARCHAR(50),
     VmIdProxmox 	INT			 NOT NULL,
     CPUmax			VARCHAR(45),
     RAMmax			VARCHAR(45),

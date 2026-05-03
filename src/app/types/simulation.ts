@@ -2,7 +2,6 @@ export interface Asset {
   id: string;
   name: string;
   os: string;
-  status: "Online" | "Offline";
   // From DB (populated by /api/assets)
   description?: string;
   category?: string;

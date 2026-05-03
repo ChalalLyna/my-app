@@ -5,7 +5,7 @@ import { Asset } from "@/app/types/simulation";
 import { Step2Selection } from "./StepSelectAdversary";
 import {
   CheckCircle, Monitor, Shield, Zap, AlertTriangle,
-  Terminal, FileText, Loader2, Power, Circle,
+  Terminal, FileText, Loader2, Power, Pause, Play, Square,
 } from "lucide-react";
 
 const LINE_COLORS: Record<string, string> = {
@@ -82,7 +82,9 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
   const [launched, setLaunched] = useState(false);
   const [done, setDone]         = useState(false);
   const [running, setRunning]   = useState(false);
+  const [paused, setPaused]     = useState(false);
   const [lines, setLines]       = useState<TerminalLine[]>([]);
+  const opIdsRef                = useRef<string[]>([]);
 
   // Live checklist
   const [check, setCheck] = useState<CheckState>({
@@ -310,6 +312,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
       if (opIds.length === 0)
         throw new Error("No operations were launched — verify agents are reachable");
 
+      opIdsRef.current = opIds;
       localStorage.setItem("cyberlab_attack_launch",   new Date().toISOString());
       localStorage.setItem("cyberlab_operation_ids",   JSON.stringify(opIds));
 
@@ -398,6 +401,40 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
       setRunning(false);
       setDone(true);
     }
+  };
+
+  // ── Operation controls ──────────────────────────────────────────────────
+  const patchOpsState = (state: string) =>
+    Promise.all(
+      opIdsRef.current.map((id) =>
+        fetch(`/api/caldera/operations/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ state }),
+        })
+      )
+    );
+
+  const handlePause = async () => {
+    await patchOpsState("pause");
+    setPaused(true);
+    log("warn", "[⏸] Operation(s) paused");
+  };
+
+  const handleResume = async () => {
+    await patchOpsState("running");
+    setPaused(false);
+    log("info", "[▶] Operation(s) resumed");
+  };
+
+  const handleStop = async () => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    await patchOpsState("finished");
+    doneRef.current = true;
+    setRunning(false);
+    setPaused(false);
+    setDone(true);
+    log("warn", "[■] Attack stopped by user");
   };
 
   // ── Checklist (pre-launch UI) ───────────────────────────────────────────
@@ -550,10 +587,16 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
             <div className="flex items-center gap-2.5">
               <Terminal size={14} className="text-emerald-400" />
               <span className="text-sm font-semibold text-white">Caldera Output</span>
-              {running && (
+              {running && !paused && (
                 <span className="flex items-center gap-1.5 text-xs text-amber-400">
                   <Loader2 size={11} className="animate-spin" />
                   Running…
+                </span>
+              )}
+              {running && paused && (
+                <span className="flex items-center gap-1.5 text-xs text-amber-500">
+                  <Pause size={11} />
+                  Paused
                 </span>
               )}
               {done && !running && (
@@ -563,15 +606,39 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
                 </span>
               )}
             </div>
-            {done && (
-              <button
-                onClick={() => alert("Génération du rapport — à implémenter")}
-                className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all shadow-md shadow-indigo-900/30"
-              >
-                <FileText size={13} />
-                Générer un rapport
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {running && (
+                <>
+                  <button
+                    onClick={paused ? handleResume : handlePause}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      paused
+                        ? "bg-emerald-700 hover:bg-emerald-600 text-white"
+                        : "bg-amber-700 hover:bg-amber-600 text-white"
+                    }`}
+                  >
+                    {paused ? <Play size={12} /> : <Pause size={12} />}
+                    {paused ? "Resume" : "Suspend"}
+                  </button>
+                  <button
+                    onClick={handleStop}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-700 hover:bg-red-600 text-white text-xs font-semibold transition-all"
+                  >
+                    <Square size={12} />
+                    Stop
+                  </button>
+                </>
+              )}
+              {done && (
+                <button
+                  onClick={() => alert("Génération du rapport — à implémenter")}
+                  className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all shadow-md shadow-indigo-900/30"
+                >
+                  <FileText size={13} />
+                  Générer un rapport
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="flex-1 min-h-0 bg-gray-950 border border-gray-800/60 rounded-xl overflow-hidden flex flex-col">

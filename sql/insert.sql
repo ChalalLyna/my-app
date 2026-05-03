@@ -32,15 +32,15 @@ INSERT INTO Utilisateur (IdUtilisateur, nom, prenom, role, IdCompte) VALUES
 -- MachineVirtuelle
 -- ------------------------------------------------------------
 INSERT INTO MachineVirtuelle 
-(nomMachine, OS, IP, Vlan, statut, VmIdProxmox, CPUmax, RAMmax, Disk)
+(nomMachine, OS, IP, Vlan, VmIdProxmox, CPUmax, RAMmax, Disk)
 VALUES
-('GOADLightec7eaa-wazuh-server', 'kali linux','10.2.20.80', '20', 'running', 102, '4', '8589934592', '268435456000'),
-('GOADLightec7eaa-caldera-server', 'debian 12 ', '10.2.30.49', '30', 'running', 103, '2', '4294967296', '214748364800'),
-('GOADLightec7eaa-appli-web-server', 'debian 12', '10.2.40.90', '40', 'running', 105, '4', '4294967296', '214748364800'),
-('GOADLightec7eaa-router-debian11-x64', 'debian 11', NULL, NULL, 'running', 108, '2', '2147483648', '214748364800'),
-('GOADLightec7eaa-GOAD-DC01', 'Windows Server 2019', '10.2.10.10','10', 'running', 109, '2', '4294967296', '268435456000'),
-('GOADLightec7eaa-GOAD-DC02', 'Windows Server 2019', '10.2.10.11', '10', 'stopped', 110, '2', '4294967296', '268435456000'),
-('GOADLightec7eaa-GOAD-SRV02', 'Windows Server 2019', '10.2.10.22', '10', 'stopped', 111, '2', '4294967296', '268435456000');
+('GOADLightec7eaa-wazuh-server', 'kali linux','10.2.20.80', '20', 102, '4', '8589934592', '268435456000'),
+('GOADLightec7eaa-caldera-server', 'debian 12 ', '10.2.30.49', '30', 103, '2', '4294967296', '214748364800'),
+('GOADLightec7eaa-appli-web-server', 'debian 12', '10.2.40.90', '40', 105, '4', '4294967296', '214748364800'),
+('GOADLightec7eaa-router-debian11-x64', 'debian 11', NULL, NULL, 108, '2', '2147483648', '214748364800'),
+('GOADLight-DC01', 'Windows Server 2019', '10.2.10.10','10', 201, '2', '4294967296', '268435456000'),
+('GOADLight-DC02', 'Windows Server 2019', '10.2.10.11', '10', 202, '2', '4294967296', '268435456000'),
+('GOADLight-SRV02', 'Windows Server 2019', '10.2.10.22', '10', 203, '2', '4294967296', '268435456000');
 
 -- ------------------------------------------------------------
 -- ResultatMission
@@ -65,7 +65,6 @@ VALUES
 ('GOAD-DC01 : kingslanding', 'active directory' ,'controleur de domaine', 'lab', 5, NULL, NULL),
 ('GOAD-DC02 : winterfell', 'active directory' , 'controleur de domaine', 'lab', 6, NULL, NULL),
 ('GOAD-SRV02 : castelblack ', 'active directory', 'serveur', 'lab', 7, NULL, NULL);
-
 -- ------------------------------------------------------------
 -- Technique
 -- ------------------------------------------------------------
