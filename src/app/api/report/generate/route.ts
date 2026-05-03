@@ -13,26 +13,51 @@ export async function POST(req: NextRequest) {
     if (!key)
       return NextResponse.json({ error: "GROQ_API_KEY non configurée" }, { status: 500 });
 
-    // ── 1. Fetch raw Caldera JSON (operation + full report) ───────────────
-    const calderaHeaders = { KEY: process.env.CALDERA_API_KEY!, "Content-Type": "application/json" };
+    // ── 1. Fetch raw Caldera JSON (operation + FULL report with agent output) ──
+    const calderaHeaders = {
+      KEY: process.env.CALDERA_API_KEY!,
+      "Content-Type": "application/json",
+    };
 
     const rawReports = await Promise.all(
       operationIds.map(async (id) => {
         const [opRes, repRes] = await Promise.all([
-          fetch(`${process.env.CALDERA_URL}/api/v2/operations/${id}`,        { headers: calderaHeaders, cache: "no-store" }),
-          fetch(`${process.env.CALDERA_URL}/api/v2/operations/${id}/report`, { headers: calderaHeaders, cache: "no-store" }),
+          // GET operation details
+          fetch(`${process.env.CALDERA_URL}/api/v2/operations/${id}`, {
+            headers: calderaHeaders,
+            cache: "no-store",
+          }),
+          // ⬇️ POST + body = full report with agent output (Caldera v5)
+          fetch(`${process.env.CALDERA_URL}/api/v2/operations/${id}/report`, {
+            method: "POST",
+            headers: calderaHeaders,
+            body: JSON.stringify({ enable_agent_output: true }),
+            cache: "no-store",
+          }),
         ]);
+
+        if (!repRes.ok) {
+          const errTxt = await repRes.text();
+          console.error(`[Caldera] Report fetch failed ${repRes.status}:`, errTxt.slice(0, 300));
+        }
 
         const operation = opRes.ok  ? await opRes.json()  : {};
         const report    = repRes.ok ? await repRes.json() : {};
 
-        // Only decode base64 outputs so the model can read them — everything else is untouched
+        // Debug logs — remove once everything works
+        console.log(`[Caldera] Operation ${id} keys:`, Object.keys(operation));
+        console.log(`[Caldera] Report ${id} keys:`, Object.keys(report));
+        console.log(`[Caldera] Report.steps keys:`, report.steps ? Object.keys(report.steps) : "EMPTY");
+
+        // Decode base64 outputs (Caldera encodes step.output in base64)
         if (report.steps) {
           for (const agentData of Object.values(report.steps) as any[]) {
             for (const step of agentData?.steps ?? []) {
               try {
                 if (step.output) step.output = atob(step.output).trim();
-              } catch { step.output = ""; }
+              } catch {
+                step.output = "";
+              }
             }
           }
         }
@@ -43,6 +68,11 @@ export async function POST(req: NextRequest) {
 
     // ── 2. Build prompt with the raw Caldera JSON ─────────────────────────
     const calderaJson = JSON.stringify(rawReports, null, 2);
+
+    // Safety: warn in console if JSON is too small (likely empty report)
+    if (calderaJson.length < 1000) {
+      console.warn("[WARN] Caldera JSON is very small, report may be empty:", calderaJson);
+    }
 
     const prompt = `You are a senior cybersecurity analyst. Below is the raw JSON exported directly from a MITRE Caldera adversary emulation platform. It contains the full operation details and the complete report (steps per agent, abilities, outputs, facts, relationships).
 
@@ -93,16 +123,16 @@ Rules:
 
     // ── 3. Call Groq ──────────────────────────────────────────────────────
     const groqRes = await fetch(GROQ_URL, {
-      method:  "POST",
+      method: "POST",
       headers: {
-        "Content-Type":  "application/json",
-        "Authorization": `Bearer ${key}`,
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
       },
       body: JSON.stringify({
-        model:       GROQ_MODEL,
-        messages:    [{ role: "user", content: prompt }],
+        model: GROQ_MODEL,
+        messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
-        max_tokens:  8192,
+        max_tokens: 8192,
       }),
       signal: AbortSignal.timeout(90_000),
     });
