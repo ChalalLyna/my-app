@@ -133,6 +133,18 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
   const log = (type: string, text: string) =>
     setLines((prev) => [...prev, { type, text }]);
 
+  // ── Register attack result in DB (fire-and-forget) ──────────────────────
+  const registerAttack = (status: "terminé" | "stoppé") =>
+    fetch("/api/simulations/lab-attack", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        assetIds:    assets.map((a) => a.id),
+        ttpMitreIds: selectedTTPs.map((t) => t.id),
+        status,
+      }),
+    }).catch(() => { /* non-bloquant */ });
+
   // ── MAIN LAUNCH HANDLER ────────────────────────────────────────────────
   const handleLaunch = async () => {
     if (assets.length === 0 || selectedTTPs.length === 0) return;
@@ -379,6 +391,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
             doneRef.current = true;
             setRunning(false);
             setDone(true);
+            registerAttack("terminé");
           }
         } catch { /* ignore transient poll errors */ }
       }, 3_000);
@@ -391,6 +404,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
           doneRef.current = true;
           setRunning(false);
           setDone(true);
+          registerAttack("stoppé");
         }
       }, 600_000);
 
@@ -421,6 +435,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
     setRunning(false);
     setDone(true);
     log("warn", "[■] Attack stopped by user");
+    registerAttack("stoppé");
   };
 
   // ── Checklist (pre-launch UI) ───────────────────────────────────────────

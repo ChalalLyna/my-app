@@ -40,7 +40,7 @@ CREATE TABLE ResultatAttaque (
     IdResultatAttaque   INT  NOT NULL AUTO_INCREMENT,
     description         TEXT,
     rapport             TEXT,
-    IdResultatMission   INT  NOT NULL,
+    IdResultatMission   INT,
     PRIMARY KEY (IdResultatAttaque),
     CONSTRAINT fk_resultatattaque_mission FOREIGN KEY (IdResultatMission)
         REFERENCES ResultatMission(IdResultatMission)
@@ -133,11 +133,11 @@ CREATE TABLE Actif (
 -- ------------------------------------------------------------
 
 CREATE TABLE Attaque (
-    IdAttaque           INT  NOT NULL AUTO_INCREMENT,
-    DateExecution       DATE,
+    IdAttaque           INT NOT NULL AUTO_INCREMENT,
+    DateExecution       DATETIME,
     statut              VARCHAR(50),
     type                ENUM('apprentissage','amelioration','mission') NOT NULL,
-    IdResultatAttaque   INT  NOT NULL,
+    IdResultatAttaque   INT NOT NULL,
     PRIMARY KEY (IdAttaque),
     CONSTRAINT fk_attaque_resultat FOREIGN KEY (IdResultatAttaque)
         REFERENCES ResultatAttaque(IdResultatAttaque)
