@@ -133,17 +133,29 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
   const log = (type: string, text: string) =>
     setLines((prev) => [...prev, { type, text }]);
 
-  // ── Register attack result in DB (fire-and-forget) ──────────────────────
-  const registerAttack = (status: "terminé" | "stoppé") =>
-    fetch("/api/simulations/lab-attack", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        assetIds:    assets.map((a) => a.id),
-        ttpMitreIds: selectedTTPs.map((t) => t.id),
-        status,
-      }),
-    }).catch(() => { /* non-bloquant */ });
+  // ── Register attack result in DB ────────────────────────────────────────
+  const registerAttack = async (status: "terminé" | "stoppé") => {
+    try {
+      const res = await fetch("/api/simulations/lab-attack", {
+        method:      "POST",
+        credentials: "include",
+        headers:     { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assetIds:    assets.map((a) => a.id),
+          ttpMitreIds: selectedTTPs.map((t) => t.id),
+          status,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        log("error", `[✗] Enregistrement DB échoué : ${data.error ?? res.status}`);
+      } else {
+        log("system", `[DB] Attaque enregistrée (id=${data.idAttaque})`);
+      }
+    } catch (err: any) {
+      log("error", `[✗] Enregistrement DB : ${err.message}`);
+    }
+  };
 
   // ── MAIN LAUNCH HANDLER ────────────────────────────────────────────────
   const handleLaunch = async () => {
