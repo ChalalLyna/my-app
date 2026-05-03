@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useAuth } from "@/app/context/AuthContext";
 import { Asset } from "@/app/types/simulation";
 import { Step2Selection } from "./StepSelectAdversary";
 import {
@@ -78,6 +79,7 @@ async function waitAgentAlive(ip: string, maxWaitMs = 60_000): Promise<boolean> 
 // ──────────────────────────────────────────────────────────────────────────
 export default function StepConfirmLaunch({ assets, step2 }: Props) {
   const { adversary, selectedTTPs } = step2;
+  const { user } = useAuth();
 
   const [launched, setLaunched] = useState(false);
   const [done, setDone]         = useState(false);
@@ -137,10 +139,10 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
   const registerAttack = async (status: "terminé" | "stoppé") => {
     try {
       const res = await fetch("/api/simulations/lab-attack", {
-        method:      "POST",
-        credentials: "include",
-        headers:     { "Content-Type": "application/json" },
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          userId:      user ? Number(user.id) : null,
           assetIds:    assets.map((a) => a.id),
           ttpMitreIds: selectedTTPs.map((t) => t.id),
           status,

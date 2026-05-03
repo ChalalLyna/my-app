@@ -1,21 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { RowDataPacket, ResultSetHeader } from "mysql2";
 import pool from "@/lib/db";
-import { verifyToken, COOKIE_NAME } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
-  const token = req.cookies.get(COOKIE_NAME)?.value;
-  if (!token) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-  const payload = verifyToken(token);
-  if (!payload) return NextResponse.json({ error: "Session expirée" }, { status: 401 });
-  const idUtilisateur = payload.idUtilisateur;
-
   try {
-    const { assetIds, ttpMitreIds, status } = await req.json() as {
+    const { userId, assetIds, ttpMitreIds, status } = await req.json() as {
+      userId:      number;
       assetIds:    string[];
       ttpMitreIds: string[];
       status:      string;
     };
+
+    if (!userId) return NextResponse.json({ error: "userId manquant" }, { status: 400 });
+    const idUtilisateur = userId;
 
     // Resolve MITRE IDs → DB IdTechnique
     let techniqueIds: number[] = [];
