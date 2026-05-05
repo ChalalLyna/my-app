@@ -12,14 +12,14 @@ export async function GET(req: NextRequest) {
   try {
     const [rows] = await pool.query(
       `SELECT
-         t.tactique,
-         COUNT(DISTINCT la.IdTechnique) AS techniqueCount,
-         COUNT(la.IdAttaque)            AS attackCount
-       FROM LabApprentissage la
-       JOIN Technique t ON la.IdTechnique = t.IdTechnique
-       WHERE la.IdUtilisateur = ?
-       GROUP BY t.tactique
-       ORDER BY attackCount DESC`,
+   t.tactique,
+   COUNT(DISTINCT la.IdTechnique) AS techniqueCount,
+   COUNT(DISTINCT la.IdAttaque)   AS attackCount   -- ← ajouter DISTINCT
+ FROM LabApprentissage la
+ JOIN Technique t ON la.IdTechnique = t.IdTechnique
+ WHERE la.IdUtilisateur = ?
+ GROUP BY t.tactique
+ ORDER BY attackCount DESC`,
       [userId]
     );
 

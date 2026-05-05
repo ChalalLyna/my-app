@@ -11,28 +11,31 @@ export async function GET(req: NextRequest) {
 
   try {
     const [rows] = await pool.query(
-      `SELECT
-         a.IdAttaque                      AS id,
-         a.DateExecution                  AS dateExecution,
-         a.statut,
-         a.type,
-         t.mitreID,
-         t.nom                            AS techniqueName,
-         t.tactique,
-         act.nom                          AS actifNom,
-         act.\`catégorie\`               AS actifCategorie,
-         mv.IP                            AS actifIP,
-         mv.OS                            AS actifOS,
-         ra.description                   AS resultatDescription,
-         ra.rapport
-       FROM LabApprentissage la
-       JOIN Attaque          a   ON la.IdAttaque    = a.IdAttaque
-       JOIN Technique        t   ON la.IdTechnique  = t.IdTechnique
-       JOIN Actif            act ON la.IdActif      = act.IdActif
-       JOIN MachineVirtuelle mv  ON act.IdVM        = mv.IdVM
-       JOIN ResultatAttaque  ra  ON a.IdResultatAttaque = ra.IdResultatAttaque
-       WHERE la.IdUtilisateur = ?
-       ORDER BY a.DateExecution DESC`,
+     `SELECT
+   a.IdAttaque                      AS id,
+   a.DateExecution                  AS dateExecution,
+   a.statut,
+   a.type,
+   t.mitreID,
+   t.nom                            AS techniqueName,
+   t.tactique,
+   MIN(act.nom)                     AS actifNom,
+   MIN(act.\`catégorie\`)           AS actifCategorie,
+   MIN(mv.IP)                       AS actifIP,
+   MIN(mv.OS)                       AS actifOS,
+   ra.description                   AS resultatDescription,
+   ra.rapport
+ FROM LabApprentissage la
+ JOIN Attaque          a   ON la.IdAttaque    = a.IdAttaque
+ JOIN Technique        t   ON la.IdTechnique  = t.IdTechnique
+ JOIN Actif            act ON la.IdActif      = act.IdActif
+ JOIN MachineVirtuelle mv  ON act.IdVM        = mv.IdVM
+ JOIN ResultatAttaque  ra  ON a.IdResultatAttaque = ra.IdResultatAttaque
+ WHERE la.IdUtilisateur = ?
+ GROUP BY a.IdAttaque, a.DateExecution, a.statut, a.type,
+          t.mitreID, t.nom, t.tactique,
+          ra.description, ra.rapport
+ ORDER BY a.DateExecution DESC`,
       [userId]
     );
 

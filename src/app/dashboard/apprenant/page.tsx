@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import { useAuth } from "@/app/context/AuthContext";
 import {
   Crosshair, Brain, X, FileText, ChevronDown, ChevronUp,
-  Shield, Clock, Monitor, Tag,
+  Shield, Clock, Monitor, Filter, Calendar, Search,
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
@@ -44,9 +44,11 @@ interface TacticStat {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUT_STYLE: Record<string, string> = {
-  success: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  failed:  "text-red-400    bg-red-500/10    border-red-500/20",
-  running: "text-amber-400  bg-amber-500/10  border-amber-500/20",
+  success:    "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+  failed:     "text-red-400    bg-red-500/10    border-red-500/20",
+  running:    "text-amber-400  bg-amber-500/10  border-amber-500/20",
+  terminee:   "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+  "en cours": "text-amber-400  bg-amber-500/10  border-amber-500/20",
 };
 
 const BAR_COLORS = [
@@ -57,7 +59,6 @@ function fmt(date: string | null) {
   if (!date) return "—";
   return new Date(date).toLocaleDateString("fr-FR", {
     day: "2-digit", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
   });
 }
 
@@ -73,7 +74,6 @@ function ReportModal({ attack, onClose }: { attack: Attack; onClose: () => void 
         className="bg-gray-950 border border-gray-800 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-gray-800">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -90,14 +90,12 @@ function ReportModal({ attack, onClose }: { attack: Attack; onClose: () => void 
           </button>
         </div>
 
-        {/* Résultat */}
         {attack.resultatDescription && (
           <div className="px-6 py-3 border-b border-gray-800/60 bg-gray-900/40">
             <p className="text-xs text-gray-400 leading-relaxed">{attack.resultatDescription}</p>
           </div>
         )}
 
-        {/* Rapport */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {attack.rapport ? (
             <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap leading-relaxed bg-gray-900 border border-gray-800 rounded-xl p-4">
@@ -150,6 +148,13 @@ function AttackRow({ attack, onReport }: { attack: Attack; onReport: () => void 
           <div className="text-[10px] text-gray-600 font-mono">{attack.actifIP}</div>
         </td>
 
+        {/* Résultat */}
+        <td className="px-4 py-3 hidden xl:table-cell max-w-[220px]">
+          <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">
+            {attack.resultatDescription || "—"}
+          </p>
+        </td>
+
         {/* Statut */}
         <td className="px-4 py-3 whitespace-nowrap">
           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statutStyle}`}>
@@ -182,8 +187,8 @@ function AttackRow({ attack, onReport }: { attack: Attack; onReport: () => void 
       {/* Expanded details */}
       {expanded && (
         <tr className="border-b border-gray-800/50 bg-gray-900/20">
-          <td colSpan={6} className="px-4 py-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <td colSpan={7} className="px-4 py-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div>
                 <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1 flex items-center gap-1">
                   <Monitor size={10} /> Système
@@ -192,22 +197,16 @@ function AttackRow({ attack, onReport }: { attack: Attack; onReport: () => void 
                 <p className="text-[10px] font-mono text-gray-500">{attack.actifIP}</p>
               </div>
               <div>
-                <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1 flex items-center gap-1">
-                  <Tag size={10} /> Catégorie actif
+                <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">
+                  Catégorie actif
                 </p>
                 <p className="text-xs text-gray-300">{attack.actifCategorie || "—"}</p>
               </div>
               <div>
                 <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1 flex items-center gap-1">
-                  <Shield size={10} /> Type lab
+                  <FileText size={10} /> Résultat complet
                 </p>
-                <p className="text-xs text-gray-300 capitalize">{attack.type}</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1 flex items-center gap-1">
-                  <FileText size={10} /> Résultat
-                </p>
-                <p className="text-xs text-gray-400 leading-relaxed line-clamp-3">
+                <p className="text-xs text-gray-400 leading-relaxed">
                   {attack.resultatDescription || "—"}
                 </p>
               </div>
@@ -227,8 +226,102 @@ function CustomTooltip({ active, payload, label }: any) {
     <div className="bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 shadow-xl">
       <p className="text-xs font-semibold text-white mb-1">{label}</p>
       <p className="text-xs text-indigo-400">{payload[0].value} attaque{payload[0].value > 1 ? "s" : ""}</p>
-      {payload[1] && (
-        <p className="text-xs text-purple-400">{payload[1].value} technique{payload[1].value > 1 ? "s" : ""}</p>
+    </div>
+  );
+}
+
+// ─── Filters Bar ──────────────────────────────────────────────────────────────
+
+interface Filters {
+  search:  string;
+  actif:   string;
+  tactique: string;
+  dateFrom: string;
+  dateTo:   string;
+}
+
+function FiltersBar({
+  attacks, filters, onChange,
+}: {
+  attacks: Attack[];
+  filters: Filters;
+  onChange: (f: Filters) => void;
+}) {
+  const actifs   = useMemo(() => [...new Set(attacks.map((a) => a.actifNom))].sort(),   [attacks]);
+  const tactiques = useMemo(() => [...new Set(attacks.map((a) => a.tactique))].sort(), [attacks]);
+
+  const set = (key: keyof Filters, val: string) => onChange({ ...filters, [key]: val });
+
+  return (
+    <div className="flex flex-wrap gap-3 items-center">
+      {/* Search */}
+      <div className="relative flex-1 min-w-[180px]">
+        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
+        <input
+          type="text"
+          placeholder="Rechercher une technique…"
+          value={filters.search}
+          onChange={(e) => set("search", e.target.value)}
+          className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 transition-colors"
+        />
+      </div>
+
+      {/* Actif */}
+      <div className="relative">
+        <Filter size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
+        <select
+          value={filters.actif}
+          onChange={(e) => set("actif", e.target.value)}
+          className="bg-gray-900 border border-gray-800 rounded-xl pl-8 pr-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-indigo-500/50 transition-colors appearance-none cursor-pointer"
+        >
+          <option value="">Tous les actifs</option>
+          {actifs.map((a) => <option key={a} value={a}>{a}</option>)}
+        </select>
+      </div>
+
+      {/* Tactique */}
+      <div className="relative">
+        <Shield size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
+        <select
+          value={filters.tactique}
+          onChange={(e) => set("tactique", e.target.value)}
+          className="bg-gray-900 border border-gray-800 rounded-xl pl-8 pr-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-indigo-500/50 transition-colors appearance-none cursor-pointer"
+        >
+          <option value="">Toutes les tactiques</option>
+          {tactiques.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </div>
+
+      {/* Date from */}
+      <div className="relative">
+        <Calendar size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
+        <input
+          type="date"
+          value={filters.dateFrom}
+          onChange={(e) => set("dateFrom", e.target.value)}
+          className="bg-gray-900 border border-gray-800 rounded-xl pl-8 pr-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-indigo-500/50 transition-colors cursor-pointer"
+        />
+      </div>
+
+      {/* Date to */}
+      <div className="relative">
+        <Calendar size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
+        <input
+          type="date"
+          value={filters.dateTo}
+          onChange={(e) => set("dateTo", e.target.value)}
+          className="bg-gray-900 border border-gray-800 rounded-xl pl-8 pr-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-indigo-500/50 transition-colors cursor-pointer"
+        />
+      </div>
+
+      {/* Reset */}
+      {(filters.search || filters.actif || filters.tactique || filters.dateFrom || filters.dateTo) && (
+        <button
+          onClick={() => onChange({ search: "", actif: "", tactique: "", dateFrom: "", dateTo: "" })}
+          className="text-[10px] text-gray-500 hover:text-white transition-colors underline"
+        >
+          Réinitialiser
+        </button>
       )}
     </div>
   );
@@ -244,6 +337,9 @@ export default function ApprenantDashboard() {
   const [tactics, setTactics] = useState<TacticStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [reportAttack, setReportAttack] = useState<Attack | null>(null);
+  const [filters, setFilters] = useState<Filters>({
+    search: "", actif: "", tactique: "", dateFrom: "", dateTo: "",
+  });
 
   useEffect(() => {
     Promise.all([
@@ -257,6 +353,18 @@ export default function ApprenantDashboard() {
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
+
+  // ── Filtered attacks ──────────────────────────────────────────────────────
+  const filtered = useMemo(() => {
+    return attacks.filter((a) => {
+      if (filters.search && !a.techniqueName.toLowerCase().includes(filters.search.toLowerCase())) return false;
+      if (filters.actif   && a.actifNom !== filters.actif)     return false;
+      if (filters.tactique && a.tactique !== filters.tactique) return false;
+      if (filters.dateFrom && a.dateExecution && a.dateExecution < filters.dateFrom) return false;
+      if (filters.dateTo   && a.dateExecution && a.dateExecution > filters.dateTo)   return false;
+      return true;
+    });
+  }, [attacks, filters]);
 
   return (
     <DashboardLayout>
@@ -352,19 +460,28 @@ export default function ApprenantDashboard() {
 
         {/* ── Attack history ── */}
         <div className="bg-gray-900 border border-gray-800/60 rounded-2xl overflow-hidden">
-          <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-800/60">
-            <Clock size={15} className="text-indigo-400" />
-            <p className="text-sm font-semibold text-white">Historique des attaques</p>
+          <div className="px-6 py-4 border-b border-gray-800/60 space-y-4">
+            <div className="flex items-center gap-2">
+              <Clock size={15} className="text-indigo-400" />
+              <p className="text-sm font-semibold text-white">Historique des attaques</p>
+              {!loading && (
+                <span className="ml-auto text-xs text-gray-600">
+                  {filtered.length}/{attacks.length} entrée{attacks.length > 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+
+            {/* Filters */}
             {!loading && attacks.length > 0 && (
-              <span className="ml-auto text-xs text-gray-600">{attacks.length} entrée{attacks.length > 1 ? "s" : ""}</span>
+              <FiltersBar attacks={attacks} filters={filters} onChange={setFilters} />
             )}
           </div>
 
           {loading ? (
             <div className="flex items-center justify-center py-16 text-gray-600 text-sm">Chargement…</div>
-          ) : attacks.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <div className="flex items-center justify-center py-16 text-gray-600 text-sm">
-              Aucune attaque enregistrée.
+              {attacks.length === 0 ? "Aucune attaque enregistrée." : "Aucun résultat pour ces filtres."}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -375,12 +492,13 @@ export default function ApprenantDashboard() {
                     <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Technique</th>
                     <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">Tactique</th>
                     <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">Actif ciblé</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider hidden xl:table-cell">Résultat</th>
                     <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Statut</th>
                     <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {attacks.map((attack) => (
+                  {filtered.map((attack) => (
                     <AttackRow
                       key={attack.id}
                       attack={attack}
@@ -395,7 +513,6 @@ export default function ApprenantDashboard() {
 
       </div>
 
-      {/* Report modal */}
       {reportAttack && (
         <ReportModal attack={reportAttack} onClose={() => setReportAttack(null)} />
       )}
