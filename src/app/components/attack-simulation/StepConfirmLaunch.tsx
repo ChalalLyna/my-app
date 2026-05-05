@@ -248,7 +248,7 @@ function AbilityCard({
           <div>
             <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-1">Output</p>
             {entry.output ? (
-              <pre className={`whitespace-pre-wrap break-all font-mono leading-relaxed ${ok ? "text-emerald-300" : "text-red-300"}`}>
+              <pre className={`whitespace-pre-wrap wrap-break-word font-mono leading-relaxed max-h-48 overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-gray-700 [&::-webkit-scrollbar-thumb]:rounded-full ${ok ? "text-emerald-300" : "text-red-300"}`}>
                 {entry.output}
               </pre>
             ) : (
@@ -564,20 +564,30 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
               // The result endpoint returns either:
               //   { stdout, stderr, exit_code }  — structured JSON (newer Caldera)
               //   { result: "<base64>" }          — legacy base64 blob
+              const normalize = (s: string) => s.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+              const extractStdout = (obj: any): string => {
+                let s = normalize(obj.stdout ?? "");
+                const err = normalize(obj.stderr ?? "");
+                if (err) s += (s ? "\n" : "") + "[stderr] " + err;
+                return s;
+              };
+
               let out = "";
               try {
                 const resultRes = await fetch(`/api/caldera/operations/${opId}/links/${link.id}/result`);
                 if (resultRes.ok) {
                   const resultData = await resultRes.json();
                   if (resultData.stdout !== undefined) {
-                    // Structured format — normalise Windows CRLF then trim
-                    const normalize = (s: string) => s.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
-                    out = normalize(resultData.stdout as string);
-                    if (resultData.stderr && normalize(resultData.stderr as string))
-                      out += "\n[stderr] " + normalize(resultData.stderr as string);
+                    out = extractStdout(resultData);
                   } else {
-                    // Legacy base64 blob
-                    out = calderaB64(resultData.result ?? resultData.output ?? "");
+                    // Legacy base64 blob — decoded value may itself be a JSON object
+                    const decoded = calderaB64(resultData.result ?? resultData.output ?? "");
+                    try {
+                      const inner = JSON.parse(decoded);
+                      out = inner.stdout !== undefined ? extractStdout(inner) : decoded;
+                    } catch {
+                      out = decoded;
+                    }
                   }
                 }
               } catch { /* ignore — fallback below */ }
