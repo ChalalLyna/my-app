@@ -179,6 +179,22 @@ ${body}
 </html>`;
 }
 
+// ── Caldera base64 decode (UTF-8 aware) ───────────────────────────────────
+function calderaB64(val: string | undefined | null): string {
+  if (!val) return "";
+  try {
+    const bin   = atob(val);
+    const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+    try {
+      return new TextDecoder("utf-8", { fatal: true }).decode(bytes).trim();
+    } catch {
+      return bin.trim();
+    }
+  } catch {
+    return val.trim(); // not base64 — use as-is
+  }
+}
+
 // ── AbilityCard ────────────────────────────────────────────────────────────
 function AbilityCard({
   entry, expanded, onToggle,
@@ -524,10 +540,8 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
               shownLinks.add(key); // mark only once final
 
               const assetInfo = opToAssetRef.current[opId] ?? { name: "Unknown", ip: "" };
-              let cmd = "";
-              try { cmd = link.executor?.command ? atob(link.executor.command).trim() : ""; } catch { cmd = link.executor?.command ?? ""; }
-              let out = "";
-              try { out = link.output ? atob(link.output).trim() : ""; } catch { out = ""; }
+              const cmd = calderaB64(link.command ?? link.executor?.command);
+              const out = calderaB64(link.output);
 
               setLines((prev) => [...prev, {
                 type:        "ability",
