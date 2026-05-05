@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import {
   BookOpen,
-  X,
   ChevronRight,
   Building2,
   Shield,
@@ -19,9 +17,7 @@ interface Guide {
   id: number;
   titre: string;
   description: string;
-  contenu: string;
   categorie: string;
-  dateCreation: string | null;
 }
 
 const CATEGORY_META: Record<
@@ -73,7 +69,6 @@ function getCategoryMeta(cat: string) {
 export default function HubFormationPage() {
   const [guides, setGuides] = useState<Guide[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<Guide | null>(null);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
 
@@ -193,10 +188,10 @@ export default function HubFormationPage() {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {items.map((guide) => (
-                      <button
+                      <Link
                         key={guide.id}
-                        onClick={() => setSelected(guide)}
-                        className="text-left bg-gray-900 border border-gray-800/60 rounded-2xl p-5 hover:border-gray-700 transition-colors group"
+                        href={`/cours/${guide.id}`}
+                        className="block bg-gray-900 border border-gray-800/60 rounded-2xl p-5 hover:border-gray-700 transition-colors group"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className={`w-9 h-9 rounded-xl ${meta.bg} flex items-center justify-center flex-shrink-0`}>
@@ -217,7 +212,7 @@ export default function HubFormationPage() {
                           <Icon size={10} />
                           {meta.label}
                         </div>
-                      </button>
+                      </Link>
                     ))}
                   </div>
                 </section>
@@ -226,58 +221,6 @@ export default function HubFormationPage() {
           </div>
         )}
       </div>
-
-      {/* Guide Reader Modal */}
-      {selected && (
-        <div
-          className="fixed inset-0 z-50 flex items-start justify-end bg-black/60 backdrop-blur-sm"
-          onClick={() => setSelected(null)}
-        >
-          <div
-            className="relative w-full max-w-2xl h-full bg-gray-950 border-l border-gray-800 overflow-y-auto shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Panel Header */}
-            <div className="sticky top-0 z-10 bg-gray-950 border-b border-gray-800 px-6 py-4 flex items-start justify-between gap-4">
-              <div>
-                <div className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-full mb-2 ${getCategoryMeta(selected.categorie).bg} ${getCategoryMeta(selected.categorie).color}`}>
-                  {(() => { const Icon = getCategoryMeta(selected.categorie).icon; return <Icon size={10} />; })()}
-                  {getCategoryMeta(selected.categorie).label}
-                </div>
-                <h2 className="text-base font-bold text-white leading-snug">{selected.titre}</h2>
-              </div>
-              <button
-                onClick={() => setSelected(null)}
-                className="flex-shrink-0 text-gray-500 hover:text-white transition-colors mt-1"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Markdown Content */}
-            <div className="px-6 py-6 prose prose-invert prose-sm max-w-none
-              prose-headings:text-white prose-headings:font-bold
-              prose-h1:text-xl prose-h1:mt-6 prose-h1:mb-4
-              prose-h2:text-base prose-h2:mt-5 prose-h2:mb-3
-              prose-h3:text-sm prose-h3:mt-4 prose-h3:mb-2
-              prose-p:text-gray-400 prose-p:leading-relaxed prose-p:text-sm
-              prose-li:text-gray-400 prose-li:text-sm
-              prose-strong:text-gray-200
-              prose-code:text-emerald-400 prose-code:bg-gray-900 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs
-              prose-pre:bg-gray-900 prose-pre:border prose-pre:border-gray-800 prose-pre:rounded-xl
-              prose-table:text-sm prose-table:border-collapse
-              prose-th:border prose-th:border-gray-800 prose-th:bg-gray-900 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:text-gray-300 prose-th:text-xs prose-th:font-semibold
-              prose-td:border prose-td:border-gray-800 prose-td:px-3 prose-td:py-2 prose-td:text-gray-400 prose-td:text-xs
-              prose-a:text-emerald-400 prose-a:no-underline hover:prose-a:underline
-              prose-hr:border-gray-800
-            ">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {selected.contenu}
-              </ReactMarkdown>
-            </div>
-          </div>
-        </div>
-      )}
     </DashboardLayout>
   );
 }
