@@ -20,72 +20,84 @@ export async function POST(req: NextRequest) {
     if (!key)
       return NextResponse.json({ error: "GROQ_API_KEY non configurée" }, { status: 500 });
 
-    // ── 1. Fetch full Caldera report (with agent output) ──────────────────
+    // ── 1. Fetch operation chain + each link's real output ───────────────
     const calderaHeaders = {
       KEY: process.env.CALDERA_API_KEY!,
       "Content-Type": "application/json",
     };
 
+    const norm = (s: string) =>
+      String(s ?? "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+
+    const decodeB64 = (s: string): string => {
+      if (!s) return "";
+      try { return Buffer.from(s, "base64").toString("utf-8").trim(); }
+      catch { return s; }
+    };
+
+    const extractOutput = (data: any): string => {
+      // Newer Caldera: { stdout, stderr, exit_code }
+      if (data.stdout !== undefined) {
+        let out = norm(data.stdout);
+        const err = norm(data.stderr ?? "");
+        if (err) out += "\n[stderr] " + err;
+        return out;
+      }
+      // Legacy: base64 blob in data.output or data.result
+      const raw = data.output ?? data.result ?? "";
+      if (!raw) return "";
+      const decoded = decodeB64(String(raw));
+      try {
+        const inner = JSON.parse(decoded);
+        if (inner.stdout !== undefined) {
+          let out = norm(inner.stdout);
+          const err = norm(inner.stderr ?? "");
+          if (err) out += "\n[stderr] " + err;
+          return out;
+        }
+      } catch { /* plain text */ }
+      return decoded;
+    };
+
     const slimReports = await Promise.all(
       operationIds.map(async (id) => {
-        const [opRes, repRes] = await Promise.all([
-          fetch(`${process.env.CALDERA_URL}/api/v2/operations/${id}`, {
-            headers: calderaHeaders,
-            cache: "no-store",
-          }),
-          fetch(`${process.env.CALDERA_URL}/api/v2/operations/${id}/report`, {
-            method: "POST",
-            headers: calderaHeaders,
-            body: JSON.stringify({ enable_agent_output: true }),
-            cache: "no-store",
-          }),
-        ]);
-
+        const opRes = await fetch(`${process.env.CALDERA_URL}/api/v2/operations/${id}`, {
+          headers: calderaHeaders,
+          cache: "no-store",
+        });
         const operation = opRes.ok ? await opRes.json() : {};
-        const report    = repRes.ok ? await repRes.json() : {};
 
-        // ── SLIM: only what matters for an analyst report ────────────────
-        const decodeOutput = (raw: string): string => {
-          try {
-            let decoded = atob(raw).trim();
+        // Only links that have actually finished (status !== 1 = queued/running)
+        const chain: any[] = operation.chain ?? [];
+        const doneLinks = chain.filter((l) => l.status !== 1);
+
+        // Fetch every link's result in parallel — same endpoint the terminal uses
+        const linkOutputs = await Promise.all(
+          doneLinks.map(async (link): Promise<string> => {
             try {
-              const parsed = JSON.parse(decoded);
-              if (parsed.stdout !== undefined) {
-                decoded = parsed.stdout.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
-                const err = (parsed.stderr ?? "").replace(/\r\n/g, "\n").trim();
-                if (err) decoded += "\n[stderr] " + err;
-              }
-            } catch { /* plain text */ }
-            return decoded.length > 800 ? decoded.slice(0, 800) + "\n...[truncated]" : decoded;
-          } catch { return ""; }
-        };
+              const res = await fetch(
+                `${process.env.CALDERA_URL}/api/v2/operations/${id}/links/${link.id}/result`,
+                { headers: calderaHeaders, cache: "no-store", signal: AbortSignal.timeout(6_000) }
+              );
+              if (!res.ok) return "";
+              const raw = extractOutput(await res.json());
+              return raw.length > 800 ? raw.slice(0, 800) + "\n...[truncated]" : raw;
+            } catch { return ""; }
+          })
+        );
 
-        const slimSteps: any[] = [];
-        for (const [agent, data] of Object.entries(report.steps ?? {}) as [string, any][]) {
-          for (const step of data?.steps ?? []) {
-            slimSteps.push({
-              agent,
-              technique_id:   step.ability?.technique_id   ?? "",
-              technique_name: step.ability?.technique_name ?? "",
-              tactic:         step.ability?.tactic         ?? "",
-              ability_name:   step.ability?.name           ?? "",
-              command:        (step.command ?? "").slice(0, 300),
-              status:         step.status === 0 ? "success"
-                            : step.status === -1 ? "failed"
-                            : `code_${step.status}`,
-              platform:       step.platform ?? "",
-              executor:       step.executor ?? "",
-              output:         step.output ? decodeOutput(step.output) : "",
-            });
-          }
-        }
-
-        const slimFacts = (report.facts ?? [])
-          .slice(0, 50)
-          .map((f: any) => ({
-            trait: f.trait,
-            value: String(f.value ?? "").slice(0, 150),
-          }));
+        const slimSteps = doneLinks.map((link, i) => ({
+          agent:          link.host ?? link.paw ?? "unknown",
+          technique_id:   link.ability?.technique_id   ?? "",
+          technique_name: link.ability?.technique_name ?? "",
+          tactic:         link.ability?.tactic         ?? "",
+          ability_name:   link.ability?.name           ?? "",
+          command:        decodeB64(link.command ?? "").slice(0, 300),
+          status:         link.status === 0  ? "success"
+                        : link.status === -1 ? "failed"
+                        : `code_${link.status}`,
+          output:         linkOutputs[i] ?? "",
+        }));
 
         return {
           operation_name: operation.name ?? "Unknown",
@@ -93,13 +105,10 @@ export async function POST(req: NextRequest) {
           start:          operation.start ?? "",
           finish:         operation.finish ?? "",
           adversary:      operation.adversary?.name ?? "Manual TTP selection",
-          adversary_desc: operation.adversary?.description ?? "",
-          group:          operation.host_group?.map?.((h: any) => h.host) ?? operation.group ?? [],
+          group:          operation.host_group?.map?.((h: any) => h.host) ?? [],
           planner:        operation.planner?.name ?? "",
-          obfuscator:     operation.obfuscator ?? "",
           steps_total:    slimSteps.length,
           steps:          slimSteps,
-          facts:          slimFacts,
         };
       })
     );

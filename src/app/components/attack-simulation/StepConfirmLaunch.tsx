@@ -139,7 +139,7 @@ function buildPrintHtml(markdown: string): string {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Security Report — CyberLab</title>
+<title>Security Report &mdash; CyberLab</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:Georgia,serif;max-width:900px;margin:40px auto;padding:0 24px;color:#1a1a1a;line-height:1.7;font-size:15px}
@@ -169,7 +169,7 @@ function buildPrintHtml(markdown: string): string {
 </head>
 <body>
 <div class="cover">
-  <p class="cover-label">Confidential — Cybersecurity Assessment Report</p>
+  <p class="cover-label">Confidential &mdash; Cybersecurity Assessment Report</p>
   <h1>Adversary Emulation Report</h1>
   <p class="cover-meta">Generated: ${date} &nbsp;|&nbsp; Platform: CyberLab &nbsp;|&nbsp; Engine: MITRE Caldera</p>
 </div>
