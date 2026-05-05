@@ -32,7 +32,7 @@ CREATE TABLE MachineVirtuelle (
 CREATE TABLE ResultatMission (
     IdResultatMission   INT  NOT NULL AUTO_INCREMENT,
     description         TEXT,
-    rapport             TEXT,
+    rapport             LONGTEXT,
     PRIMARY KEY (IdResultatMission)
 );
 

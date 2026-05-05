@@ -278,8 +278,10 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
   const [generating, setGenerating] = useState(false);
   const [lines, setLines]           = useState<LogEntry[]>([]);
   const [expanded, setExpanded]     = useState<Set<string>>(new Set());
-  const opIdsRef                = useRef<string[]>([]);
-  const opToAssetRef            = useRef<Record<string, { name: string; ip: string }>>({});
+  const opIdsRef            = useRef<string[]>([]);
+  const opToAssetRef        = useRef<Record<string, { name: string; ip: string }>>({});
+  const abilityResultsRef   = useRef<AbilityResult[]>([]);
+  const attackIdRef         = useRef<number | null>(null);
 
   // Live checklist
   const [check, setCheck] = useState<CheckState>({
@@ -332,6 +334,22 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
   // ── Register attack result in DB ────────────────────────────────────────
   const registerAttack = async (status: "terminé" | "stoppé") => {
     try {
+      const results  = abilityResultsRef.current;
+      const successes = results.filter((r) => r.status === "success");
+      const failures  = results.filter((r) => r.status === "failed");
+      const assetList = [...new Set(
+        results.map((r) => r.assetIp ? `${r.assetName} (${r.assetIp})` : r.assetName)
+      )].join(", ") || assets.map((a) => a.name).join(", ");
+      const techList = [...new Set(
+        successes
+          .filter((r) => r.techniqueId || r.abilityName)
+          .map((r) => r.techniqueId ? `${r.techniqueId} — ${r.abilityName}` : r.abilityName)
+      )].join(", ");
+      const description =
+        `Simulation sur ${assetList} — ${results.length} technique(s) exécutée(s) : ` +
+        `${successes.length} réussie(s), ${failures.length} échouée(s).` +
+        (techList ? ` Techniques réussies : ${techList}.` : "");
+
       const res = await fetch("/api/simulations/lab-attack", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
@@ -340,12 +358,14 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
           assetIds:    assets.map((a) => a.id),
           ttpMitreIds: selectedTTPs.map((t) => t.id),
           status,
+          description,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
         log("error", `[✗] Enregistrement DB échoué : ${data.error ?? res.status}`);
       } else {
+        attackIdRef.current = data.idAttaque;
         log("system", `[DB] Attaque enregistrée (id=${data.idAttaque})`);
       }
     } catch (err: any) {
@@ -608,7 +628,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
               // Fallback 2: raw output field (last resort)
               if (!out) out = calderaB64(link.output) || "";
 
-              setLines((prev) => [...prev, {
+              const abilityEntry: AbilityResult = {
                 type:        "ability",
                 id:          key,
                 techniqueId: link.ability?.technique_id ?? "",
@@ -618,7 +638,9 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
                 command:     cmd,
                 output:      out,
                 status:      link.status === 0 ? "success" : "failed",
-              } as AbilityResult]);
+              };
+              abilityResultsRef.current.push(abilityEntry);
+              setLines((prev) => [...prev, abilityEntry]);
             }
 
             const state: string = result.state ?? "";
@@ -712,6 +734,18 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
       log("success", "[✓] Report downloaded — open the file and print (Ctrl+P) to save as PDF");
+
+      // Save Markdown to DB if we have the attack ID
+      if (attackIdRef.current) {
+        try {
+          await fetch("/api/simulations/lab-attack/rapport", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ idAttaque: attackIdRef.current, rapport: data.report }),
+          });
+          log("system", "[DB] Rapport sauvegardé en base de données");
+        } catch { /* non-bloquant */ }
+      }
     } catch (err: any) {
       log("error", `[✗] Report generation failed: ${err.message}`);
     } finally {

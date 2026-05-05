@@ -4,11 +4,12 @@ import pool from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, assetIds, ttpMitreIds, status } = await req.json() as {
+    const { userId, assetIds, ttpMitreIds, status, description } = await req.json() as {
       userId:      number;
       assetIds:    string[];
       ttpMitreIds: string[];
       status:      string;
+      description: string;
     };
 
     if (!userId) return NextResponse.json({ error: "userId manquant" }, { status: 400 });
@@ -31,8 +32,8 @@ export async function POST(req: NextRequest) {
 
       // 1. ResultatAttaque
       const [ra] = await db.execute<ResultSetHeader>(
-        "INSERT INTO ResultatAttaque (description, rapport) VALUES (?, ?)",
-        ["Résultat d'attaque d'apprentissage", "Rapport en cours de génération"]
+        "INSERT INTO ResultatAttaque (description) VALUES (?)",
+        [description ?? ""]
       );
       const idResultatAttaque = ra.insertId;
 
