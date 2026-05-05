@@ -292,4 +292,14 @@ CREATE TABLE RegleExportee (
 
 -- ------------------------------------------------------------
 
+CREATE TABLE Guide (
+    IdGuide INT AUTO_INCREMENT PRIMARY KEY,
+    titre VARCHAR(255) NOT NULL,
+    description TEXT,
+    contenu LONGTEXT NOT NULL,
+    categorie VARCHAR(50),
+    DateCreation DATETIME DEFAULT CURRENT_TIMESTAMP,
+    DateModification DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
 SET FOREIGN_KEY_CHECKS = 1;
