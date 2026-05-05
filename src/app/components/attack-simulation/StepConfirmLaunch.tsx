@@ -132,8 +132,14 @@ function mdToHtml(md: string): string {
   return html;
 }
 
+// Convert every non-ASCII character to a numeric HTML entity so the file
+// is safe regardless of how the browser guesses the charset of a local file.
+function escapeNonAscii(s: string): string {
+  return s.replace(/[^\x00-\x7F]/g, (c) => `&#${c.codePointAt(0)};`);
+}
+
 function buildPrintHtml(markdown: string): string {
-  const body = mdToHtml(markdown);
+  const body = escapeNonAscii(mdToHtml(markdown));
   const date = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   return `<!DOCTYPE html>
 <html lang="en">
@@ -696,7 +702,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
       if (!res.ok) throw new Error(data.error ?? res.status);
 
       const html     = buildPrintHtml(data.report);
-      const blob     = new Blob([html], { type: "text/html;charset=utf-8" });
+      const blob     = new Blob(["﻿" + html], { type: "text/html;charset=utf-8" });
       const url      = URL.createObjectURL(blob);
       const a        = document.createElement("a");
       a.href         = url;

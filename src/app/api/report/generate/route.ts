@@ -35,6 +35,25 @@ export async function POST(req: NextRequest) {
       catch { return s; }
     };
 
+    // Commands are obfuscated before being stored — decoded bytes may be binary.
+    // If the decoded result contains non-printable chars, fall back to the
+    // executor's original command template (unobfuscated).
+    const decodeCommand = (link: any): string => {
+      const raw = (link.command ?? "").trim();
+      if (raw && /^[A-Za-z0-9+/\r\n]+=*$/.test(raw)) {
+        try {
+          const decoded = Buffer.from(raw, "base64").toString("utf-8").trim();
+          if (!/[\x00-\x08\x0E-\x1F\x7F]/.test(decoded)) return decoded;
+        } catch { /* fall through */ }
+      }
+      // Fallback: executor template or ability's first executor command
+      return (
+        link.executor?.command ??
+        link.ability?.executors?.[0]?.command ??
+        raw
+      );
+    };
+
     const extractOutput = (data: any): string => {
       // Newer Caldera: { stdout, stderr, exit_code }
       if (data.stdout !== undefined) {
@@ -92,7 +111,7 @@ export async function POST(req: NextRequest) {
           technique_name: link.ability?.technique_name ?? "",
           tactic:         link.ability?.tactic         ?? "",
           ability_name:   link.ability?.name           ?? "",
-          command:        decodeB64(link.command ?? "").slice(0, 300),
+          command:        decodeCommand(link).slice(0, 300),
           status:         link.status === 0  ? "success"
                         : link.status === -1 ? "failed"
                         : `code_${link.status}`,
