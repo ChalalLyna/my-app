@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import InvestigateModal from "@/app/components/detection/InvestigateModal";
 import RuleModal from "@/app/components/detection/RuleModal";
+import HelpPanel from "@/app/components/HelpPanel";
+import { DETECTION_HELP } from "@/app/config/helpContent";
 import { DetectionAlert, AlertStatus } from "@/app/data/alerts";
 import {
   Shield, AlertTriangle, Activity, RefreshCw, Sliders,
@@ -329,6 +331,7 @@ export default function DetectionPage() {
       {ruleAlert && (
         <RuleModal alert={ruleAlert} onClose={() => setRuleAlert(null)} />
       )}
+      <HelpPanel title="Aide — Détection" sections={DETECTION_HELP} />
     </DashboardLayout>
   );
 }
