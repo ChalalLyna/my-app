@@ -45,30 +45,37 @@ export async function POST(req: NextRequest) {
         const report    = repRes.ok ? await repRes.json() : {};
 
         // ── SLIM: only what matters for an analyst report ────────────────
+        const decodeOutput = (raw: string): string => {
+          try {
+            let decoded = atob(raw).trim();
+            try {
+              const parsed = JSON.parse(decoded);
+              if (parsed.stdout !== undefined) {
+                decoded = parsed.stdout.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+                const err = (parsed.stderr ?? "").replace(/\r\n/g, "\n").trim();
+                if (err) decoded += "\n[stderr] " + err;
+              }
+            } catch { /* plain text */ }
+            return decoded.length > 800 ? decoded.slice(0, 800) + "\n...[truncated]" : decoded;
+          } catch { return ""; }
+        };
+
         const slimSteps: any[] = [];
         for (const [agent, data] of Object.entries(report.steps ?? {}) as [string, any][]) {
           for (const step of data?.steps ?? []) {
-            let output = "";
-            try {
-              if (step.output) {
-                output = atob(step.output).trim();
-                if (output.length > 500) output = output.slice(0, 500) + "...[truncated]";
-              }
-            } catch { /* ignore */ }
-
             slimSteps.push({
               agent,
               technique_id:   step.ability?.technique_id   ?? "",
               technique_name: step.ability?.technique_name ?? "",
               tactic:         step.ability?.tactic         ?? "",
               ability_name:   step.ability?.name           ?? "",
-              command:        (step.command ?? "").slice(0, 200),
+              command:        (step.command ?? "").slice(0, 300),
               status:         step.status === 0 ? "success"
                             : step.status === -1 ? "failed"
                             : `code_${step.status}`,
               platform:       step.platform ?? "",
               executor:       step.executor ?? "",
-              output,
+              output:         step.output ? decodeOutput(step.output) : "",
             });
           }
         }
@@ -101,52 +108,56 @@ export async function POST(req: NextRequest) {
     const calderaJson = JSON.stringify(slimReports, null, 2);
     console.log(`[Report] JSON size: ${calderaJson.length} chars (~${estimateTokens(calderaJson)} tokens)`);
 
-    const prompt = `You are a senior cybersecurity analyst. Below is a slimmed JSON exported from a MITRE Caldera adversary emulation. It contains the operation details and every executed step (technique, status, agent output).
+    const prompt = `You are a senior pentester writing a technical debrief. Below is raw MITRE Caldera operation data. Write a CONCISE, FACTUAL report using ONLY the data provided — no generic advice, no invented content.
 
 ## Caldera Data
 \`\`\`json
 ${calderaJson}
 \`\`\`
 
-Based strictly on this data, write a comprehensive professional penetration testing report in English with these sections:
+---
+
+Follow this structure EXACTLY:
 
 # Executive Summary
-High-level overview of what was tested, key findings, and overall risk rating (Critical / High / Medium / Low).
+2–3 sentences only: what was simulated, how many steps succeeded vs failed, overall risk level (Critical / High / Medium / Low). Be direct, no padding.
 
-# Simulation Overview
-- Operation name, date, duration
-- Adversary profile used
-- Target group / agents
-- Scope
+# Operation Details
+- **Name:** [operation_name]
+- **Date:** [start]
+- **Adversary:** [adversary]
+- **Agent(s):** [group or agent names]
+- **Steps:** [steps_total] total — [count successes] succeeded, [count failures] failed
 
-# Attack Chain & Timeline
-Chronological ordered list of every step executed, with technique ID, name, tactic, agent, and outcome (success/failed).
+# Attack Steps
 
-# MITRE ATT&CK Techniques Analysis
-For each unique technique: ID, name, tactic, what it does, success/failure, and quote relevant output evidence.
+For EVERY step in the data, write one block:
 
-# Key Findings
-Numbered list. For each finding:
-- Title
-- Risk level (Critical / High / Medium / Low)
-- Description
-- Evidence from the data
+### [ability_name] — [technique_id if non-empty, else omit] ([tactic if non-empty, else omit])
+- **Status:** ✓ Success / ✗ Failed ([status value])
+- **Command:**
+\`\`\`
+[command]
+\`\`\`
+- **Output:**
+\`\`\`
+[output — if empty or blank, write "(no output captured)"]
+\`\`\`
 
-# Impact Assessment
-What a real attacker could have achieved with the successful techniques.
+# Findings (Successful Steps Only)
+For each successful step, one short paragraph: what the technique achieved, what information was exposed, risk level (Critical/High/Medium/Low). Quote exact strings from the output as evidence.
 
 # Recommendations
-Specific, actionable remediation steps for each finding.
-
-# Conclusion
-Summary and next steps.
+One bullet per finding. Specific, actionable, referencing the exact technique and evidence.
 
 ---
-Rules:
-- Do NOT invent or assume data not present in the JSON.
-- Reference MITRE ATT&CK IDs (e.g. T1059.001) throughout.
-- Use Markdown formatting (headers, bold, bullet lists, code blocks for outputs).
-- Output ONLY the Markdown report, no preamble.`;
+STRICT RULES:
+- Output ONLY the Markdown, no preamble.
+- NEVER invent or assume anything not in the JSON.
+- Use ability_name when technique_name is empty.
+- Quote exact output snippets as evidence, wrapped in backticks.
+- If a field is empty or missing, omit it silently — do not write "None" or "N/A".
+- No "Conclusion" section, no "Impact Assessment" section, no generic cyber-advice.`;
 
     const promptTokens = estimateTokens(prompt);
     console.log(`[Report] Total prompt: ~${promptTokens} tokens`);

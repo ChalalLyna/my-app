@@ -696,7 +696,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
       if (!res.ok) throw new Error(data.error ?? res.status);
 
       const html     = buildPrintHtml(data.report);
-      const blob     = new Blob([html], { type: "text/html" });
+      const blob     = new Blob([html], { type: "text/html;charset=utf-8" });
       const url      = URL.createObjectURL(blob);
       const a        = document.createElement("a");
       a.href         = url;
