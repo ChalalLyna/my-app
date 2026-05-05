@@ -185,13 +185,21 @@ function calderaB64(val: string | undefined | null): string {
   try {
     const bin   = atob(val);
     const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+
+    // Try UTF-8 first (Linux agents), fallback to UTF-16LE (Windows/PowerShell),
+    // then latin-1 as last resort — never use the raw Latin-1 string directly.
     try {
       return new TextDecoder("utf-8", { fatal: true }).decode(bytes).trim();
     } catch {
-      return bin.trim();
+      // Windows PowerShell outputs are often UTF-16 LE
+      try {
+        return new TextDecoder("utf-16le", { fatal: true }).decode(bytes).trim();
+      } catch {
+        return new TextDecoder("latin-1").decode(bytes).trim();
+      }
     }
   } catch {
-    return val.trim(); // not base64 — use as-is
+    return val.trim(); // not base64 at all — use as-is
   }
 }
 
