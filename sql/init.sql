@@ -302,4 +302,16 @@ CREATE TABLE Guide (
     DateModification DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+CREATE TABLE Scenario (
+    IdScenario       INT          NOT NULL AUTO_INCREMENT,
+    titre            VARCHAR(255) NOT NULL,
+    description      TEXT,
+    objectif         TEXT,
+    niveau           VARCHAR(50),
+    bruit_recommande BOOLEAN      DEFAULT FALSE,
+    contenu          LONGTEXT     NOT NULL,
+    DateCreation     DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (IdScenario)
+);
+
 SET FOREIGN_KEY_CHECKS = 1;
