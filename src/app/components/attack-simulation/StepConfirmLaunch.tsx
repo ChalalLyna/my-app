@@ -558,7 +558,11 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
               console.log("[CyberLab] raw link:", JSON.stringify(link));
               const assetInfo = opToAssetRef.current[opId] ?? { name: "Unknown", ip: "" };
               const cmd = calderaB64(link.command ?? link.executor?.command);
-              const out = calderaB64(link.output);
+              const factValue = (link.facts as any[] | undefined)
+  ?.map((f: any) => `${f.trait}: ${f.value}`)
+  .join("\n");
+const rawOut = calderaB64(link.output);
+const out    = factValue || rawOut;
 
               setLines((prev) => [...prev, {
                 type:        "ability",
