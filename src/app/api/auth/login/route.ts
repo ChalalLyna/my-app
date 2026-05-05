@@ -81,13 +81,14 @@ export async function POST(req: NextRequest) {
     });
 
     // Cookie HttpOnly = inaccessible depuis JavaScript (protection XSS)
-    response.cookies.set(COOKIE_NAME, token, {
-      httpOnly: true,
-      secure:   process.env.NODE_ENV === "production", // HTTPS en prod seulement
-      sameSite: "lax",
-      maxAge:   8 * 60 * 60, // 8 heures en secondes
-      path:     "/",
-    });
+   // ✅ Après
+response.cookies.set(COOKIE_NAME, token, {
+  httpOnly: true,
+  secure:   process.env.HTTPS === "true", // seulement si explicitement activé
+  sameSite: "lax",
+  maxAge:   8 * 60 * 60,
+  path:     "/",
+});
 
     return response;
 
