@@ -531,13 +531,13 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
             if (!pollRes.ok) continue;
             const result = await pollRes.json();
 
+            console.log("[CyberLab] poll:", opId, "state:", result.state, "chain len:", result.chain?.length, "first link status:", result.chain?.[0]?.status);
+
             for (const link of (result.chain ?? []) as any[]) {
               const key = `${opId}:${link.id}`;
-              // Bug 3 fix: skip queued/pending links (-2 = discarded, 1 = running, -3 = queued)
-              // Only show & mark as done when link is in a final state: 0 (success) or -1 (failed)
               const isFinal = link.status === 0 || link.status === -1;
               if (shownLinks.has(key) || !isFinal) continue;
-              shownLinks.add(key); // mark only once final
+              shownLinks.add(key);
 
               console.log("[CyberLab] raw link:", JSON.stringify(link));
               const assetInfo = opToAssetRef.current[opId] ?? { name: "Unknown", ip: "" };
