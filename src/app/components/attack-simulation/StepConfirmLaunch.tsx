@@ -6,7 +6,7 @@ import { Asset } from "@/app/types/simulation";
 import { Step2Selection } from "./StepSelectAdversary";
 import {
   CheckCircle, Monitor, Shield, Zap, AlertTriangle,
-  Terminal, FileText, Loader2, Power, Square,
+  Terminal, FileText, Loader2, Power, Square, ChevronDown,
 } from "lucide-react";
 
 const LINE_COLORS: Record<string, string> = {
@@ -25,6 +25,20 @@ interface Props {
 }
 
 interface TerminalLine { type: string; text: string; }
+
+interface AbilityResult {
+  type:        "ability";
+  id:          string;
+  techniqueId: string;
+  abilityName: string;
+  assetName:   string;
+  assetIp:     string;
+  command:     string;
+  output:      string;
+  status:      "success" | "failed";
+}
+
+type LogEntry = TerminalLine | AbilityResult;
 
 // ── Checklist live state ───────────────────────────────────────────────────
 interface CheckState {
@@ -165,6 +179,56 @@ ${body}
 </html>`;
 }
 
+// ── AbilityCard ────────────────────────────────────────────────────────────
+function AbilityCard({
+  entry, expanded, onToggle,
+}: { entry: AbilityResult; expanded: boolean; onToggle: () => void }) {
+  const ok = entry.status === "success";
+  return (
+    <div className="my-0.5 rounded-lg border border-gray-800/50 overflow-hidden text-xs">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center gap-2 px-3 py-1.5 bg-gray-900/70 hover:bg-gray-800/60 transition-colors text-left"
+      >
+        <span className={ok ? "text-emerald-400" : "text-red-400"}>{ok ? "✓" : "✗"}</span>
+        {entry.techniqueId && (
+          <span className="font-mono text-indigo-300 shrink-0">{entry.techniqueId}</span>
+        )}
+        <span className="text-gray-300 flex-1 truncate">{entry.abilityName}</span>
+        <span className="text-gray-500 shrink-0 truncate max-w-40">
+          {entry.assetName}{entry.assetIp ? ` · ${entry.assetIp}` : ""}
+        </span>
+        <ChevronDown
+          size={12}
+          className={`text-gray-600 shrink-0 transition-transform ${expanded ? "rotate-180" : ""}`}
+        />
+      </button>
+      {expanded && (
+        <div className="px-3 py-2.5 bg-gray-950/80 space-y-3 border-t border-gray-800/40">
+          {entry.command ? (
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-1">Command</p>
+              <pre className="text-amber-300 whitespace-pre-wrap break-all font-mono leading-relaxed">
+                {entry.command}
+              </pre>
+            </div>
+          ) : null}
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-1">Output</p>
+            {entry.output ? (
+              <pre className={`whitespace-pre-wrap break-all font-mono leading-relaxed ${ok ? "text-emerald-300" : "text-red-300"}`}>
+                {entry.output}
+              </pre>
+            ) : (
+              <p className="text-gray-600 italic">No output captured</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 export default function StepConfirmLaunch({ assets, step2 }: Props) {
   const { adversary, selectedTTPs } = step2;
@@ -174,8 +238,10 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
   const [done, setDone]             = useState(false);
   const [running, setRunning]       = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [lines, setLines]           = useState<TerminalLine[]>([]);
+  const [lines, setLines]           = useState<LogEntry[]>([]);
+  const [expanded, setExpanded]     = useState<Set<string>>(new Set());
   const opIdsRef                = useRef<string[]>([]);
+  const opToAssetRef            = useRef<Record<string, { name: string; ip: string }>>({});
 
   // Live checklist
   const [check, setCheck] = useState<CheckState>({
@@ -422,6 +488,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
         }
         log("success", `[+] Operation : ${op.name} (id=${op.id})`);
         opIds.push(op.id);
+        opToAssetRef.current[op.id] = { name: asset.name, ip: targetIp };
       }
 
       if (opIds.length === 0)
@@ -456,24 +523,23 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
               if (shownLinks.has(key) || !isFinal) continue;
               shownLinks.add(key); // mark only once final
 
-              const techId = link.ability?.technique_id ?? "";
-              const name   = link.ability?.name ?? "Unknown ability";
-              const label  = techId ? `${techId} — ${name}` : name;
+              const assetInfo = opToAssetRef.current[opId] ?? { name: "Unknown", ip: "" };
+              let cmd = "";
+              try { cmd = link.executor?.command ? atob(link.executor.command).trim() : ""; } catch { cmd = link.executor?.command ?? ""; }
+              let out = "";
+              try { out = link.output ? atob(link.output).trim() : ""; } catch { out = ""; }
 
-              if (link.status === 0) {
-                setLines((prev) => [...prev, { type: "run", text: `[→] ${label}` }]);
-                // output is base64-encoded by Caldera
-                let raw = "";
-                try { raw = link.output ? atob(link.output).trim() : ""; } catch { raw = ""; }
-                setLines((prev) => [...prev, {
-                  type: "success",
-                  text: raw
-                    ? `    [✓] ${raw.slice(0, 400)}${raw.length > 400 ? "…" : ""}`
-                    : "    [✓] Completed",
-                }]);
-              } else if (link.status === -1) {
-                setLines((prev) => [...prev, { type: "warn", text: `[!] Failed: ${label}` }]);
-              }
+              setLines((prev) => [...prev, {
+                type:        "ability",
+                id:          key,
+                techniqueId: link.ability?.technique_id ?? "",
+                abilityName: link.ability?.name ?? "Unknown ability",
+                assetName:   assetInfo.name,
+                assetIp:     assetInfo.ip,
+                command:     cmd,
+                output:      out,
+                status:      link.status === 0 ? "success" : "failed",
+              } as AbilityResult]);
             }
 
             const state: string = result.state ?? "";
@@ -773,11 +839,29 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
               ref={terminalRef}
               className="flex-1 overflow-y-auto p-4 font-mono text-xs leading-relaxed space-y-0.5"
             >
-              {lines.map((line, i) => (
-                <div key={i} className={`${LINE_COLORS[line.type] ?? "text-gray-400"} whitespace-pre-wrap`}>
-                  {line.text}
-                </div>
-              ))}
+              {lines.map((entry, i) => {
+                if (entry.type === "ability") {
+                  const ae = entry as AbilityResult;
+                  return (
+                    <AbilityCard
+                      key={ae.id}
+                      entry={ae}
+                      expanded={expanded.has(ae.id)}
+                      onToggle={() => setExpanded((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(ae.id)) next.delete(ae.id); else next.add(ae.id);
+                        return next;
+                      })}
+                    />
+                  );
+                }
+                const line = entry as TerminalLine;
+                return (
+                  <div key={i} className={`${LINE_COLORS[line.type] ?? "text-gray-400"} whitespace-pre-wrap`}>
+                    {line.text}
+                  </div>
+                );
+              })}
               {running && <div className="text-gray-600 animate-pulse">▋</div>}
             </div>
           </div>
