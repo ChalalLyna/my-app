@@ -182,16 +182,24 @@ ${body}
 // ── Caldera base64 decode (UTF-8 aware) ───────────────────────────────────
 function calderaB64(val: string | undefined | null): string {
   if (!val) return "";
+  const s = val.trim();
+
+  // If it contains spaces, newlines, or non-base64 chars → plain text
+  if (!/^[A-Za-z0-9+/\r\n]+=*$/.test(s)) return s;
+
+  // Short strings that are "accidentally" valid base64 (e.g. "True", "OK") → plain text
+  if (s.length < 8) return s;
+
   try {
-    const bin   = atob(val);
+    const bin   = atob(s);
     const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
 
-    // Try UTF-8 first (Linux agents), fallback to UTF-16LE (Windows/PowerShell),
-    // then latin-1 as last resort — never use the raw Latin-1 string directly.
     try {
-      return new TextDecoder("utf-8", { fatal: true }).decode(bytes).trim();
+      const decoded = new TextDecoder("utf-8", { fatal: true }).decode(bytes).trim();
+      // Sanity check: decoded result should be printable
+      if (/[\x00-\x08\x0E-\x1F\x7F]/.test(decoded)) throw new Error("non-printable");
+      return decoded;
     } catch {
-      // Windows PowerShell outputs are often UTF-16 LE
       try {
         return new TextDecoder("utf-16le", { fatal: true }).decode(bytes).trim();
       } catch {
@@ -199,7 +207,7 @@ function calderaB64(val: string | undefined | null): string {
       }
     }
   } catch {
-    return val.trim(); // not base64 at all — use as-is
+    return s;
   }
 }
 
