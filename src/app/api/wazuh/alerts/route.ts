@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 function levelToSeverity(level: number): "Critical" | "High" | "Medium" | "Low" {
   if (level >= 12) return "Critical";
   if (level >= 8)  return "High";
@@ -93,7 +95,9 @@ export async function GET(req: NextRequest) {
     const data = await res.json();
     // Wazuh Dashboard wraps hits under rawResponse
     const hits: any[] = data?.rawResponse?.hits?.hits ?? data?.hits?.hits ?? [];
-    return NextResponse.json(hits.map(mapAlert));
+    return NextResponse.json(hits.map(mapAlert), {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 502 });
   }

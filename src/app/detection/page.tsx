@@ -42,7 +42,9 @@ export default function DetectionPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/wazuh/alerts?since=${encodeURIComponent(since)}`);
+      const res = await fetch(`/api/wazuh/alerts?since=${encodeURIComponent(since)}`, {
+        cache: "no-store",
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       setAlerts(data);
