@@ -58,7 +58,7 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: "Dashboard",               icon: LayoutDashboard,  href: "/dashboard/apprenant" },
     { label: "Attack Simulation",       icon: Crosshair,       href: "/attack-simulation"},
     { label: "Detection",               icon: Eye,             href: "/detection" },
-    { label: "Mes Cours",               icon: GraduationCap,    href: "/cours" },
+    { label: "Hub Formation",           icon: GraduationCap,    href: "/cours" },
     { label: "Scenarios",               icon: Layers,           href: "/scenarios" },
     { label: "Mes Résultats",           icon: ClipboardList,    href: "/apprenant/results" },
     { label: "Progression",             icon: Activity,         href: "/apprenant/progress" },

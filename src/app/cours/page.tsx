@@ -1,16 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
+import { useAuth } from "@/app/context/AuthContext";
 import {
-  BookOpen,
-  ChevronRight,
-  Building2,
-  Shield,
-  Swords,
-  Crosshair,
-  Search,
+  BookOpen, ChevronRight, Building2, Shield, Swords,
+  Crosshair, Search, Plus, Pencil, Trash2,
 } from "lucide-react";
 
 interface Guide {
@@ -24,70 +20,51 @@ const CATEGORY_META: Record<
   string,
   { label: string; icon: React.ComponentType<{ size: number; className?: string }>; color: string; bg: string; border: string }
 > = {
-  architecture: {
-    label: "Architecture",
-    icon: Building2,
-    color: "text-blue-400",
-    bg: "bg-blue-500/10",
-    border: "border-blue-500/20",
-  },
-  "blue-team": {
-    label: "Blue Team",
-    icon: Shield,
-    color: "text-sky-400",
-    bg: "bg-sky-500/10",
-    border: "border-sky-500/20",
-  },
-  "purple-team": {
-    label: "Purple Team",
-    icon: Swords,
-    color: "text-purple-400",
-    bg: "bg-purple-500/10",
-    border: "border-purple-500/20",
-  },
-  "red-team": {
-    label: "Red Team",
-    icon: Crosshair,
-    color: "text-red-400",
-    bg: "bg-red-500/10",
-    border: "border-red-500/20",
-  },
+  architecture:  { label: "Architecture", icon: Building2, color: "text-blue-400",   bg: "bg-blue-500/10",   border: "border-blue-500/20" },
+  "blue-team":   { label: "Blue Team",    icon: Shield,    color: "text-sky-400",    bg: "bg-sky-500/10",    border: "border-sky-500/20" },
+  "purple-team": { label: "Purple Team",  icon: Swords,    color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/20" },
+  "red-team":    { label: "Red Team",     icon: Crosshair, color: "text-red-400",    bg: "bg-red-500/10",    border: "border-red-500/20" },
 };
 
-const DEFAULT_CATEGORY = {
-  label: "Autre",
-  icon: BookOpen,
-  color: "text-gray-400",
-  bg: "bg-gray-500/10",
-  border: "border-gray-500/20",
-};
+const DEFAULT_CATEGORY = { label: "Autre", icon: BookOpen, color: "text-gray-400", bg: "bg-gray-500/10", border: "border-gray-500/20" };
 
 function getCategoryMeta(cat: string) {
   return CATEGORY_META[cat] ?? DEFAULT_CATEGORY;
 }
 
 export default function HubFormationPage() {
-  const [guides, setGuides] = useState<Guide[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState<string>("all");
+  const { user } = useAuth();
+  const isAdmin  = user?.role === "admin";
 
-  useEffect(() => {
+  const [guides,         setGuides]         = useState<Guide[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [search,         setSearch]         = useState("");
+  const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [deleting,       setDeleting]       = useState<number | null>(null);
+
+  const fetchGuides = useCallback(() => {
+    setLoading(true);
     fetch("/api/guides")
       .then((r) => r.json())
-      .then((data) => {
-        setGuides(Array.isArray(data) ? data : []);
-        setLoading(false);
-      })
+      .then((data) => { setGuides(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
+
+  useEffect(() => { fetchGuides(); }, [fetchGuides]);
+
+  async function handleDelete(guide: Guide) {
+    if (!window.confirm(`Supprimer "${guide.titre}" ?`)) return;
+    setDeleting(guide.id);
+    await fetch(`/api/guides/${guide.id}`, { method: "DELETE" });
+    setDeleting(null);
+    fetchGuides();
+  }
 
   const categories = Array.from(new Set(guides.map((g) => g.categorie))).sort();
 
   const filtered = guides.filter((g) => {
-    const matchCat = activeCategory === "all" || g.categorie === activeCategory;
-    const matchSearch =
-      search === "" ||
+    const matchCat    = activeCategory === "all" || g.categorie === activeCategory;
+    const matchSearch = search === "" ||
       g.titre.toLowerCase().includes(search.toLowerCase()) ||
       g.description.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
@@ -102,17 +79,29 @@ export default function HubFormationPage() {
   return (
     <DashboardLayout>
       <div className="p-8">
+
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full">
-              Formation
-            </span>
+        <div className="flex items-start justify-between mb-8">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full">
+                Formation
+              </span>
+            </div>
+            <h1 className="text-2xl font-bold text-white">Hub Formation</h1>
+            <p className="text-gray-500 text-sm mt-1">
+              Guides et ressources pour progresser en cybersécurité
+            </p>
           </div>
-          <h1 className="text-2xl font-bold text-white">Hub Formation</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Guides et ressources pour progresser en cybersécurité
-          </p>
+          {isAdmin && (
+            <Link
+              href="/cours/new"
+              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-xl transition-colors"
+            >
+              <Plus size={15} />
+              Ajouter un guide
+            </Link>
+          )}
         </div>
 
         {/* Search + Filters */}
@@ -186,33 +175,52 @@ export default function HubFormationPage() {
                       {items.length}
                     </span>
                   </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {items.map((guide) => (
-                      <Link
-                        key={guide.id}
-                        href={`/cours/${guide.id}`}
-                        className="block bg-gray-900 border border-gray-800/60 rounded-2xl p-5 hover:border-gray-700 transition-colors group"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className={`w-9 h-9 rounded-xl ${meta.bg} flex items-center justify-center flex-shrink-0`}>
-                            <BookOpen size={15} className={meta.color} />
+                      <div key={guide.id} className="relative group">
+                        <Link
+                          href={`/cours/${guide.id}`}
+                          className="block bg-gray-900 border border-gray-800/60 rounded-2xl p-5 hover:border-gray-700 transition-colors h-full"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className={`w-9 h-9 rounded-xl ${meta.bg} flex items-center justify-center flex-shrink-0`}>
+                              <BookOpen size={15} className={meta.color} />
+                            </div>
+                            <ChevronRight size={14} className="text-gray-700 group-hover:text-gray-500 mt-1 transition-colors" />
                           </div>
-                          <ChevronRight
-                            size={14}
-                            className="text-gray-700 group-hover:text-gray-500 mt-1 transition-colors"
-                          />
-                        </div>
-                        <h3 className="text-sm font-semibold text-white mt-3 leading-snug">
-                          {guide.titre}
-                        </h3>
-                        <p className="text-xs text-gray-500 mt-1.5 line-clamp-3 leading-relaxed">
-                          {guide.description}
-                        </p>
-                        <div className={`inline-flex items-center gap-1 mt-3 text-xs font-medium px-2 py-0.5 rounded-full ${meta.bg} ${meta.color}`}>
-                          <Icon size={10} />
-                          {meta.label}
-                        </div>
-                      </Link>
+                          <h3 className="text-sm font-semibold text-white mt-3 leading-snug">
+                            {guide.titre}
+                          </h3>
+                          <p className="text-xs text-gray-500 mt-1.5 line-clamp-3 leading-relaxed">
+                            {guide.description}
+                          </p>
+                          <div className={`inline-flex items-center gap-1 mt-3 text-xs font-medium px-2 py-0.5 rounded-full ${meta.bg} ${meta.color}`}>
+                            <Icon size={10} />
+                            {meta.label}
+                          </div>
+                        </Link>
+
+                        {/* Admin actions */}
+                        {isAdmin && (
+                          <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Link
+                              href={`/cours/${guide.id}/edit`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-800 hover:bg-indigo-600 text-gray-400 hover:text-white transition-colors"
+                            >
+                              <Pencil size={12} />
+                            </Link>
+                            <button
+                              onClick={(e) => { e.preventDefault(); handleDelete(guide); }}
+                              disabled={deleting === guide.id}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-800 hover:bg-red-600 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </section>

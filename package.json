@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.19",
+    "@uiw/react-md-editor": "^4.1.0",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.8.0",

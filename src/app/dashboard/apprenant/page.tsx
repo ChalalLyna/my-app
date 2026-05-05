@@ -52,7 +52,7 @@ export default function ApprenantDashboard() {
         <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-6">
           <div className="flex items-center gap-2 mb-5">
             <GraduationCap size={15} className="text-brand" />
-            <p className="text-sm font-semibold text-white">Mes cours</p>
+            <p className="text-sm font-semibold text-white">Hub Formation</p>
           </div>
           <div className="space-y-4">
             {COURSES.map((course) => (

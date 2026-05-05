@@ -29,3 +29,38 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id: rawId } = await params;
+  const id = Number(rawId);
+  if (isNaN(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+
+  try {
+    const { titre, description, contenu, categorie } = await req.json();
+    if (!titre || !contenu) {
+      return NextResponse.json({ error: "titre et contenu requis" }, { status: 400 });
+    }
+
+    await pool.query(
+      `UPDATE Guide SET titre = ?, description = ?, contenu = ?, categorie = ? WHERE IdGuide = ?`,
+      [titre, description ?? "", contenu, categorie ?? "", id]
+    );
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id: rawId } = await params;
+  const id = Number(rawId);
+  if (isNaN(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+
+  try {
+    await pool.query(`DELETE FROM Guide WHERE IdGuide = ?`, [id]);
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
