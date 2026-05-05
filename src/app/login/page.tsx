@@ -1,6 +1,6 @@
 "use client";
  
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
 import { Shield, Eye, EyeOff, Loader2, Terminal } from "lucide-react";
@@ -12,7 +12,7 @@ const DEMO_ACCOUNTS = [
   { role: "Apprenant1", email: "apprenant1@cyberlab.io", password: "Learn@1234", color: "text-emerald-400" },
 ];
  
-export default function LoginPage() {
+function LoginForm() {
   const { login } = useAuth();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? undefined;
@@ -172,5 +172,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }
