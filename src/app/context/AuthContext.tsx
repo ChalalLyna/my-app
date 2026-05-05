@@ -22,7 +22,7 @@ const ROLE_DASHBOARDS: Record<UserRole, string> = {
 interface AuthContextType {
   user:    User | null;
   loading: boolean;
-  login:   (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login:   (email: string, password: string, callbackUrl?: string) => Promise<{ success: boolean; error?: string }>;
   logout:  () => void;
 }
 
@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // ── Login : appel API → cookie JWT posé par le serveur ───────────
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, callbackUrl?: string) => {
     try {
       const res = await fetch("/api/auth/login", {
         method:  "POST",
@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setUser(data.user);
-      router.push(ROLE_DASHBOARDS[data.user.role as UserRole]);
+      router.push(callbackUrl || ROLE_DASHBOARDS[data.user.role as UserRole]);
       return { success: true };
 
     } catch {
