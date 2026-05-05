@@ -6,7 +6,7 @@ import { Asset } from "@/app/types/simulation";
 import { Step2Selection } from "./StepSelectAdversary";
 import {
   CheckCircle, Monitor, Shield, Zap, AlertTriangle,
-  Terminal, FileText, Loader2, Power, Square, ChevronDown,
+  Terminal, FileText, Loader2, Power, Square, ChevronDown, ExternalLink,
 } from "lucide-react";
 
 const LINE_COLORS: Record<string, string> = {
@@ -559,25 +559,37 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
               const assetInfo = opToAssetRef.current[opId] ?? { name: "Unknown", ip: "" };
               const cmd = calderaB64(link.command ?? link.executor?.command);
 
-              // Fetch real output from dedicated result endpoint.
-              // The `output` field in the chain is often just "True" — the real
-              // stdout lives at /api/v2/operations/{opId}/links/{linkId}/result
+              // Fetch real output from the dedicated result endpoint.
+              // The chain's `output` field is often just "True".
+              // The result endpoint returns either:
+              //   { stdout, stderr, exit_code }  — structured JSON (newer Caldera)
+              //   { result: "<base64>" }          — legacy base64 blob
               let out = "";
               try {
                 const resultRes = await fetch(`/api/caldera/operations/${opId}/links/${link.id}/result`);
                 if (resultRes.ok) {
                   const resultData = await resultRes.json();
-                  out = calderaB64(resultData.result ?? resultData.output ?? "");
+                  if (resultData.stdout !== undefined) {
+                    // Structured format — use stdout, append stderr if present
+                    out = (resultData.stdout as string).trim();
+                    if (resultData.stderr && (resultData.stderr as string).trim())
+                      out += "\n[stderr] " + (resultData.stderr as string).trim();
+                  } else {
+                    // Legacy base64 blob
+                    out = calderaB64(resultData.result ?? resultData.output ?? "");
+                  }
                 }
-              } catch { /* ignore */ }
+              } catch { /* ignore — fallback below */ }
 
-              // Fallback: prefer parsed facts, then raw output field
+              // Fallback 1: parsed facts (e.g. Local FQDN stored as a fact)
               if (!out) {
                 const factValue = (link.facts as any[] | undefined)
                   ?.map((f: any) => `${f.trait}: ${f.value}`)
                   .join("\n");
-                out = factValue || calderaB64(link.output) || "";
+                out = factValue || "";
               }
+              // Fallback 2: raw output field (last resort)
+              if (!out) out = calderaB64(link.output) || "";
 
               setLines((prev) => [...prev, {
                 type:        "ability",
@@ -877,6 +889,24 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
               )}
             </div>
           </div>
+
+          {done && (
+            <div className="flex items-center justify-between gap-3 px-4 py-3 bg-cyan-900/20 border border-cyan-700/40 rounded-xl shrink-0">
+              <div className="flex items-center gap-2.5">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shrink-0" />
+                <p className="text-sm text-cyan-300">
+                  Des alertes ont pu être générées — consultez le tableau de détection.
+                </p>
+              </div>
+              <button
+                onClick={() => window.open("/detection", "_blank")}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-700/40 hover:bg-cyan-600/50 text-cyan-200 text-xs font-semibold transition-all whitespace-nowrap border border-cyan-600/30"
+              >
+                <ExternalLink size={12} />
+                Voir la détection
+              </button>
+            </div>
+          )}
 
           <div className="flex-1 min-h-0 bg-gray-950 border border-gray-800/60 rounded-xl overflow-hidden flex flex-col">
             <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-gray-800/60 bg-gray-900/80 shrink-0">
