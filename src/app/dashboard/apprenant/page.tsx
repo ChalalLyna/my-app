@@ -5,8 +5,77 @@ import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import { useAuth } from "@/app/context/AuthContext";
 import {
   Crosshair, Brain, X, FileText, ChevronDown, ChevronUp,
-  Shield, Clock, Monitor, Filter, Calendar, Search,
+  Shield, Clock, Monitor, Filter, Calendar, Search, Trophy,
 } from "lucide-react";
+
+// ─── Top 5 Techniques Card ────────────────────────────────────────────────────
+
+const RANK_COLORS = ["#6366f1","#8b5cf6","#a78bfa","#7c3aed","#9333ea"];
+const MEDALS = ["🥇","🥈","🥉","4","5"];
+
+function TopTechniquesCard({ attacks, loading }: { attacks: Attack[]; loading: boolean }) {
+  const top5 = useMemo(() => {
+    const map: Record<string, { mitreID: string; techniqueName: string; tactique: string; count: number }> = {};
+    attacks.forEach((a) => {
+      if (!map[a.mitreID]) map[a.mitreID] = { mitreID: a.mitreID, techniqueName: a.techniqueName, tactique: a.tactique, count: 0 };
+      map[a.mitreID].count++;
+    });
+    return Object.values(map).sort((a, b) => b.count - a.count).slice(0, 5);
+  }, [attacks]);
+
+  const max = top5[0]?.count ?? 1;
+
+  return (
+    <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-6">
+      <div className="flex items-center gap-2 mb-5">
+        <Trophy size={15} className="text-amber-400" />
+        <p className="text-sm font-semibold text-white">Top 5 techniques pratiquées</p>
+      </div>
+
+      {loading ? (
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-10 bg-gray-800 rounded-xl animate-pulse" />
+          ))}
+        </div>
+      ) : top5.length === 0 ? (
+        <p className="text-sm text-gray-600 text-center py-6">Aucune technique enregistrée.</p>
+      ) : (
+        <div className="space-y-3">
+          {top5.map((t, i) => (
+            <div key={t.mitreID} className="flex items-center gap-3">
+              {/* Rank */}
+              <span className="text-sm w-5 text-center flex-shrink-0">
+                {i < 3 ? MEDALS[i] : <span className="text-xs text-gray-500 font-bold">{i + 1}</span>}
+              </span>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-mono font-semibold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded flex-shrink-0">
+                    {t.mitreID}
+                  </span>
+                  <span className="text-xs text-white font-medium truncate">{t.techniqueName}</span>
+                  <span className="text-[10px] text-gray-600 flex-shrink-0 hidden sm:block">{t.tactique}</span>
+                </div>
+                {/* Progress bar */}
+                <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${(t.count / max) * 100}%`, backgroundColor: RANK_COLORS[i] }}
+                  />
+                </div>
+              </div>
+
+              {/* Count */}
+              <span className="text-xs font-bold text-gray-300 flex-shrink-0 w-6 text-right">{t.count}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
   Tooltip, Cell, CartesianGrid,
@@ -41,6 +110,7 @@ interface TacticStat {
   attackCount:    number;
 }
 
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUT_STYLE: Record<string, string> = {
@@ -54,6 +124,9 @@ const STATUT_STYLE: Record<string, string> = {
 const BAR_COLORS = [
   "#6366f1","#8b5cf6","#a78bfa","#4f46e5","#7c3aed","#9333ea","#c026d3","#db2777",
 ];
+
+const RANK_COLORS = ["#f59e0b","#9ca3af","#b45309","#6366f1","#8b5cf6"];
+const RANK_LABELS = ["🥇","🥈","🥉","4e","5e"];
 
 function fmt(date: string | null) {
   if (!date) return "—";
@@ -92,20 +165,78 @@ function ReportModal({ attack, onClose }: { attack: Attack; onClose: () => void 
 
         {attack.resultatDescription && (
           <div className="px-6 py-3 border-b border-gray-800/60 bg-gray-900/40">
-            <p className="text-xs text-gray-400 leading-relaxed">{attack.resultatDescription}</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Résultat</p>
+            <p className="text-xs text-gray-300 leading-relaxed">{attack.resultatDescription}</p>
           </div>
         )}
 
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {attack.rapport ? (
-            <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap leading-relaxed bg-gray-900 border border-gray-800 rounded-xl p-4">
-              {attack.rapport}
-            </pre>
+            <>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Rapport</p>
+              <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap leading-relaxed bg-gray-900 border border-gray-800 rounded-xl p-4">
+                {attack.rapport}
+              </pre>
+            </>
           ) : (
             <p className="text-sm text-gray-600 text-center py-8">Aucun rapport disponible.</p>
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Top Techniques Card ──────────────────────────────────────────────────────
+
+function TopTechniquesCard({ techniques, loading }: { techniques: TopTechnique[]; loading: boolean }) {
+  const max = techniques[0]?.attackCount ?? 1;
+
+  return (
+    <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-6">
+      <div className="flex items-center gap-2 mb-5">
+        <Trophy size={15} className="text-amber-400" />
+        <p className="text-sm font-semibold text-white">Top 5 techniques pratiquées</p>
+      </div>
+
+      {loading ? (
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-10 bg-gray-800 rounded-xl animate-pulse" />
+          ))}
+        </div>
+      ) : techniques.length === 0 ? (
+        <p className="text-sm text-gray-600 text-center py-6">Aucune technique pratiquée.</p>
+      ) : (
+        <div className="space-y-3">
+          {techniques.map((t, i) => (
+            <div key={t.mitreID} className="flex items-center gap-3">
+              <span className="text-base w-6 text-center flex-shrink-0">{RANK_LABELS[i]}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-mono font-semibold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded flex-shrink-0">
+                    {t.mitreID}
+                  </span>
+                  <span className="text-xs text-white font-medium truncate">{t.techniqueName}</span>
+                  <span className="text-[10px] text-gray-600 ml-auto flex-shrink-0">{t.tactique}</span>
+                </div>
+                <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${(t.attackCount / max) * 100}%`,
+                      backgroundColor: RANK_COLORS[i],
+                    }}
+                  />
+                </div>
+              </div>
+              <span className="text-xs font-semibold text-gray-400 flex-shrink-0 w-14 text-right">
+                {t.attackCount} atk
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -122,12 +253,8 @@ function AttackRow({ attack, onReport }: { attack: Attack; onReport: () => void 
         className="border-b border-gray-800/50 hover:bg-gray-900/40 transition-colors cursor-pointer"
         onClick={() => setExpanded(!expanded)}
       >
-        {/* Date */}
-        <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
-          {fmt(attack.dateExecution)}
-        </td>
+        <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{fmt(attack.dateExecution)}</td>
 
-        {/* Technique */}
         <td className="px-4 py-3">
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-mono font-semibold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded flex-shrink-0">
@@ -137,32 +264,28 @@ function AttackRow({ attack, onReport }: { attack: Attack; onReport: () => void 
           </div>
         </td>
 
-        {/* Tactique */}
         <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap hidden md:table-cell">
           {attack.tactique}
         </td>
 
-        {/* Actif */}
         <td className="px-4 py-3 hidden lg:table-cell">
           <div className="text-xs text-white">{attack.actifNom}</div>
           <div className="text-[10px] text-gray-600 font-mono">{attack.actifIP}</div>
         </td>
 
-        {/* Résultat */}
-        <td className="px-4 py-3 hidden xl:table-cell max-w-[220px]">
+        {/* Résultat depuis ResultatAttaque.description */}
+        <td className="px-4 py-3 hidden xl:table-cell max-w-[240px]">
           <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">
             {attack.resultatDescription || "—"}
           </p>
         </td>
 
-        {/* Statut */}
         <td className="px-4 py-3 whitespace-nowrap">
           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statutStyle}`}>
             {attack.statut}
           </span>
         </td>
 
-        {/* Actions */}
         <td className="px-4 py-3">
           <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
             {attack.rapport && (
@@ -174,17 +297,13 @@ function AttackRow({ attack, onReport }: { attack: Attack; onReport: () => void 
                 Rapport
               </button>
             )}
-            <button
-              onClick={() => setExpanded(!expanded)}
-              className="text-gray-600 hover:text-gray-400 transition-colors"
-            >
+            <button onClick={() => setExpanded(!expanded)} className="text-gray-600 hover:text-gray-400 transition-colors">
               {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </button>
           </div>
         </td>
       </tr>
 
-      {/* Expanded details */}
       {expanded && (
         <tr className="border-b border-gray-800/50 bg-gray-900/20">
           <td colSpan={7} className="px-4 py-4">
@@ -197,14 +316,12 @@ function AttackRow({ attack, onReport }: { attack: Attack; onReport: () => void 
                 <p className="text-[10px] font-mono text-gray-500">{attack.actifIP}</p>
               </div>
               <div>
-                <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">
-                  Catégorie actif
-                </p>
+                <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">Catégorie actif</p>
                 <p className="text-xs text-gray-300">{attack.actifCategorie || "—"}</p>
               </div>
               <div>
                 <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1 flex items-center gap-1">
-                  <FileText size={10} /> Résultat complet
+                  <FileText size={10} /> Résultat
                 </p>
                 <p className="text-xs text-gray-400 leading-relaxed">
                   {attack.resultatDescription || "—"}
@@ -233,28 +350,20 @@ function CustomTooltip({ active, payload, label }: any) {
 // ─── Filters Bar ──────────────────────────────────────────────────────────────
 
 interface Filters {
-  search:  string;
-  actif:   string;
+  search:   string;
+  actif:    string;
   tactique: string;
   dateFrom: string;
   dateTo:   string;
 }
 
-function FiltersBar({
-  attacks, filters, onChange,
-}: {
-  attacks: Attack[];
-  filters: Filters;
-  onChange: (f: Filters) => void;
-}) {
-  const actifs   = useMemo(() => [...new Set(attacks.map((a) => a.actifNom))].sort(),   [attacks]);
+function FiltersBar({ attacks, filters, onChange }: { attacks: Attack[]; filters: Filters; onChange: (f: Filters) => void }) {
+  const actifs    = useMemo(() => [...new Set(attacks.map((a) => a.actifNom))].sort(),  [attacks]);
   const tactiques = useMemo(() => [...new Set(attacks.map((a) => a.tactique))].sort(), [attacks]);
-
   const set = (key: keyof Filters, val: string) => onChange({ ...filters, [key]: val });
 
   return (
     <div className="flex flex-wrap gap-3 items-center">
-      {/* Search */}
       <div className="relative flex-1 min-w-[180px]">
         <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
         <input
@@ -262,59 +371,54 @@ function FiltersBar({
           placeholder="Rechercher une technique…"
           value={filters.search}
           onChange={(e) => set("search", e.target.value)}
-          className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 transition-colors"
+          className="w-full bg-gray-950 border border-gray-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 transition-colors"
         />
       </div>
 
-      {/* Actif */}
       <div className="relative">
         <Filter size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
         <select
           value={filters.actif}
           onChange={(e) => set("actif", e.target.value)}
-          className="bg-gray-900 border border-gray-800 rounded-xl pl-8 pr-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-indigo-500/50 transition-colors appearance-none cursor-pointer"
+          className="bg-gray-950 border border-gray-800 rounded-xl pl-8 pr-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-indigo-500/50 transition-colors appearance-none cursor-pointer"
         >
           <option value="">Tous les actifs</option>
           {actifs.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
       </div>
 
-      {/* Tactique */}
       <div className="relative">
         <Shield size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
         <select
           value={filters.tactique}
           onChange={(e) => set("tactique", e.target.value)}
-          className="bg-gray-900 border border-gray-800 rounded-xl pl-8 pr-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-indigo-500/50 transition-colors appearance-none cursor-pointer"
+          className="bg-gray-950 border border-gray-800 rounded-xl pl-8 pr-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-indigo-500/50 transition-colors appearance-none cursor-pointer"
         >
           <option value="">Toutes les tactiques</option>
           {tactiques.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
       </div>
 
-      {/* Date from */}
       <div className="relative">
         <Calendar size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
         <input
           type="date"
           value={filters.dateFrom}
           onChange={(e) => set("dateFrom", e.target.value)}
-          className="bg-gray-900 border border-gray-800 rounded-xl pl-8 pr-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-indigo-500/50 transition-colors cursor-pointer"
+          className="bg-gray-950 border border-gray-800 rounded-xl pl-8 pr-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-indigo-500/50 transition-colors cursor-pointer"
         />
       </div>
 
-      {/* Date to */}
       <div className="relative">
         <Calendar size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
         <input
           type="date"
           value={filters.dateTo}
           onChange={(e) => set("dateTo", e.target.value)}
-          className="bg-gray-900 border border-gray-800 rounded-xl pl-8 pr-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-indigo-500/50 transition-colors cursor-pointer"
+          className="bg-gray-950 border border-gray-800 rounded-xl pl-8 pr-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-indigo-500/50 transition-colors cursor-pointer"
         />
       </div>
 
-      {/* Reset */}
       {(filters.search || filters.actif || filters.tactique || filters.dateFrom || filters.dateTo) && (
         <button
           onClick={() => onChange({ search: "", actif: "", tactique: "", dateFrom: "", dateTo: "" })}
@@ -332,12 +436,13 @@ function FiltersBar({
 export default function ApprenantDashboard() {
   const { user } = useAuth();
 
-  const [stats,   setStats]   = useState<Stats | null>(null);
-  const [attacks, setAttacks] = useState<Attack[]>([]);
-  const [tactics, setTactics] = useState<TacticStat[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [stats,        setStats]        = useState<Stats | null>(null);
+  const [attacks,      setAttacks]      = useState<Attack[]>([]);
+  const [tactics,      setTactics]      = useState<TacticStat[]>([]);
+  const [topTech,      setTopTech]      = useState<TopTechnique[]>([]);
+  const [loading,      setLoading]      = useState(true);
   const [reportAttack, setReportAttack] = useState<Attack | null>(null);
-  const [filters, setFilters] = useState<Filters>({
+  const [filters,      setFilters]      = useState<Filters>({
     search: "", actif: "", tactique: "", dateFrom: "", dateTo: "",
   });
 
@@ -346,20 +451,21 @@ export default function ApprenantDashboard() {
       fetch("/api/apprenant/stats").then((r) => r.json()),
       fetch("/api/apprenant/attacks").then((r) => r.json()),
       fetch("/api/apprenant/tactics").then((r) => r.json()),
-    ]).then(([s, a, t]) => {
+      fetch("/api/apprenant/top-techniques").then((r) => r.json()),
+    ]).then(([s, a, t, tt]) => {
       setStats(s);
       setAttacks(Array.isArray(a) ? a : []);
       setTactics(Array.isArray(t) ? t : []);
+      setTopTech(Array.isArray(tt) ? tt : []);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
 
-  // ── Filtered attacks ──────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     return attacks.filter((a) => {
-      if (filters.search && !a.techniqueName.toLowerCase().includes(filters.search.toLowerCase())) return false;
-      if (filters.actif   && a.actifNom !== filters.actif)     return false;
-      if (filters.tactique && a.tactique !== filters.tactique) return false;
+      if (filters.search   && !a.techniqueName.toLowerCase().includes(filters.search.toLowerCase())) return false;
+      if (filters.actif    && a.actifNom  !== filters.actif)    return false;
+      if (filters.tactique && a.tactique  !== filters.tactique) return false;
       if (filters.dateFrom && a.dateExecution && a.dateExecution < filters.dateFrom) return false;
       if (filters.dateTo   && a.dateExecution && a.dateExecution > filters.dateTo)   return false;
       return true;
@@ -387,9 +493,7 @@ export default function ApprenantDashboard() {
             <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center mb-3">
               <Crosshair size={18} className="text-indigo-400" />
             </div>
-            {loading ? (
-              <div className="h-8 w-16 bg-gray-800 rounded animate-pulse mb-1" />
-            ) : (
+            {loading ? <div className="h-8 w-16 bg-gray-800 rounded animate-pulse mb-1" /> : (
               <p className="text-3xl font-bold text-white">{stats?.attackCount ?? 0}</p>
             )}
             <p className="text-xs text-gray-500 mt-0.5">Attaques réalisées</p>
@@ -399,14 +503,15 @@ export default function ApprenantDashboard() {
             <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center mb-3">
               <Brain size={18} className="text-purple-400" />
             </div>
-            {loading ? (
-              <div className="h-8 w-16 bg-gray-800 rounded animate-pulse mb-1" />
-            ) : (
+            {loading ? <div className="h-8 w-16 bg-gray-800 rounded animate-pulse mb-1" /> : (
               <p className="text-3xl font-bold text-white">{stats?.techniqueCount ?? 0}</p>
             )}
             <p className="text-xs text-gray-500 mt-0.5">Techniques MITRE pratiquées</p>
           </div>
         </div>
+
+        {/* ── Top 5 techniques ── */}
+        <TopTechniquesCard attacks={attacks} loading={loading} />
 
         {/* ── Tactics chart ── */}
         <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-6">
@@ -426,32 +531,13 @@ export default function ApprenantDashboard() {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={Math.max(180, tactics.length * 46)}>
-              <BarChart
-                data={tactics}
-                layout="vertical"
-                margin={{ top: 0, right: 24, left: 8, bottom: 0 }}
-              >
+              <BarChart data={tactics} layout="vertical" margin={{ top: 0, right: 24, left: 8, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
-                <XAxis
-                  type="number"
-                  tick={{ fontSize: 11, fill: "#6b7280" }}
-                  axisLine={false}
-                  tickLine={false}
-                  allowDecimals={false}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="tactique"
-                  width={160}
-                  tick={{ fontSize: 11, fill: "#9ca3af" }}
-                  axisLine={false}
-                  tickLine={false}
-                />
+                <XAxis type="number" tick={{ fontSize: 11, fill: "#6b7280" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <YAxis type="category" dataKey="tactique" width={160} tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(99,102,241,0.06)" }} />
                 <Bar dataKey="attackCount" radius={[0, 6, 6, 0]} maxBarSize={22}>
-                  {tactics.map((_, i) => (
-                    <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />
-                  ))}
+                  {tactics.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -470,8 +556,6 @@ export default function ApprenantDashboard() {
                 </span>
               )}
             </div>
-
-            {/* Filters */}
             {!loading && attacks.length > 0 && (
               <FiltersBar attacks={attacks} filters={filters} onChange={setFilters} />
             )}
@@ -499,11 +583,7 @@ export default function ApprenantDashboard() {
                 </thead>
                 <tbody>
                   {filtered.map((attack) => (
-                    <AttackRow
-                      key={attack.id}
-                      attack={attack}
-                      onReport={() => setReportAttack(attack)}
-                    />
+                    <AttackRow key={attack.id} attack={attack} onReport={() => setReportAttack(attack)} />
                   ))}
                 </tbody>
               </table>
