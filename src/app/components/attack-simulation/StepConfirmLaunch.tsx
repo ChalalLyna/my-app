@@ -570,10 +570,11 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
                 if (resultRes.ok) {
                   const resultData = await resultRes.json();
                   if (resultData.stdout !== undefined) {
-                    // Structured format — use stdout, append stderr if present
-                    out = (resultData.stdout as string).trim();
-                    if (resultData.stderr && (resultData.stderr as string).trim())
-                      out += "\n[stderr] " + (resultData.stderr as string).trim();
+                    // Structured format — normalise Windows CRLF then trim
+                    const normalize = (s: string) => s.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+                    out = normalize(resultData.stdout as string);
+                    if (resultData.stderr && normalize(resultData.stderr as string))
+                      out += "\n[stderr] " + normalize(resultData.stderr as string);
                   } else {
                     // Legacy base64 blob
                     out = calderaB64(resultData.result ?? resultData.output ?? "");
