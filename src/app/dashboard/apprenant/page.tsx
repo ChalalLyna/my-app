@@ -48,7 +48,13 @@ const STATUT_STYLE: Record<string, string> = {
   failed:     "text-red-400    bg-red-500/10    border-red-500/20",
   running:    "text-amber-400  bg-amber-500/10  border-amber-500/20",
   terminee:   "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+  "terminé":  "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+  "terminée": "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
   "en cours": "text-amber-400  bg-amber-500/10  border-amber-500/20",
+  "stoppé":   "text-red-400    bg-red-500/10    border-red-500/20",
+  "stoppée":  "text-red-400    bg-red-500/10    border-red-500/20",
+  "stopé":    "text-red-400    bg-red-500/10    border-red-500/20",
+  "arrêté":   "text-red-400    bg-red-500/10    border-red-500/20",
 };
 
 const BAR_COLORS = [
