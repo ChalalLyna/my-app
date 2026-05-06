@@ -66,8 +66,9 @@ export async function GET(req: NextRequest) {
         size: 200,
         sort: [{ "@timestamp": { order: "desc" } }],
         query: {
-          range: {
-            "@timestamp": { gte: since },
+          bool: {
+            must: [{ range: { "@timestamp": { gte: since } } }],
+            must_not: [{ term: { "agent.id": "000" } }],
           },
         },
       },
