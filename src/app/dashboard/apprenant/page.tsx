@@ -521,7 +521,7 @@ export default function ApprenantDashboard() {
                     radius={[0, 6, 6, 0]}
                     maxBarSize={22}
                     style={{ cursor: "pointer" }}
-                    onClick={(data: TacticStat) =>
+                    onClick={(data: any) =>
                       setSelectedTactic(data.tactique === selectedTactic ? null : data.tactique)
                     }
                   >
