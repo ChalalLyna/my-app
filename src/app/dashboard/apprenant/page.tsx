@@ -355,7 +355,7 @@ export default function ApprenantDashboard() {
   }, []);
 
   // ── Top 5 techniques ─────────────────────────────────────────────────────
-  const top5Techniques = useMemo(() => {
+  const topTechniques = useMemo(() => {
     const counts: Record<string, { name: string; mitreID: string; count: number }> = {};
     attacks.forEach((a) => {
       if (!counts[a.mitreID]) counts[a.mitreID] = { name: a.techniqueName, mitreID: a.mitreID, count: 0 };
@@ -391,54 +391,54 @@ export default function ApprenantDashboard() {
           <p className="text-gray-500 text-sm mt-1">Votre tableau de bord d'apprentissage en cybersécurité</p>
         </div>
 
-        {/* ── Stat cards + Top 5 ── */}
-        <div className="flex gap-4 items-start">
-          <div className="flex-1 grid grid-cols-2 gap-4">
-            <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5">
-              <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center mb-3">
-                <Crosshair size={18} className="text-indigo-400" />
-              </div>
-              {loading ? (
-                <div className="h-8 w-16 bg-gray-800 rounded animate-pulse mb-1" />
-              ) : (
-                <p className="text-3xl font-bold text-white">{stats?.attackCount ?? 0}</p>
-              )}
-              <p className="text-xs text-gray-500 mt-0.5">Attaques réalisées</p>
-            </div>
-
-            <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5">
-              <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center mb-3">
-                <Brain size={18} className="text-purple-400" />
-              </div>
-              {loading ? (
-                <div className="h-8 w-16 bg-gray-800 rounded animate-pulse mb-1" />
-              ) : (
-                <p className="text-3xl font-bold text-white">{stats?.techniqueCount ?? 0}</p>
-              )}
-              <p className="text-xs text-gray-500 mt-0.5">Techniques MITRE pratiquées</p>
-            </div>
-          </div>
-
-          {/* Top 5 techniques */}
-          <div className="w-72 shrink-0 bg-gray-900 border border-gray-800/60 rounded-2xl p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <TrendingUp size={15} className="text-amber-400" />
-              <p className="text-sm font-semibold text-white">Top 5 techniques</p>
+        {/* ── Stat cards + Top 3 ── */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5 flex flex-col justify-center">
+            <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center mb-3">
+              <Crosshair size={18} className="text-indigo-400" />
             </div>
             {loading ? (
-              <div className="space-y-3">
-                {[...Array(5)].map((_, i) => (
+              <div className="h-8 w-16 bg-gray-800 rounded animate-pulse mb-1" />
+            ) : (
+              <p className="text-3xl font-bold text-white">{stats?.attackCount ?? 0}</p>
+            )}
+            <p className="text-xs text-gray-500 mt-0.5">Attaques réalisées</p>
+          </div>
+
+          <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5 flex flex-col justify-center">
+            <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center mb-3">
+              <Brain size={18} className="text-purple-400" />
+            </div>
+            {loading ? (
+              <div className="h-8 w-16 bg-gray-800 rounded animate-pulse mb-1" />
+            ) : (
+              <p className="text-3xl font-bold text-white">{stats?.techniqueCount ?? 0}</p>
+            )}
+            <p className="text-xs text-gray-500 mt-0.5">Techniques MITRE pratiquées</p>
+          </div>
+
+          {/* Top 3 techniques */}
+          <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5 flex flex-col">
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp size={15} className="text-amber-400" />
+              <p className="text-sm font-semibold text-white">Top 3 techniques</p>
+            </div>
+            {loading ? (
+              <div className="space-y-3 flex-1 flex flex-col justify-center">
+                {[...Array(3)].map((_, i) => (
                   <div key={i} className="h-8 bg-gray-800 rounded-lg animate-pulse" />
                 ))}
               </div>
-            ) : top5Techniques.length === 0 ? (
-              <p className="text-xs text-gray-600 text-center py-6">Aucune donnée disponible.</p>
+            ) : topTechniques.length === 0 ? (
+              <p className="text-xs text-gray-600 text-center flex-1 flex items-center justify-center">
+                Aucune donnée disponible.
+              </p>
             ) : (
-              <ol className="space-y-2.5">
-                {top5Techniques.map((t, i) => (
+              <ol className="space-y-3 flex-1 flex flex-col justify-center">
+                {topTechniques.slice(0, 3).map((t, i) => (
                   <li key={t.mitreID} className="flex items-center gap-2.5">
-                    <span className={`text-xs font-bold w-5 text-right shrink-0 ${
-                      i === 0 ? "text-amber-400" : i === 1 ? "text-gray-400" : i === 2 ? "text-amber-700" : "text-gray-600"
+                    <span className={`text-sm font-bold w-5 text-center shrink-0 ${
+                      i === 0 ? "text-amber-400" : i === 1 ? "text-gray-400" : "text-amber-700"
                     }`}>
                       {i + 1}
                     </span>
@@ -448,7 +448,7 @@ export default function ApprenantDashboard() {
                       </span>
                       <p className="text-xs text-gray-300 truncate mt-0.5">{t.name}</p>
                     </div>
-                    <span className="text-xs font-semibold text-white shrink-0 bg-gray-800 px-1.5 py-0.5 rounded-md">
+                    <span className="text-[10px] font-semibold text-white shrink-0 bg-gray-800 px-1.5 py-0.5 rounded-md">
                       {t.count}×
                     </span>
                   </li>
