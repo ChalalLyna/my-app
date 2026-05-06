@@ -128,12 +128,12 @@ function AttackRow({ attack, onReport }: { attack: Attack; onReport: () => void 
         </td>
 
         {/* Technique */}
-        <td className="px-4 py-3">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-mono font-semibold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded shrink-0">
+        <td className="px-4 py-3 max-w-xs">
+          <div className="flex items-start gap-2">
+            <span className="text-[10px] font-mono font-semibold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded shrink-0 mt-0.5">
               {attack.mitreID}
             </span>
-            <span className="text-xs text-white font-medium line-clamp-1">{attack.techniqueName}</span>
+            <span className="text-xs text-white font-medium leading-relaxed">{attack.techniqueName}</span>
           </div>
         </td>
 
@@ -148,13 +148,6 @@ function AttackRow({ attack, onReport }: { attack: Attack; onReport: () => void 
           <div className="text-[10px] text-gray-600 font-mono">{attack.actifIP}</div>
         </td>
 
-        {/* Résultat */}
-        <td className="px-4 py-3 hidden xl:table-cell max-w-[220px]">
-          <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">
-            {attack.resultatDescription || "—"}
-          </p>
-        </td>
-
         {/* Statut */}
         <td className="px-4 py-3 whitespace-nowrap">
           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statutStyle}`}>
@@ -165,7 +158,7 @@ function AttackRow({ attack, onReport }: { attack: Attack; onReport: () => void 
         {/* Actions */}
         <td className="px-4 py-3">
           <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            {attack.rapport && (
+            {attack.rapport?.trim() && (
               <button
                 onClick={onReport}
                 className="flex items-center gap-1 text-[10px] font-semibold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 px-2 py-1 rounded-lg transition-colors"
@@ -187,7 +180,7 @@ function AttackRow({ attack, onReport }: { attack: Attack; onReport: () => void 
       {/* Expanded details */}
       {expanded && (
         <tr className="border-b border-gray-800/50 bg-gray-900/20">
-          <td colSpan={7} className="px-4 py-4">
+          <td colSpan={6} className="px-4 py-4">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div>
                 <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1 flex items-center gap-1">
@@ -364,6 +357,19 @@ export default function ApprenantDashboard() {
     return Object.values(counts).sort((a, b) => b.count - a.count).slice(0, 5);
   }, [attacks]);
 
+  // ── Tactic drill-down ────────────────────────────────────────────────────
+  const [selectedTactic, setSelectedTactic] = useState<string | null>(null);
+
+  const tacticTechniques = useMemo(() => {
+    if (!selectedTactic) return [];
+    const counts: Record<string, { name: string; mitreID: string; count: number }> = {};
+    attacks.filter((a) => a.tactique === selectedTactic).forEach((a) => {
+      if (!counts[a.mitreID]) counts[a.mitreID] = { name: a.techniqueName, mitreID: a.mitreID, count: 0 };
+      counts[a.mitreID].count++;
+    });
+    return Object.values(counts).sort((a, b) => b.count - a.count);
+  }, [attacks, selectedTactic]);
+
   // ── Filtered attacks ──────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     return attacks.filter((a) => {
@@ -466,6 +472,14 @@ export default function ApprenantDashboard() {
             {tactics.length > 0 && (
               <span className="text-xs text-gray-600 ml-auto">{tactics.length} tactique{tactics.length > 1 ? "s" : ""}</span>
             )}
+            {selectedTactic && (
+              <button
+                onClick={() => setSelectedTactic(null)}
+                className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-white transition-colors ml-2"
+              >
+                <X size={12} /> Fermer
+              </button>
+            )}
           </div>
 
           {loading ? (
@@ -475,36 +489,87 @@ export default function ApprenantDashboard() {
               Aucune donnée — lancez votre première attaque pour voir apparaître le graphique.
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={Math.max(180, tactics.length * 46)}>
-              <BarChart
-                data={tactics}
-                layout="vertical"
-                margin={{ top: 0, right: 24, left: 8, bottom: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
-                <XAxis
-                  type="number"
-                  tick={{ fontSize: 11, fill: "#6b7280" }}
-                  axisLine={false}
-                  tickLine={false}
-                  allowDecimals={false}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="tactique"
-                  width={160}
-                  tick={{ fontSize: 11, fill: "#9ca3af" }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(99,102,241,0.06)" }} />
-                <Bar dataKey="attackCount" radius={[0, 6, 6, 0]} maxBarSize={22}>
-                  {tactics.map((_, i) => (
-                    <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <>
+              {!selectedTactic && (
+                <p className="text-[10px] text-gray-600 mb-3">Cliquez sur une barre pour voir les techniques associées.</p>
+              )}
+              <ResponsiveContainer width="100%" height={Math.max(180, tactics.length * 46)}>
+                <BarChart
+                  data={tactics}
+                  layout="vertical"
+                  margin={{ top: 0, right: 24, left: 8, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
+                  <XAxis
+                    type="number"
+                    tick={{ fontSize: 11, fill: "#6b7280" }}
+                    axisLine={false}
+                    tickLine={false}
+                    allowDecimals={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="tactique"
+                    width={160}
+                    tick={{ fontSize: 11, fill: "#9ca3af" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(99,102,241,0.06)" }} />
+                  <Bar
+                    dataKey="attackCount"
+                    radius={[0, 6, 6, 0]}
+                    maxBarSize={22}
+                    style={{ cursor: "pointer" }}
+                    onClick={(data: TacticStat) =>
+                      setSelectedTactic(data.tactique === selectedTactic ? null : data.tactique)
+                    }
+                  >
+                    {tactics.map((entry, i) => (
+                      <Cell
+                        key={i}
+                        fill={BAR_COLORS[i % BAR_COLORS.length]}
+                        opacity={selectedTactic && entry.tactique !== selectedTactic ? 0.25 : 1}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+
+              {/* Drill-down : techniques de la tactique sélectionnée */}
+              {selectedTactic && (
+                <div className="mt-6 border-t border-gray-800/60 pt-5">
+                  <p className="text-xs font-semibold text-white mb-4 flex items-center gap-2">
+                    <Crosshair size={13} className="text-indigo-400" />
+                    Techniques — <span className="text-indigo-300">{selectedTactic}</span>
+                    <span className="text-gray-600 font-normal">({tacticTechniques.length})</span>
+                  </p>
+                  <div className="space-y-2.5">
+                    {tacticTechniques.map((t) => {
+                      const max = tacticTechniques[0].count;
+                      const pct = Math.round((t.count / max) * 100);
+                      return (
+                        <div key={t.mitreID} className="flex items-center gap-3">
+                          <span className="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded shrink-0">
+                            {t.mitreID}
+                          </span>
+                          <span className="text-xs text-gray-300 w-40 shrink-0 truncate">{t.name}</span>
+                          <div className="flex-1 bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] font-semibold text-white shrink-0 bg-gray-800 px-1.5 py-0.5 rounded-md w-8 text-center">
+                            {t.count}×
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -542,7 +607,6 @@ export default function ApprenantDashboard() {
                     <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Technique</th>
                     <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">Tactique</th>
                     <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">Actif ciblé</th>
-                    <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider hidden xl:table-cell">Résultat</th>
                     <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Statut</th>
                     <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                   </tr>
