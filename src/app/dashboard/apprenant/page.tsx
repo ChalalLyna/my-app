@@ -157,7 +157,7 @@ function AttackRow({ attack, onReport }: { attack: Attack; onReport: () => void 
 
         {/* Actions */}
         <td className="px-4 py-3">
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
             {attack.rapport?.trim() && (
               <button
                 onClick={onReport}
