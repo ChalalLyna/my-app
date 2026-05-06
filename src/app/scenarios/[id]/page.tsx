@@ -52,7 +52,7 @@ export default function ScenarioReaderPage() {
       <div className="max-w-4xl mx-auto px-8 py-8">
 
         <button
-          onClick={() => router.back()}
+          onClick={() => router.push("/scenarios")}
           className="flex items-center gap-2 text-gray-500 hover:text-white text-sm mb-8 transition-colors"
         >
           <ArrowLeft size={15} />

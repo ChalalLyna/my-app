@@ -67,7 +67,7 @@ export default function GuideReaderPage() {
 
         {/* Back */}
         <button
-          onClick={() => router.back()}
+          onClick={() => router.push("/cours")}
           className="flex items-center gap-2 text-gray-500 hover:text-white text-sm mb-8 transition-colors"
         >
           <ArrowLeft size={15} />
