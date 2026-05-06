@@ -5,7 +5,7 @@ import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import { useAuth } from "@/app/context/AuthContext";
 import {
   Crosshair, Brain, X, FileText, ChevronDown, ChevronUp,
-  Shield, Clock, Monitor, Filter, Calendar, Search,
+  Shield, Clock, Monitor, Filter, Calendar, Search, TrendingUp,
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
@@ -85,7 +85,7 @@ function ReportModal({ attack, onClose }: { attack: Attack; onClose: () => void 
             <h2 className="text-sm font-bold text-white">{attack.techniqueName}</h2>
             <p className="text-xs text-gray-500 mt-0.5">{fmt(attack.dateExecution)} · {attack.actifNom}</p>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors flex-shrink-0">
+          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors shrink-0">
             <X size={18} />
           </button>
         </div>
@@ -130,7 +130,7 @@ function AttackRow({ attack, onReport }: { attack: Attack; onReport: () => void 
         {/* Technique */}
         <td className="px-4 py-3">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-mono font-semibold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded flex-shrink-0">
+            <span className="text-[10px] font-mono font-semibold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded shrink-0">
               {attack.mitreID}
             </span>
             <span className="text-xs text-white font-medium line-clamp-1">{attack.techniqueName}</span>
@@ -354,6 +354,16 @@ export default function ApprenantDashboard() {
     }).catch(() => setLoading(false));
   }, []);
 
+  // ── Top 5 techniques ─────────────────────────────────────────────────────
+  const top5Techniques = useMemo(() => {
+    const counts: Record<string, { name: string; mitreID: string; count: number }> = {};
+    attacks.forEach((a) => {
+      if (!counts[a.mitreID]) counts[a.mitreID] = { name: a.techniqueName, mitreID: a.mitreID, count: 0 };
+      counts[a.mitreID].count++;
+    });
+    return Object.values(counts).sort((a, b) => b.count - a.count).slice(0, 5);
+  }, [attacks]);
+
   // ── Filtered attacks ──────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     return attacks.filter((a) => {
@@ -381,30 +391,70 @@ export default function ApprenantDashboard() {
           <p className="text-gray-500 text-sm mt-1">Votre tableau de bord d'apprentissage en cybersécurité</p>
         </div>
 
-        {/* ── Stat cards ── */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5">
-            <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center mb-3">
-              <Crosshair size={18} className="text-indigo-400" />
+        {/* ── Stat cards + Top 5 ── */}
+        <div className="flex gap-4 items-start">
+          <div className="flex-1 grid grid-cols-2 gap-4">
+            <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5">
+              <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center mb-3">
+                <Crosshair size={18} className="text-indigo-400" />
+              </div>
+              {loading ? (
+                <div className="h-8 w-16 bg-gray-800 rounded animate-pulse mb-1" />
+              ) : (
+                <p className="text-3xl font-bold text-white">{stats?.attackCount ?? 0}</p>
+              )}
+              <p className="text-xs text-gray-500 mt-0.5">Attaques réalisées</p>
             </div>
-            {loading ? (
-              <div className="h-8 w-16 bg-gray-800 rounded animate-pulse mb-1" />
-            ) : (
-              <p className="text-3xl font-bold text-white">{stats?.attackCount ?? 0}</p>
-            )}
-            <p className="text-xs text-gray-500 mt-0.5">Attaques réalisées</p>
+
+            <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5">
+              <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center mb-3">
+                <Brain size={18} className="text-purple-400" />
+              </div>
+              {loading ? (
+                <div className="h-8 w-16 bg-gray-800 rounded animate-pulse mb-1" />
+              ) : (
+                <p className="text-3xl font-bold text-white">{stats?.techniqueCount ?? 0}</p>
+              )}
+              <p className="text-xs text-gray-500 mt-0.5">Techniques MITRE pratiquées</p>
+            </div>
           </div>
 
-          <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5">
-            <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center mb-3">
-              <Brain size={18} className="text-purple-400" />
+          {/* Top 5 techniques */}
+          <div className="w-72 shrink-0 bg-gray-900 border border-gray-800/60 rounded-2xl p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp size={15} className="text-amber-400" />
+              <p className="text-sm font-semibold text-white">Top 5 techniques</p>
             </div>
             {loading ? (
-              <div className="h-8 w-16 bg-gray-800 rounded animate-pulse mb-1" />
+              <div className="space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="h-8 bg-gray-800 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            ) : top5Techniques.length === 0 ? (
+              <p className="text-xs text-gray-600 text-center py-6">Aucune donnée disponible.</p>
             ) : (
-              <p className="text-3xl font-bold text-white">{stats?.techniqueCount ?? 0}</p>
+              <ol className="space-y-2.5">
+                {top5Techniques.map((t, i) => (
+                  <li key={t.mitreID} className="flex items-center gap-2.5">
+                    <span className={`text-xs font-bold w-5 text-right shrink-0 ${
+                      i === 0 ? "text-amber-400" : i === 1 ? "text-gray-400" : i === 2 ? "text-amber-700" : "text-gray-600"
+                    }`}>
+                      {i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded">
+                        {t.mitreID}
+                      </span>
+                      <p className="text-xs text-gray-300 truncate mt-0.5">{t.name}</p>
+                    </div>
+                    <span className="text-xs font-semibold text-white shrink-0 bg-gray-800 px-1.5 py-0.5 rounded-md">
+                      {t.count}×
+                    </span>
+                  </li>
+                ))}
+              </ol>
             )}
-            <p className="text-xs text-gray-500 mt-0.5">Techniques MITRE pratiquées</p>
           </div>
         </div>
 
