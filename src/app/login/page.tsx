@@ -9,7 +9,7 @@ import { Shield, Eye, EyeOff, Loader2, Terminal } from "lucide-react";
 const DEMO_ACCOUNTS = [
   { role: "Admin", email: "admin@cyberlab.io", password: "Admin@1234", color: "text-red-400" },
   { role: "Consultant1", email: "consultant1@cyberlab.io", password: "Consult@1234", color: "text-indigo-400" },
-  { role: "Apprenant1", email: "apprenant1@cyberlab.io", password: "Learn@1234", color: "text-emerald-400" },
+  { role: "Apprenant1", email: "apprenant1@cyberlab.io", password: "Newpwd", color: "text-emerald-400" },
 ];
  
 function LoginForm() {
