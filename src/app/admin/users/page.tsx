@@ -35,14 +35,14 @@ const ROLE_DASHBOARDS: Record<string, string> = {
 };
 
 export default function UsersPage() {
-  const { user: me, loading } = useAuth();
+  const { user: me, loading: authLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && me && me.role !== "admin") {
+    if (!authLoading && me && me.role !== "admin") {
       router.replace(ROLE_DASHBOARDS[me.role] ?? "/dashboard/apprenant");
     }
-  }, [me, loading, router]);
+  }, [me, authLoading, router]);
 
   const [users, setUsers]           = useState<UserRow[]>([]);
   const [loading, setLoading]       = useState(true);
