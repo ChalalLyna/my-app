@@ -37,18 +37,15 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: "Scenarios",               icon: Layers,          href: "/scenarios" },
     { label: "CTI",                     icon: Shield,          href: "/cti" },
     { label: "Guides",                   icon: BookOpen,        href: "/cours" },
-    { label: "Rapports",                icon: BarChart2,       href: "/admin/reports" },
-    { label: "Paramètres",              icon: Settings,        href: "/admin/settings" },
+  
   ],
 
   // ─── CONSULTANT ──────────────────────────────────────────────
   consultant: [
     { label: "Dashboard",               icon: LayoutDashboard, href: "/dashboard/consultant" },
-    { label: "Infrastructure / Assets", icon: Network,         href: "/infrastructure"},
     { label: "Attack Simulation",       icon: Crosshair,       href: "/attack-simulation"},
     { label: "Detection",               icon: Eye,             href: "/detection" },
     { label: "Mission",                 icon: Flag,            href: "/mission" },
-    { label: "Scenarios",               icon: Layers,         href: "/scenarios" },
     { label: "CTI",                     icon: Shield,          href: "/cti" },
     
   ],
