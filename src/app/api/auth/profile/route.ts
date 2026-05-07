@@ -68,8 +68,10 @@ export async function PUT(req: NextRequest) {
 
       await conn.commit();
 
+      // Strip JWT-internal fields before re-signing (exp/iat conflict with expiresIn)
+      const { exp: _exp, iat: _iat, ...rest } = payload as any;
       const newPayload: JWTPayload = {
-        ...payload,
+        ...rest,
         nom,
         prenom,
         email: email.toLowerCase().trim(),

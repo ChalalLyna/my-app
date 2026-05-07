@@ -14,16 +14,13 @@ const ROLE_META: Record<UserRole, { label: string; color: string; bg: string; Ic
 };
 
 const EMPTY_FORM = {
-  prenom:          "",
-  nom:             "",
-  email:           "",
   currentPassword: "",
   newPassword:     "",
   confirmPassword: "",
 };
 
 export default function Topbar() {
-  const { user, logout, refreshUser } = useAuth();
+  const { user, logout } = useAuth();
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [profileOpen,  setProfileOpen]  = useState(false);
@@ -47,15 +44,7 @@ export default function Topbar() {
   }, []);
 
   function openProfile() {
-    if (!user) return;
-    setForm({
-      prenom:          user.prenom,
-      nom:             user.nom,
-      email:           user.email,
-      currentPassword: "",
-      newPassword:     "",
-      confirmPassword: "",
-    });
+    setForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
     setError("");
     setSuccess("");
     setDropdownOpen(false);
@@ -63,16 +52,16 @@ export default function Topbar() {
   }
 
   async function handleSave() {
-    if (!form.prenom || !form.nom || !form.email) {
-      setError("Prénom, nom et email sont requis.");
+    if (!form.newPassword) {
+      setError("Veuillez saisir un nouveau mot de passe.");
       return;
     }
-    if (form.newPassword && form.newPassword !== form.confirmPassword) {
+    if (!form.currentPassword) {
+      setError("Le mot de passe actuel est requis.");
+      return;
+    }
+    if (form.newPassword !== form.confirmPassword) {
       setError("Les mots de passe ne correspondent pas.");
-      return;
-    }
-    if (form.newPassword && !form.currentPassword) {
-      setError("Le mot de passe actuel est requis pour le modifier.");
       return;
     }
 
@@ -84,11 +73,11 @@ export default function Topbar() {
         method:  "PUT",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({
-          nom:             form.nom,
-          prenom:          form.prenom,
-          email:           form.email,
-          currentPassword: form.currentPassword || undefined,
-          newPassword:     form.newPassword     || undefined,
+          nom:             user!.nom,
+          prenom:          user!.prenom,
+          email:           user!.email,
+          currentPassword: form.currentPassword,
+          newPassword:     form.newPassword,
         }),
       });
       const data = await res.json();
@@ -96,8 +85,7 @@ export default function Topbar() {
         setError(data.error ?? "Erreur inconnue.");
         return;
       }
-      setSuccess("Profil mis à jour avec succès.");
-      await refreshUser();
+      setSuccess("Mot de passe modifié avec succès.");
       setTimeout(() => setProfileOpen(false), 1200);
     } finally {
       setSaving(false);
@@ -217,38 +205,23 @@ export default function Topbar() {
             </div>
 
             <div className="space-y-5">
-              {/* Informations personnelles */}
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">
-                  Informations personnelles
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1.5 font-medium">Prénom</label>
-                    <input
-                      value={form.prenom}
-                      onChange={(e) => setForm((f) => ({ ...f, prenom: e.target.value }))}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50"
-                    />
+              {/* Informations — lecture seule */}
+              <div className="bg-gray-800/50 rounded-xl p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-linear-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
+                    {user?.avatar}
                   </div>
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1.5 font-medium">Nom</label>
-                    <input
-                      value={form.nom}
-                      onChange={(e) => setForm((f) => ({ ...f, nom: e.target.value }))}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50"
-                    />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white">{user?.name}</p>
+                    <p className="text-xs text-gray-400 truncate">{user?.email}</p>
                   </div>
                 </div>
-                <div className="mt-3">
-                  <label className="block text-xs text-gray-400 mb-1.5 font-medium">Email</label>
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50"
-                  />
-                </div>
+                {roleMeta && (
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${roleMeta.color} ${roleMeta.bg}`}>
+                    <roleMeta.Icon size={11} />
+                    {roleMeta.label}
+                  </span>
+                )}
               </div>
 
               {/* Changer le mot de passe */}
@@ -299,20 +272,18 @@ export default function Topbar() {
                       </button>
                     </div>
                   </div>
-                  {form.newPassword && (
-                    <div>
-                      <label className="block text-xs text-gray-400 mb-1.5 font-medium">
-                        Confirmer le nouveau mot de passe
-                      </label>
-                      <input
-                        type="password"
-                        value={form.confirmPassword}
-                        onChange={(e) => setForm((f) => ({ ...f, confirmPassword: e.target.value }))}
-                        placeholder="••••••••"
-                        className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50"
-                      />
-                    </div>
-                  )}
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1.5 font-medium">
+                      Confirmer le nouveau mot de passe
+                    </label>
+                    <input
+                      type="password"
+                      value={form.confirmPassword}
+                      onChange={(e) => setForm((f) => ({ ...f, confirmPassword: e.target.value }))}
+                      placeholder="••••••••"
+                      className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50"
+                    />
+                  </div>
                 </div>
               </div>
 
