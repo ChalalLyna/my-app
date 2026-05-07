@@ -76,6 +76,8 @@ export async function POST(req: NextRequest) {
         email:  user.email,
         role:   user.role,
         name:   `${user.prenom} ${user.nom}`,
+        prenom: user.prenom,
+        nom:    user.nom,
         avatar: `${user.prenom[0]}${user.nom[0]}`.toUpperCase(),
       },
     });

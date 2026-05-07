@@ -28,6 +28,8 @@ export async function GET(req: NextRequest) {
         email:  payload.email,
         role:   payload.role,
         name:   `${payload.prenom} ${payload.nom}`,
+        prenom: payload.prenom,
+        nom:    payload.nom,
         avatar: `${payload.prenom[0]}${payload.nom[0]}`.toUpperCase(),
       },
     });

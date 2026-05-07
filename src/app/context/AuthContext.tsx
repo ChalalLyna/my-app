@@ -8,6 +8,8 @@ export type UserRole = "admin" | "consultant" | "apprenant";
 export interface User {
   id:     string;
   name:   string;
+  prenom: string;
+  nom:    string;
   email:  string;
   role:   UserRole;
   avatar: string;
@@ -20,10 +22,11 @@ const ROLE_DASHBOARDS: Record<UserRole, string> = {
 };
 
 interface AuthContextType {
-  user:    User | null;
-  loading: boolean;
-  login:   (email: string, password: string, callbackUrl?: string) => Promise<{ success: boolean; error?: string }>;
-  logout:  () => void;
+  user:        User | null;
+  loading:     boolean;
+  login:       (email: string, password: string, callbackUrl?: string) => Promise<{ success: boolean; error?: string }>;
+  logout:      () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -86,8 +89,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // ── Refresh : relit le cookie JWT et met à jour le state ─────────
+  const refreshUser = async () => {
+    try {
+      const res = await fetch("/api/auth/me");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) setUser(data.user);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
