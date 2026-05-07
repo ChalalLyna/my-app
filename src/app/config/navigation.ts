@@ -36,7 +36,7 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: "Mission",                 icon: Flag,            href: "/mission" },
     { label: "Scenarios",               icon: Layers,          href: "/scenarios" },
     { label: "CTI",                     icon: Shield,          href: "/cti" },
-    { label: "Cours",                   icon: BookOpen,        href: "/cours" },
+    { label: "Guides",                   icon: BookOpen,        href: "/cours" },
     { label: "Rapports",                icon: BarChart2,       href: "/admin/reports" },
     { label: "Paramètres",              icon: Settings,        href: "/admin/settings" },
   ],
@@ -58,7 +58,7 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: "Dashboard",               icon: LayoutDashboard,  href: "/dashboard/apprenant" },
     { label: "Attack Simulation",       icon: Crosshair,       href: "/attack-simulation"},
     { label: "Detection",               icon: Eye,             href: "/detection" },
-    { label: "Hub Formation",           icon: GraduationCap,    href: "/cours" },
+    { label: "Guides",           icon: GraduationCap,    href: "/cours" },
     { label: "Scenarios",               icon: Layers,           href: "/scenarios" },
     
   ],
