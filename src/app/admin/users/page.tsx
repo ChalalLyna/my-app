@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import { useAuth } from "@/app/context/AuthContext";
 import {
@@ -28,8 +29,21 @@ const ROLE_META: Record<Role, { label: string; color: string; bg: string; icon: 
 
 const EMPTY_FORM = { nom: "", prenom: "", email: "", role: "apprenant" as Role, password: "" };
 
+const ROLE_DASHBOARDS: Record<string, string> = {
+  consultant: "/dashboard/consultant",
+  apprenant:  "/dashboard/apprenant",
+};
+
 export default function UsersPage() {
-  const { user: me } = useAuth();
+  const { user: me, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && me && me.role !== "admin") {
+      router.replace(ROLE_DASHBOARDS[me.role] ?? "/dashboard/apprenant");
+    }
+  }, [me, loading, router]);
+
   const [users, setUsers]           = useState<UserRow[]>([]);
   const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState("");

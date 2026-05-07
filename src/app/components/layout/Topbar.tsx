@@ -107,6 +107,7 @@ export default function Topbar() {
   const roleMeta = user ? ROLE_META[user.role] : null;
 
   return (
+    <>
     <header className="fixed top-0 left-60 right-0 h-14 bg-gray-950/95 backdrop-blur-sm border-b border-gray-800/60 flex items-center px-6 gap-4 z-10">
       {/* Workspace label */}
       <span className="text-sm text-gray-500 font-medium border-r border-gray-800 pr-4 mr-1">
@@ -193,9 +194,12 @@ export default function Topbar() {
         )}
       </div>
 
-      {/* Profile modal */}
-      {profileOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    </header>
+
+    {/* Profile modal — outside <header> so fixed positioning covers the full viewport */}
+    {profileOpen && (
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm">
+        <div className="flex min-h-full items-center justify-center p-4">
           <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2.5">
@@ -334,7 +338,8 @@ export default function Topbar() {
             </div>
           </div>
         </div>
-      )}
-    </header>
+      </div>
+    )}
+    </>
   );
 }
