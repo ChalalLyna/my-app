@@ -7,7 +7,7 @@ import { useAuth } from "@/app/context/AuthContext";
 import {
   Server, Network, Play, Square, RotateCcw, Wifi,
   Plus, Pencil, Trash2, X, Loader2, RefreshCw,
-  ChevronRight, HardDrive, Search, Filter,
+  HardDrive, Search, Filter, Construction,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -45,7 +45,7 @@ interface NetIface {
 
 type ActionKey = "start" | "stop" | "reboot";
 type FilterStatus = "all" | "running" | "stopped";
-type ModalType = "add" | "edit" | null;
+type EditModal = "edit" | null;
 
 const EMPTY_FORM = {
   nom: "", categorie: "", description: "", typeActif: "lab" as "lab" | "client",
@@ -161,7 +161,8 @@ export default function InfrastructurePage() {
   const [loadingNet, setLoadingNet] = useState(false);
   const [netError, setNetError] = useState("");
 
-  const [modal, setModal] = useState<ModalType>(null);
+  const [showAddTodo, setShowAddTodo] = useState(false);
+  const [modal, setModal] = useState<EditModal>(null);
   const [editTarget, setEditTarget] = useState<Asset | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -262,13 +263,6 @@ export default function InfrastructurePage() {
 
   // ─── CRUD ────────────────────────────────────────────────────────────────────
 
-  function openAdd() {
-    setForm(EMPTY_FORM);
-    setFormError("");
-    setEditTarget(null);
-    setModal("add");
-  }
-
   function openEdit(a: Asset) {
     setForm({
       nom: a.name, categorie: a.category, description: a.description,
@@ -290,10 +284,8 @@ export default function InfrastructurePage() {
     setSaving(true);
     setFormError("");
     try {
-      const url    = modal === "add" ? "/api/assets" : `/api/assets/${editTarget!.id}`;
-      const method = modal === "add" ? "POST" : "PUT";
-      const res = await fetch(url, {
-        method,
+      const res = await fetch(`/api/assets/${editTarget!.id}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, vmidProxmox: Number(form.vmidProxmox) }),
       });
@@ -392,7 +384,7 @@ export default function InfrastructurePage() {
                 <RefreshCw size={15} className={refreshingLive ? "animate-spin" : ""} />
               </button>
               <button
-                onClick={openAdd}
+                onClick={() => setShowAddTodo(true)}
                 className="flex items-center gap-2 bg-brand/10 hover:bg-brand/20 border border-brand/30 text-brand px-4 py-2 rounded-xl text-sm font-medium transition-colors"
               >
                 <Plus size={14} /> Ajouter un asset
@@ -754,27 +746,51 @@ export default function InfrastructurePage() {
         )}
       </div>
 
-      {/* ── Add / Edit Modal ─────────────────────────────────────────────────── */}
-      {modal && (
+      {/* ── Add — À implémenter ─────────────────────────────────────────────── */}
+      {showAddTodo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                  <Construction size={16} className="text-amber-400" />
+                </div>
+                <h2 className="text-sm font-bold text-white">Fonctionnalité à venir</h2>
+              </div>
+              <button onClick={() => setShowAddTodo(false)} className="text-gray-500 hover:text-white transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <p className="text-sm text-gray-400 mb-5">
+              La création d'un asset depuis l'interface n'est pas encore implémentée.
+            </p>
+            <button
+              onClick={() => setShowAddTodo(false)}
+              className="w-full py-2 rounded-xl text-sm font-medium bg-gray-800 hover:bg-gray-700 text-gray-300 transition-colors"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Modal ───────────────────────────────────────────────────────── */}
+      {modal === "edit" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-bold text-white">
-                {modal === "add" ? "Ajouter un asset" : "Modifier l'asset"}
-              </h2>
+              <h2 className="text-base font-bold text-white">Modifier l'asset</h2>
               <button onClick={() => setModal(null)} className="text-gray-500 hover:text-white transition-colors">
                 <X size={17} />
               </button>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              {/* Asset info */}
               <div className="col-span-2">
                 <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-1.5">
                   <Server size={11} /> Informations asset
                 </p>
               </div>
-
               <Field label="Nom de l'asset *" value={form.nom}
                 onChange={(v) => setForm((f) => ({ ...f, nom: v }))} placeholder="Serveur Web" />
               <Field label="Catégorie *" value={form.categorie}
@@ -792,13 +808,11 @@ export default function InfrastructurePage() {
                 </select>
               </div>
 
-              {/* VM info */}
               <div className="col-span-2 mt-2">
                 <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-1.5">
                   <Network size={11} /> Machine virtuelle (Proxmox)
                 </p>
               </div>
-
               <Field label="Nom machine *" value={form.nomMachine}
                 onChange={(v) => setForm((f) => ({ ...f, nomMachine: v }))} placeholder="ubuntu-web-01" />
               <Field label="VMID Proxmox *" value={form.vmidProxmox} type="number"
@@ -831,7 +845,7 @@ export default function InfrastructurePage() {
               <button onClick={handleSave} disabled={saving}
                 className="flex-1 py-2 rounded-xl text-sm font-medium bg-brand/20 hover:bg-brand/30 border border-brand/30 text-brand transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                 {saving && <Loader2 size={13} className="animate-spin" />}
-                {modal === "add" ? "Créer" : "Enregistrer"}
+                Enregistrer
               </button>
             </div>
           </div>
