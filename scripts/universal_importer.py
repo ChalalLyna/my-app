@@ -9,12 +9,13 @@ import re
 TARGET_CATEGORY = "windows" 
 
 MAPPING_CONFIG = {
-    "windows": {"sid": "61603", "field": "win.eventdata.commandLine"},
-    "linux":   {"sid": "5400",  "field": "full_log"},
-    "macos":   {"sid": "510",   "field": "full_log"},
-    "network": {"sid": "10005", "field": "full_log"},
-    "cloud":   {"sid": "10010", "field": "aws.eventSource"},
-    "default": {"sid": "10000", "field": "full_log"}
+    "windows":   {"sid": "61603", "field": "win.eventdata.commandLine"},
+    "linux":     {"sid": "5400",  "field": "full_log"},
+    "macos":     {"sid": "510",   "field": "full_log"},
+    "network":   {"sid": "10005", "field": "full_log"},
+    "cloud":     {"sid": "10010", "field": "aws.eventSource"},
+    "web":       {"sid": "31100", "field": "full_log"},
+    "default":   {"sid": "10000", "field": "full_log"}
 }
 
 SIGMA_BASE_PATH = f"sigma_repo/rules/{TARGET_CATEGORY}"
@@ -25,8 +26,11 @@ def map_severity(level):
     return mapping.get(str(level).lower(), "10")
 
 def get_wazuh_info(logsource):
-    product = logsource.get('product', 'default')
-    return MAPPING_CONFIG.get(product, MAPPING_CONFIG["default"])
+    # Try product first, then logsource category, then the folder category, then default
+    for key in [logsource.get('product', ''), logsource.get('category', ''), TARGET_CATEGORY, 'default']:
+        if key and key in MAPPING_CONFIG:
+            return MAPPING_CONFIG[key]
+    return MAPPING_CONFIG["default"]
 
 def extract_logic(detection):
     keywords = []

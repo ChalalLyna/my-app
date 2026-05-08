@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { verifyToken, COOKIE_NAME } from "@/lib/auth";
 
-const ALL_CATEGORIES = ["windows", "linux", "macos", "network", "cloud"] as const;
+const ALL_CATEGORIES = ["windows", "linux", "macos", "network", "cloud", "web"] as const;
 
 function requireAuth(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;

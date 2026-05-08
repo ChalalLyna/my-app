@@ -1,15 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import path from "path";
 import fs from "fs/promises";
 import pool from "@/lib/db";
 import { verifyToken, COOKIE_NAME } from "@/lib/auth";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
-const SCRIPTS_DIR   = path.join(process.cwd(), "scripts");
-const ALL_CATEGORIES = ["windows", "linux", "macos", "network", "cloud"];
+const SCRIPTS_DIR    = path.join(process.cwd(), "scripts");
+const ALL_CATEGORIES = ["windows", "linux", "macos", "network", "cloud", "web"];
+
+// Try "python" first (Windows), fall back to "python3" (Linux/Mac)
+async function runPython(args: string[], cwd: string): Promise<void> {
+  try {
+    await execFileAsync("python", args, { cwd, timeout: 600_000 });
+  } catch (err: any) {
+    if (err.code === "ENOENT") {
+      await execFileAsync("python3", args, { cwd, timeout: 600_000 });
+    } else {
+      throw err;
+    }
+  }
+}
 
 function requireAdmin(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
@@ -52,10 +65,7 @@ export async function POST(req: NextRequest) {
 
   try {
     // ── 1. Run Python import script ─────────────────────────────
-    await execAsync(`python refresh_db.py ${category}`, {
-      cwd:     SCRIPTS_DIR,
-      timeout: 600_000, // 10 minutes max
-    });
+    await runPython(["refresh_db.py", category], SCRIPTS_DIR);
 
     // ── 2. Read generated JSON ───────────────────────────────────
     const jsonPath = path.join(SCRIPTS_DIR, `${category}_cti_db.json`);

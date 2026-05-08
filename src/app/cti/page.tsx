@@ -47,7 +47,7 @@ interface CategoriesData {
 
 const PAGE_SIZE = 50;
 
-const ALL_CATEGORIES = ["windows", "linux", "macos", "network", "cloud"] as const;
+const ALL_CATEGORIES = ["windows", "linux", "macos", "network", "cloud", "web"] as const;
 
 const SEVERITY_META: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   critical: { label: "Critique", color: "text-red-400",    bg: "bg-red-500/10",    dot: "bg-red-400"    },
@@ -62,6 +62,7 @@ const CATEGORY_META: Record<string, { color: string; bg: string }> = {
   macos:   { color: "text-purple-400", bg: "bg-purple-500/10" },
   network: { color: "text-cyan-400",   bg: "bg-cyan-500/10"   },
   cloud:   { color: "text-orange-400", bg: "bg-orange-500/10" },
+  web:     { color: "text-pink-400",   bg: "bg-pink-500/10"   },
 };
 
 // ─── Helper components ────────────────────────────────────────────────────────
@@ -309,7 +310,7 @@ export default function CTIPage() {
         {/* ── Toolbar ────────────────────────────────────────── */}
         <div className="flex gap-3 mb-5 flex-wrap">
           {/* Search */}
-          <div className="relative flex-1 min-w-[220px]">
+          <div className="relative flex-1 min-w-55">
             <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
             <input
               value={search}
@@ -331,7 +332,7 @@ export default function CTIPage() {
           <select
             value={category}
             onChange={(e) => { setCategory(e.target.value); setPage(0); }}
-            className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand/50 min-w-[140px]"
+            className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand/50 min-w-35"
           >
             <option value="">Toutes les catégories</option>
             {catData.imported.map((c) => (
@@ -343,7 +344,7 @@ export default function CTIPage() {
           <select
             value={severity}
             onChange={(e) => { setSeverity(e.target.value); setPage(0); }}
-            className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand/50 min-w-[140px]"
+            className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand/50 min-w-35"
           >
             <option value="">Toutes les sévérités</option>
             <option value="critical">Critique</option>
@@ -404,7 +405,7 @@ export default function CTIPage() {
                         <td className="px-4 py-3.5">
                           <MitreBadges raw={rule.TechniquesMitre} />
                         </td>
-                        <td className="px-4 py-3.5 text-gray-400 text-xs max-w-[140px] truncate">
+                        <td className="px-4 py-3.5 text-gray-400 text-xs max-w-35 truncate">
                           {rule.Auteur ?? "—"}
                         </td>
                         <td className="px-4 py-3.5 text-gray-500 text-xs whitespace-nowrap">
@@ -479,7 +480,7 @@ export default function CTIPage() {
                   </div>
                   <button
                     onClick={() => setDetail(null)}
-                    className="text-gray-500 hover:text-white transition-colors flex-shrink-0"
+                    className="text-gray-500 hover:text-white transition-colors shrink-0"
                   >
                     <X size={18} />
                   </button>
@@ -609,8 +610,8 @@ export default function CTIPage() {
                   }`}
                 >
                   {importMsg.ok
-                    ? <CheckCircle2 size={15} className="mt-0.5 flex-shrink-0" />
-                    : <AlertCircle  size={15} className="mt-0.5 flex-shrink-0" />
+                    ? <CheckCircle2 size={15} className="mt-0.5 shrink-0" />
+                    : <AlertCircle  size={15} className="mt-0.5 shrink-0" />
                   }
                   {importMsg.text}
                 </div>
@@ -619,7 +620,7 @@ export default function CTIPage() {
               {/* Loading warning */}
               {importing && (
                 <div className="flex items-center gap-2 p-3 rounded-xl text-xs text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 mb-2">
-                  <Loader2 size={13} className="animate-spin flex-shrink-0" />
+                  <Loader2 size={13} className="animate-spin shrink-0" />
                   Import en cours pour « {importing} » — peut prendre quelques minutes (clone Git + parsing YAML)…
                 </div>
               )}
