@@ -86,8 +86,9 @@ def process_rules():
                                 "severity": content.get('level'),
                                 "wazuh_level": wazuh_lvl,
                                 "product": logsource.get('product'),
-                                "category": logsource.get('category', TARGET_CATEGORY),
-                                "original_sigma_yaml": raw_yaml 
+                                "category": TARGET_CATEGORY,
+                                "sub_category": logsource.get('category'),
+                                "original_sigma_yaml": raw_yaml
                             },
                             "wazuh_xml": (
                                 f'<rule id="100001" level="{wazuh_lvl}">\n'

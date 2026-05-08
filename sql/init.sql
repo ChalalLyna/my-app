@@ -264,6 +264,7 @@ CREATE TABLE RegleCTI (
     NiveauWazuh             INT,
     Produit                 VARCHAR(100),
     Categorie               VARCHAR(100),
+    SousCategorie           VARCHAR(100),
     YamlSigmaOriginal       LONGTEXT,
     XmlWazuh                LONGTEXT,
     PRIMARY KEY (IdRegle),

@@ -20,11 +20,12 @@ interface CTIRule {
   Auteur:               string | null;
   DateAjout:            string | null;
   DerniereModification: string | null;
-  TechniquesMitre:      string | null; // JSON string
+  TechniquesMitre:      string | null;
   Severite:             string | null;
   NiveauWazuh:          number | null;
   Produit:              string | null;
   Categorie:            string | null;
+  SousCategorie:        string | null;
 }
 
 interface CTIRuleDetail extends CTIRule {
@@ -32,15 +33,14 @@ interface CTIRuleDetail extends CTIRule {
   XmlWazuh:          string | null;
 }
 
-interface CategoryInfo {
-  name:  string;
-  count: number;
-}
+interface CategoryInfo    { name: string; count: number; }
+interface SubCategoryInfo { name: string; count: number; }
 
 interface CategoriesData {
-  imported:  CategoryInfo[];
-  available: string[];
-  all:       string[];
+  imported:      CategoryInfo[];
+  available:     string[];
+  all:           string[];
+  subcategories: SubCategoryInfo[];
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -88,6 +88,15 @@ function CategoryBadge({ cat }: { cat: string | null }) {
   );
 }
 
+function SubCategoryBadge({ sub }: { sub: string | null }) {
+  if (!sub) return null;
+  return (
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs text-gray-400 bg-gray-800 border border-gray-700/50">
+      {sub}
+    </span>
+  );
+}
+
 function MitreBadges({ raw }: { raw: string | null }) {
   if (!raw) return <span className="text-gray-600 text-xs">—</span>;
   let techniques: string[] = [];
@@ -124,52 +133,57 @@ export default function CTIPage() {
   const isAdmin = user?.role === "admin";
 
   // Table state
-  const [rules, setRules]     = useState<CTIRule[]>([]);
-  const [total, setTotal]     = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage]       = useState(0);
-  const [search, setSearch]   = useState("");
-  const [category, setCategory] = useState("");
-  const [severity, setSeverity] = useState("");
+  const [rules, setRules]         = useState<CTIRule[]>([]);
+  const [total, setTotal]         = useState(0);
+  const [loading, setLoading]     = useState(true);
+  const [page, setPage]           = useState(0);
+  const [search, setSearch]       = useState("");
+  const [category, setCategory]   = useState("");
+  const [subcategory, setSubcategory] = useState("");
+  const [severity, setSeverity]   = useState("");
 
-  // Categories
-  const [catData, setCatData]       = useState<CategoriesData>({ imported: [], available: [], all: [] });
+  // Categories + subcategories
+  const [catData, setCatData]       = useState<CategoriesData>({
+    imported: [], available: [], all: [], subcategories: [],
+  });
   const [catLoading, setCatLoading] = useState(true);
 
   // Detail modal
-  const [detail, setDetail]           = useState<CTIRuleDetail | null>(null);
+  const [detail, setDetail]               = useState<CTIRuleDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [detailTab, setDetailTab]     = useState<"yaml" | "xml">("yaml");
+  const [detailTab, setDetailTab]         = useState<"yaml" | "xml">("yaml");
 
   // Manage modal (admin)
-  const [showManage, setShowManage]   = useState(false);
-  const [importing, setImporting]     = useState<string | null>(null);
-  const [importMsg, setImportMsg]     = useState<{ ok: boolean; text: string } | null>(null);
+  const [showManage, setShowManage] = useState(false);
+  const [importing, setImporting]   = useState<string | null>(null);
+  const [importMsg, setImportMsg]   = useState<{ ok: boolean; text: string } | null>(null);
 
   // Debounce search
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Fetch categories ──────────────────────────────────────────
-  const fetchCategories = useCallback(() => {
+  // ── Fetch categories + subcategories ────────────────────────────
+  const fetchCategories = useCallback((cat: string = "") => {
     setCatLoading(true);
-    fetch("/api/cti/categories")
+    const url = cat ? `/api/cti/categories?category=${encodeURIComponent(cat)}` : "/api/cti/categories";
+    fetch(url)
       .then((r) => r.json())
       .then((d) => { setCatData(d); setCatLoading(false); })
       .catch(() => setCatLoading(false));
   }, []);
 
-  // ── Fetch rules ───────────────────────────────────────────────
+  // ── Fetch rules ──────────────────────────────────────────────────
   const fetchRules = useCallback((
-    pg: number, q: string, cat: string, sev: string
+    pg: number, q: string, cat: string, sub: string, sev: string
   ) => {
     setLoading(true);
     const params = new URLSearchParams({
       limit:  String(PAGE_SIZE),
       offset: String(pg * PAGE_SIZE),
     });
-    if (q)   params.set("search",   q);
-    if (cat) params.set("category", cat);
-    if (sev) params.set("severity", sev);
+    if (q)   params.set("search",      q);
+    if (cat) params.set("category",    cat);
+    if (sub) params.set("subcategory", sub);
+    if (sev) params.set("severity",    sev);
 
     fetch(`/api/cti/rules?${params}`)
       .then((r) => r.json())
@@ -177,22 +191,33 @@ export default function CTIPage() {
       .catch(() => setLoading(false));
   }, []);
 
+  // Initial load
   useEffect(() => { fetchCategories(); }, [fetchCategories]);
 
+  // Debounced re-fetch on filter change
   useEffect(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => {
       setPage(0);
-      fetchRules(0, search, category, severity);
+      fetchRules(0, search, category, subcategory, severity);
     }, 300);
     return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
-  }, [search, category, severity, fetchRules]);
+  }, [search, category, subcategory, severity, fetchRules]);
 
+  // Page change
   useEffect(() => {
-    fetchRules(page, search, category, severity);
+    fetchRules(page, search, category, subcategory, severity);
   }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Open detail ───────────────────────────────────────────────
+  // When category changes → reset subcategory + reload subcategory list
+  function handleCategoryChange(val: string) {
+    setCategory(val);
+    setSubcategory("");
+    setPage(0);
+    fetchCategories(val);
+  }
+
+  // ── Open detail ──────────────────────────────────────────────────
   function openDetail(rule: CTIRule) {
     setDetail(null);
     setDetailTab("yaml");
@@ -203,7 +228,7 @@ export default function CTIPage() {
       .catch(() => setDetailLoading(false));
   }
 
-  // ── Import / Refresh ──────────────────────────────────────────
+  // ── Import / Refresh ─────────────────────────────────────────────
   async function handleImport(cat: string) {
     setImporting(cat);
     setImportMsg(null);
@@ -218,9 +243,9 @@ export default function CTIPage() {
         setImportMsg({ ok: false, text: data.error ?? "Erreur inconnue." });
       } else {
         setImportMsg({ ok: true, text: `${data.count} règles importées pour « ${cat} ».` });
-        fetchCategories();
+        fetchCategories(category);
         setPage(0);
-        fetchRules(0, search, category, severity);
+        fetchRules(0, search, category, subcategory, severity);
       }
     } catch {
       setImportMsg({ ok: false, text: "Erreur réseau." });
@@ -229,18 +254,16 @@ export default function CTIPage() {
     }
   }
 
-  // ── Pagination helpers ────────────────────────────────────────
-  const totalPages  = Math.ceil(total / PAGE_SIZE);
-  const pageStart   = page * PAGE_SIZE + 1;
-  const pageEnd     = Math.min((page + 1) * PAGE_SIZE, total);
+  // ── Helpers ──────────────────────────────────────────────────────
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const pageStart  = page * PAGE_SIZE + 1;
+  const pageEnd    = Math.min((page + 1) * PAGE_SIZE, total);
 
-  // ── Format date ───────────────────────────────────────────────
   function fmtDate(d: string | null) {
     if (!d) return "—";
     try { return new Date(d).toLocaleDateString("fr-FR"); } catch { return d; }
   }
 
-  // ── Parse MITRE techniques ────────────────────────────────────
   function parseMitre(raw: string | null): string[] {
     if (!raw) return [];
     try { return JSON.parse(raw); } catch { return [raw]; }
@@ -252,7 +275,7 @@ export default function CTIPage() {
     <DashboardLayout>
       <div className="p-8">
 
-        {/* ── Header ─────────────────────────────────────────── */}
+        {/* ── Header ──────────────────────────────────────────────── */}
         <div className="mb-6 flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -269,7 +292,6 @@ export default function CTIPage() {
             </p>
           </div>
 
-          {/* Admin: manage button */}
           {isAdmin && (
             <button
               onClick={() => { setShowManage(true); setImportMsg(null); }}
@@ -281,24 +303,25 @@ export default function CTIPage() {
           )}
         </div>
 
-        {/* ── Stats row ──────────────────────────────────────── */}
+        {/* ── Category chips ──────────────────────────────────────── */}
         {catData.imported.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-5">
             {catData.imported.map((c) => {
               const meta = CATEGORY_META[c.name] ?? { color: "text-gray-400", bg: "bg-gray-500/10" };
+              const active = category === c.name;
               return (
                 <button
                   key={c.name}
-                  onClick={() => { setCategory(category === c.name ? "" : c.name); setPage(0); }}
+                  onClick={() => handleCategoryChange(active ? "" : c.name)}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors
-                    ${category === c.name
+                    ${active
                       ? `${meta.color} ${meta.bg} border-current/30`
                       : "text-gray-400 bg-gray-800/50 border-gray-700/50 hover:border-gray-600"
                     }`}
                 >
                   <Layers size={11} />
                   <span className="capitalize">{c.name}</span>
-                  <span className={`px-1.5 py-0.5 rounded-full text-xs ${category === c.name ? meta.bg : "bg-gray-700"}`}>
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs ${active ? meta.bg : "bg-gray-700"}`}>
                     {c.count}
                   </span>
                 </button>
@@ -307,7 +330,7 @@ export default function CTIPage() {
           </div>
         )}
 
-        {/* ── Toolbar ────────────────────────────────────────── */}
+        {/* ── Toolbar ─────────────────────────────────────────────── */}
         <div className="flex gap-3 mb-5 flex-wrap">
           {/* Search */}
           <div className="relative flex-1 min-w-55">
@@ -331,12 +354,25 @@ export default function CTIPage() {
           {/* Category filter */}
           <select
             value={category}
-            onChange={(e) => { setCategory(e.target.value); setPage(0); }}
+            onChange={(e) => handleCategoryChange(e.target.value)}
             className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand/50 min-w-35"
           >
             <option value="">Toutes les catégories</option>
             {catData.imported.map((c) => (
               <option key={c.name} value={c.name} className="capitalize">{c.name}</option>
+            ))}
+          </select>
+
+          {/* Subcategory filter */}
+          <select
+            value={subcategory}
+            onChange={(e) => { setSubcategory(e.target.value); setPage(0); }}
+            disabled={catData.subcategories.length === 0}
+            className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand/50 min-w-35 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <option value="">Toutes les sous-catégories</option>
+            {catData.subcategories.map((s) => (
+              <option key={s.name} value={s.name}>{s.name}</option>
             ))}
           </select>
 
@@ -354,7 +390,7 @@ export default function CTIPage() {
           </select>
         </div>
 
-        {/* ── Table ──────────────────────────────────────────── */}
+        {/* ── Table ───────────────────────────────────────────────── */}
         <div className="bg-gray-900 border border-gray-800/60 rounded-2xl overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-20 text-gray-500">
@@ -377,6 +413,7 @@ export default function CTIPage() {
                     <tr className="border-b border-gray-800/60">
                       <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-5 py-3">Titre</th>
                       <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Catégorie</th>
+                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Sous-catégorie</th>
                       <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Sévérité</th>
                       <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Techniques MITRE</th>
                       <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Auteur</th>
@@ -398,6 +435,9 @@ export default function CTIPage() {
                         </td>
                         <td className="px-4 py-3.5">
                           <CategoryBadge cat={rule.Categorie} />
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <SubCategoryBadge sub={rule.SousCategorie} />
                         </td>
                         <td className="px-4 py-3.5">
                           <SeverityBadge level={rule.Severite} />
@@ -449,7 +489,7 @@ export default function CTIPage() {
         </div>
       </div>
 
-      {/* ── Detail modal ─────────────────────────────────────────── */}
+      {/* ── Detail modal ────────────────────────────────────────────── */}
       {(detailLoading || detail) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-gray-900 border border-gray-800/60 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
@@ -459,11 +499,11 @@ export default function CTIPage() {
               </div>
             ) : detail && (
               <>
-                {/* Modal header */}
                 <div className="flex items-start justify-between p-5 border-b border-gray-800/60">
                   <div className="flex-1 pr-4">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <CategoryBadge cat={detail.Categorie} />
+                      {detail.SousCategorie && <SubCategoryBadge sub={detail.SousCategorie} />}
                       <SeverityBadge level={detail.Severite} />
                       {detail.NiveauWazuh != null && (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-gray-800 text-gray-400">
@@ -486,10 +526,7 @@ export default function CTIPage() {
                   </button>
                 </div>
 
-                {/* Modal body */}
                 <div className="overflow-y-auto flex-1 p-5 space-y-4">
-
-                  {/* Description */}
                   {detail.Description && (
                     <div>
                       <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1.5 flex items-center gap-1.5">
@@ -499,7 +536,6 @@ export default function CTIPage() {
                     </div>
                   )}
 
-                  {/* MITRE techniques */}
                   {detail.TechniquesMitre && (
                     <div>
                       <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1.5 flex items-center gap-1.5">
@@ -515,7 +551,6 @@ export default function CTIPage() {
                     </div>
                   )}
 
-                  {/* Meta row */}
                   <div className="grid grid-cols-2 gap-3">
                     {detail.Auteur && (
                       <div>
@@ -540,7 +575,6 @@ export default function CTIPage() {
                     )}
                   </div>
 
-                  {/* Tabs: YAML / XML */}
                   {(detail.YamlSigmaOriginal || detail.XmlWazuh) && (
                     <div>
                       <div className="flex gap-1 mb-2">
@@ -580,11 +614,10 @@ export default function CTIPage() {
         </div>
       )}
 
-      {/* ── Manage categories modal (admin only) ──────────────────── */}
+      {/* ── Manage categories modal (admin) ─────────────────────────── */}
       {isAdmin && showManage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-gray-900 border border-gray-800/60 rounded-2xl w-full max-w-lg shadow-2xl">
-            {/* Header */}
             <div className="flex items-center justify-between p-5 border-b border-gray-800/60">
               <div className="flex items-center gap-2">
                 <FolderOpen size={16} className="text-brand" />
@@ -599,9 +632,7 @@ export default function CTIPage() {
               </button>
             </div>
 
-            {/* Body */}
             <div className="p-5 space-y-2">
-              {/* Import feedback */}
               {importMsg && (
                 <div className={`flex items-start gap-2 p-3 rounded-xl text-sm mb-3
                   ${importMsg.ok
@@ -617,7 +648,6 @@ export default function CTIPage() {
                 </div>
               )}
 
-              {/* Loading warning */}
               {importing && (
                 <div className="flex items-center gap-2 p-3 rounded-xl text-xs text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 mb-2">
                   <Loader2 size={13} className="animate-spin shrink-0" />
@@ -631,9 +661,9 @@ export default function CTIPage() {
                 </div>
               ) : (
                 ALL_CATEGORIES.map((cat) => {
-                  const imported  = catData.imported.find((i) => i.name === cat);
+                  const imported    = catData.imported.find((i) => i.name === cat);
                   const isImporting = importing === cat;
-                  const catMeta   = CATEGORY_META[cat] ?? { color: "text-gray-400", bg: "bg-gray-500/10" };
+                  const catMeta     = CATEGORY_META[cat] ?? { color: "text-gray-400", bg: "bg-gray-500/10" };
 
                   return (
                     <div

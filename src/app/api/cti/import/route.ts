@@ -112,25 +112,26 @@ export async function POST(req: NextRequest) {
              (IdRegle, IdSigma, Titre, Description, Auteur,
               DateAjout, DerniereModification,
               TechniquesMitre, Severite, NiveauWazuh,
-              Produit, Categorie, YamlSigmaOriginal, XmlWazuh)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              Produit, Categorie, SousCategorie, YamlSigmaOriginal, XmlWazuh)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             idRegle,
-            m.sigma_id          ?? null,
-            m.title             ?? null,
-            m.description       ?? null,
-            m.author            ?? null,
+            m.sigma_id            ?? null,
+            m.title               ?? null,
+            m.description         ?? null,
+            m.author              ?? null,
             parseDate(m.date_added),
             parseDate(m.last_modified),
             Array.isArray(m.mitre_techniques) && m.mitre_techniques.length
               ? JSON.stringify(m.mitre_techniques)
               : null,
-            m.severity          ?? null,
+            m.severity            ?? null,
             parseLevel(m.wazuh_level),
-            m.product           ?? null,
-            m.category          ?? category,
+            m.product             ?? null,
+            m.category            ?? category,
+            m.sub_category        ?? null,
             m.original_sigma_yaml ?? null,
-            entry.wazuh_xml     ?? null,
+            entry.wazuh_xml       ?? null,
           ]
         );
 

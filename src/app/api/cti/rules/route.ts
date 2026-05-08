@@ -13,11 +13,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
-  const search   = req.nextUrl.searchParams.get("search")   ?? "";
-  const category = req.nextUrl.searchParams.get("category") ?? "";
-  const severity = req.nextUrl.searchParams.get("severity") ?? "";
-  const limit    = Math.min(parseInt(req.nextUrl.searchParams.get("limit")  ?? "50"), 200);
-  const offset   = Math.max(parseInt(req.nextUrl.searchParams.get("offset") ?? "0"),  0);
+  const search      = req.nextUrl.searchParams.get("search")      ?? "";
+  const category    = req.nextUrl.searchParams.get("category")    ?? "";
+  const subcategory = req.nextUrl.searchParams.get("subcategory") ?? "";
+  const severity    = req.nextUrl.searchParams.get("severity")    ?? "";
+  const limit       = Math.min(parseInt(req.nextUrl.searchParams.get("limit")  ?? "50"), 200);
+  const offset      = Math.max(parseInt(req.nextUrl.searchParams.get("offset") ?? "0"),  0);
 
   try {
     const conditions: string[] = [];
@@ -32,6 +33,10 @@ export async function GET(req: NextRequest) {
       conditions.push("Categorie = ?");
       params.push(category);
     }
+    if (subcategory) {
+      conditions.push("SousCategorie = ?");
+      params.push(subcategory);
+    }
     if (severity) {
       conditions.push("Severite = ?");
       params.push(severity);
@@ -42,7 +47,7 @@ export async function GET(req: NextRequest) {
     const [rows] = await pool.query(
       `SELECT IdRegle, IdSigma, Titre, Description, Auteur,
               DateAjout, DerniereModification,
-              TechniquesMitre, Severite, NiveauWazuh, Produit, Categorie
+              TechniquesMitre, Severite, NiveauWazuh, Produit, Categorie, SousCategorie
        FROM RegleCTI ${where}
        ORDER BY Titre ASC
        LIMIT ? OFFSET ?`,

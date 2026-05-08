@@ -15,12 +15,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
+  const filterCategory = req.nextUrl.searchParams.get("category") ?? "";
+
   try {
-    const [rows] = await pool.query(
+    const [catRows] = await pool.query(
       "SELECT Categorie, COUNT(*) AS count FROM RegleCTI GROUP BY Categorie"
     ) as any;
 
-    const imported: { name: string; count: number }[] = (rows as any[]).map((r) => ({
+    const imported: { name: string; count: number }[] = (catRows as any[]).map((r) => ({
       name:  r.Categorie,
       count: Number(r.count),
     }));
@@ -28,7 +30,29 @@ export async function GET(req: NextRequest) {
     const importedNames = new Set(imported.map((i) => i.name));
     const available     = ALL_CATEGORIES.filter((c) => !importedNames.has(c));
 
-    return NextResponse.json({ imported, available, all: ALL_CATEGORIES });
+    // Subcategories — filtered by category if provided
+    const subParams: unknown[] = [];
+    let subWhere = "SousCategorie IS NOT NULL AND SousCategorie != ''";
+    if (filterCategory) {
+      subWhere += " AND Categorie = ?";
+      subParams.push(filterCategory);
+    }
+
+    const [subRows] = await pool.query(
+      `SELECT SousCategorie, COUNT(*) AS count
+       FROM RegleCTI
+       WHERE ${subWhere}
+       GROUP BY SousCategorie
+       ORDER BY SousCategorie ASC`,
+      subParams
+    ) as any;
+
+    const subcategories: { name: string; count: number }[] = (subRows as any[]).map((r) => ({
+      name:  r.SousCategorie,
+      count: Number(r.count),
+    }));
+
+    return NextResponse.json({ imported, available, all: ALL_CATEGORIES, subcategories });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
