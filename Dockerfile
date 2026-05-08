@@ -20,11 +20,15 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Uniquement les fichiers nécessaires au runtime
+# Python3, PyYAML et git — nécessaires pour les scripts d'import CTI
+RUN apk add --no-cache python3 py3-yaml git
+
+# Fichiers nécessaires au runtime
 COPY --from=builder /app/public           ./public
 COPY --from=builder /app/.next            ./.next
 COPY --from=builder /app/node_modules     ./node_modules
 COPY --from=builder /app/package.json     ./package.json
+COPY --from=builder /app/scripts          ./scripts
 
 EXPOSE 3000
 
