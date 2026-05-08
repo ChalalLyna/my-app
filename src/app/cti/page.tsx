@@ -577,6 +577,9 @@ export default function CTIPage() {
 
                   {(detail.YamlSigmaOriginal || detail.XmlWazuh) && (
                     <div>
+                      <p className="text-xs text-yellow-500/80 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2 mb-3">
+                        ⚠️ La traduction automatique vers XML Wazuh peut ne pas être totalement fidèle à la règle Sigma originale. Vérifiez avant tout déploiement.
+                      </p>
                       <div className="flex gap-1 mb-2">
                         {detail.YamlSigmaOriginal && (
                           <button
