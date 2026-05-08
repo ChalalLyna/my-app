@@ -23,10 +23,21 @@ export interface Adversary {
   motivation?: string;
 }
 
+export interface TTPExecutor {
+  name: string;      // "cmd" | "psh" | "sh" | "bash"
+  platform: string;  // "windows" | "linux" | "darwin"
+  command: string;
+  cleanup: string[];
+  payloads: string[];
+}
+
 export interface TTP {
   id: string;       // MITRE technique_id (e.g. "T1566") or ability_id UUID if no technique_id
   name: string;
   tactic: string;
   description: string;
   calderaAbilityIds?: string[];  // Caldera ability UUIDs for this technique
+  executors?: TTPExecutor[];
+  privilege?: string;            // "Administrator" | "SYSTEM" | "" (empty = standard user)
+  requirements?: string[];
 }

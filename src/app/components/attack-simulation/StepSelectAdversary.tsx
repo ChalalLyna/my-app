@@ -1,10 +1,39 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Skull, Bug, UserX, Globe, Shield, ChevronRight, X, Loader2, AlertCircle } from "lucide-react";
-import { Adversary, TTP } from "@/app/types/simulation";
+import { Search, Skull, Bug, UserX, Globe, Shield, ChevronRight, X, Loader2, AlertCircle, Terminal, ChevronDown, ShieldAlert } from "lucide-react";
+import { Adversary, TTP, TTPExecutor } from "@/app/types/simulation";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function tryDecodeBase64(raw: string): string {
+  if (!raw || !/^[A-Za-z0-9+/\r\n]+=*$/.test(raw.trim())) return raw;
+  try {
+    const decoded = atob(raw.replace(/\s/g, ""));
+    if (/[\x00-\x08\x0E-\x1F\x7F]/.test(decoded)) return raw;
+    return decoded.trim();
+  } catch { return raw; }
+}
+
+function mapExecutors(rawExecutors: any[]): TTPExecutor[] {
+  return rawExecutors
+    .map((e: any) => ({
+      name:     String(e.name ?? ""),
+      platform: String(e.platform ?? ""),
+      command:  tryDecodeBase64(String(e.command ?? "")),
+      cleanup:  Array.isArray(e.cleanup) ? (e.cleanup as any[]).map(c => tryDecodeBase64(String(c))).filter(Boolean) : [],
+      payloads: Array.isArray(e.payloads) ? (e.payloads as string[]).filter(Boolean) : [],
+    }))
+    .filter(e => e.command.trim());
+}
+
+function mapRequirements(rawReqs: any[]): string[] {
+  return rawReqs.flatMap((r: any) => {
+    if (typeof r === "string") return [r];
+    if (r?.module) return [String(r.module)];
+    return [];
+  });
+}
 
 function formatTactic(raw: string): string {
   if (!raw) return "Unknown";
@@ -69,6 +98,7 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
   const [allTtps, setAllTtps] = useState<TTP[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedTtpId, setExpandedTtpId] = useState<string | null>(null);
 
   const { adversary: selectedAdversary, selectedTTPs } = selection;
 
@@ -96,22 +126,38 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
         // Track all ability_ids per technique for operation creation in manual TTP mode
         const techAbilityIds = new Map<string, string[]>();
 
+        // Per-technique executor accumulator (merges executors from all abilities sharing a technique_id)
+        const techExecutors = new Map<string, TTPExecutor[]>();
+
         for (const ab of calderaAbilities) {
           if (!ab.ability_id) continue;
           const techKey = ab.technique_id || ab.ability_id;
+          const execs   = mapExecutors(Array.isArray(ab.executors) ? ab.executors : []);
+
           abilityMap.set(ab.ability_id, {
-            id:          techKey,
-            name:        ab.technique_name || ab.name || "Unknown",
-            tactic:      formatTactic(ab.tactic || ""),
-            description: ab.description || "",
+            id:           techKey,
+            name:         ab.technique_name || ab.name || "Unknown",
+            tactic:       formatTactic(ab.tactic || ""),
+            description:  ab.description || "",
+            privilege:    ab.privilege ? String(ab.privilege) : "",
+            requirements: mapRequirements(Array.isArray(ab.requirements) ? ab.requirements : []),
+            executors:    execs,
           });
           techAbilityIds.set(techKey, [...(techAbilityIds.get(techKey) ?? []), ab.ability_id]);
+
+          // Merge executors per technique (avoid duplicate platform+name combos)
+          if (execs.length > 0) {
+            const existing = techExecutors.get(techKey) ?? [];
+            const seen = new Set(existing.map(e => `${e.platform}:${e.name}`));
+            techExecutors.set(techKey, [...existing, ...execs.filter(e => !seen.has(`${e.platform}:${e.name}`))]);
+          }
         }
 
-        // Unique TTPs by technique_id (for TTP mode) — attach calderaAbilityIds
+        // Unique TTPs by technique_id (for TTP mode) — attach calderaAbilityIds + merged executors
         const uniqueTtps = deduplicateTTPs([...abilityMap.values()]).map(ttp => ({
           ...ttp,
           calderaAbilityIds: techAbilityIds.get(ttp.id) ?? [],
+          executors:         techExecutors.get(ttp.id) ?? ttp.executors ?? [],
         }));
         setAllTtps(uniqueTtps);
 
@@ -363,38 +409,142 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
             <p className="text-sm text-gray-600 text-center py-8">Aucun TTP trouvé</p>
           )}
           {filteredTTPs.map((ttp) => {
-            const isSelected = selectedTTPs.some(t => t.id === ttp.id);
-            const tacticColor = TACTIC_COLORS[ttp.tactic] ?? "text-gray-400 bg-gray-800/40";
+            const isSelected   = selectedTTPs.some(t => t.id === ttp.id);
+            const tacticColor  = TACTIC_COLORS[ttp.tactic] ?? "text-gray-400 bg-gray-800/40";
+            const isExpanded   = expandedTtpId === ttp.id;
+            const hasDetails   = (ttp.executors?.length ?? 0) > 0 || !!ttp.privilege || (ttp.requirements?.length ?? 0) > 0;
+
+            const privilegeStyle =
+              ttp.privilege === "Administrator" ? "text-orange-400 bg-orange-900/20 border-orange-800/40" :
+              ttp.privilege === "SYSTEM"        ? "text-red-400 bg-red-900/20 border-red-800/40"         :
+                                                  "text-gray-500 bg-gray-800/40 border-gray-700/40";
+
             return (
-              <button
+              <div
                 key={`${ttp.id}-${ttp.name}`}
-                onClick={() => handleToggleTTP(ttp)}
-                className={`flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all duration-150 ${
+                className={`rounded-xl border text-left transition-all duration-150 overflow-hidden ${
                   isSelected
                     ? "border-brand/60 bg-brand/5 shadow-sm"
                     : "border-gray-800 bg-gray-800/20 hover:border-gray-700 hover:bg-gray-800/40"
                 }`}
               >
-                <div className={`mt-0.5 w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-all ${
-                  isSelected ? "bg-brand border-brand" : "border-gray-600"
-                }`}>
-                  {isSelected && (
-                    <svg viewBox="0 0 10 8" className="w-2.5 h-2">
-                      <path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-xs font-bold text-brand">{ttp.id}</span>
-                    <span className="text-white text-xs font-semibold">{ttp.name}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${tacticColor}`}>
-                      {ttp.tactic}
-                    </span>
+                {/* ── Clickable header row ── */}
+                <div
+                  className="flex items-start gap-3 p-3.5 cursor-pointer"
+                  onClick={() => handleToggleTTP(ttp)}
+                >
+                  <div className={`mt-0.5 w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-all ${
+                    isSelected ? "bg-brand border-brand" : "border-gray-600"
+                  }`}>
+                    {isSelected && (
+                      <svg viewBox="0 0 10 8" className="w-2.5 h-2">
+                        <path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
                   </div>
-                  <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">{ttp.description}</p>
+
+                  <div className="flex-1 min-w-0">
+                    {/* Title row */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-xs font-bold text-brand">{ttp.id}</span>
+                      <span className="text-white text-xs font-semibold">{ttp.name}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${tacticColor}`}>
+                        {ttp.tactic}
+                      </span>
+                      {/* Privilege badge */}
+                      {ttp.privilege && (
+                        <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border font-semibold ${privilegeStyle}`}>
+                          <ShieldAlert size={9} />
+                          {ttp.privilege}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">{ttp.description}</p>
+                  </div>
                 </div>
-              </button>
+
+                {/* ── Expand toggle ── */}
+                {hasDetails && (
+                  <div className="px-3.5 pb-2.5">
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); setExpandedTtpId(isExpanded ? null : ttp.id); }}
+                      className="flex items-center gap-1.5 text-[10px] text-gray-600 hover:text-gray-300 transition-colors"
+                    >
+                      <Terminal size={10} />
+                      {isExpanded ? "Masquer" : "Voir"} détails
+                      {(ttp.executors?.length ?? 0) > 0 && (
+                        <span className="text-gray-700">
+                          · {ttp.executors!.length} executor{ttp.executors!.length > 1 ? "s" : ""}
+                        </span>
+                      )}
+                      <ChevronDown size={10} className={`transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+                    </button>
+
+                    {/* ── Expanded details ── */}
+                    {isExpanded && (
+                      <div className="mt-2.5 flex flex-col gap-2.5">
+
+                        {/* Requirements */}
+                        {(ttp.requirements?.length ?? 0) > 0 && (
+                          <div className="flex flex-col gap-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-600">Prérequis</p>
+                            <div className="flex flex-wrap gap-1">
+                              {ttp.requirements!.map((r, i) => (
+                                <span key={i} className="text-[10px] px-2 py-0.5 rounded bg-amber-900/20 border border-amber-800/30 text-amber-400 font-mono">
+                                  {r}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Executors */}
+                        {(ttp.executors?.length ?? 0) > 0 && (
+                          <div className="flex flex-col gap-1.5">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-600">Commandes</p>
+                            {ttp.executors!.map((exec, i) => (
+                              <div key={i} className="bg-gray-900/80 border border-gray-700/40 rounded-lg overflow-hidden">
+                                {/* Executor header */}
+                                <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-700/40 bg-gray-800/60">
+                                  <span className="text-[10px] font-bold text-gray-400 font-mono uppercase">{exec.name}</span>
+                                  <span className="text-[10px] text-gray-600">·</span>
+                                  <span className="text-[10px] text-gray-500">{exec.platform}</span>
+                                  {exec.payloads.length > 0 && (
+                                    <>
+                                      <span className="text-[10px] text-gray-600">·</span>
+                                      <span className="text-[10px] text-amber-500/80">
+                                        payload : {exec.payloads.join(", ")}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                                {/* Command */}
+                                <pre className="px-3 py-2.5 text-[10px] text-emerald-400/80 font-mono leading-relaxed whitespace-pre-wrap break-all">
+                                  {exec.command}
+                                </pre>
+                                {/* Cleanup */}
+                                {exec.cleanup.length > 0 && (
+                                  <div className="border-t border-gray-700/40">
+                                    <div className="px-3 py-1 bg-gray-800/40">
+                                      <p className="text-[10px] text-gray-600 font-semibold uppercase tracking-widest">Cleanup</p>
+                                    </div>
+                                    {exec.cleanup.map((c, j) => (
+                                      <pre key={j} className="px-3 py-1.5 text-[10px] text-gray-500 font-mono leading-relaxed whitespace-pre-wrap break-all">
+                                        {c}
+                                      </pre>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             );
           })}
           </div>
