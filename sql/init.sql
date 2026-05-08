@@ -48,8 +48,6 @@ CREATE TABLE ResultatAttaque (
 
 CREATE TABLE RegleDeDetection (
     IdRegle         INT  NOT NULL AUTO_INCREMENT,
-    DateCreation    DATE NOT NULL DEFAULT (CURRENT_DATE),
-    description     TEXT,
     PRIMARY KEY (IdRegle)
 );
 
@@ -254,9 +252,20 @@ CREATE TABLE RegleAjouteParConsultant (
 );
 
 CREATE TABLE RegleCTI (
-    IdRegle     INT          NOT NULL,
-    source      VARCHAR(255),
-    DateAjout   DATE         NOT NULL DEFAULT (CURRENT_DATE),
+    IdRegle                 INT          NOT NULL,
+    IdSigma                 VARCHAR(255),
+    Titre                   VARCHAR(255),
+    Description             TEXT,
+    Auteur                  TEXT,
+    DateAjout               DATE,
+    DerniereModification    DATE,
+    TechniquesMitre         TEXT,
+    Severite                VARCHAR(50),
+    NiveauWazuh             INT,
+    Produit                 VARCHAR(100),
+    Categorie               VARCHAR(100),
+    YamlSigmaOriginal       LONGTEXT,
+    XmlWazuh                LONGTEXT,
     PRIMARY KEY (IdRegle),
     CONSTRAINT fk_cti_regle FOREIGN KEY (IdRegle)
         REFERENCES RegleDeDetection(IdRegle)
