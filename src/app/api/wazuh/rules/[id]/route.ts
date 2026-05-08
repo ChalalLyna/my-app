@@ -90,6 +90,11 @@ export async function GET(
       filename: (rule.filename as string) ?? "",
       relativeDirname: (rule.relative_dirname as string) ?? "",
       xml,
+      mitre: rule.mitre ? {
+        id:        Array.isArray(rule.mitre.id)        ? rule.mitre.id        : [],
+        tactic:    Array.isArray(rule.mitre.tactic)    ? rule.mitre.tactic    : [],
+        technique: Array.isArray(rule.mitre.technique) ? rule.mitre.technique : [],
+      } : undefined,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 502 });

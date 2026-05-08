@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   X, Shield, Hash, Tag, FileCode,
-  Sliders, Loader2, AlertTriangle,
+  Sliders, Loader2, AlertTriangle, Crosshair,
 } from "lucide-react";
 import { DetectionAlert } from "@/app/data/alerts";
 
@@ -17,6 +17,7 @@ interface WazuhRuleDetail {
   groups: string[];
   filename: string;
   xml: string | null;
+  mitre?: { id: string[]; tactic: string[]; technique: string[] };
 }
 
 interface Props {
@@ -66,6 +67,11 @@ export default function RuleModal({ alert, onClose }: Props) {
   };
 
   const sev = SEVERITY_STYLES[info.severity] ?? SEVERITY_STYLES.Medium;
+
+  // MITRE: prefer API-provided data, fall back to parsing T-IDs from groups
+  const mitreIds       = info.mitre?.id?.length        ? info.mitre.id        : info.groups.filter(g => /^T\d{4}(\.\d{3})?$/.test(g));
+  const mitreTactics   = info.mitre?.tactic     ?? [];
+  const mitreTechniques = info.mitre?.technique ?? [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -136,6 +142,45 @@ export default function RuleModal({ alert, onClose }: Props) {
             <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-600 mb-1.5">Description</p>
             <p className="text-sm text-gray-300 leading-relaxed">{info.description || "—"}</p>
           </div>
+
+          {/* MITRE ATT&CK */}
+          {(mitreIds.length > 0 || mitreTactics.length > 0) && (
+            <div className="bg-gray-900 border border-gray-800/50 rounded-xl p-4">
+              <div className="flex items-center gap-1.5 mb-3">
+                <Crosshair size={11} className="text-gray-600" />
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-600">MITRE ATT&amp;CK</p>
+              </div>
+
+              {mitreIds.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {mitreIds.map(id => (
+                    <span
+                      key={id}
+                      className="inline-flex items-center px-2.5 py-1 rounded-lg bg-brand/10 border border-brand/20 text-brand text-[11px] font-mono font-semibold"
+                    >
+                      {id}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {mitreTactics.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {mitreTactics.map((tactic, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-800 border border-gray-700/50 text-[11px] text-gray-400"
+                    >
+                      {tactic}
+                      {mitreTechniques[i] && (
+                        <span className="text-gray-600">› {mitreTechniques[i]}</span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* XML — always visible */}
           <div>

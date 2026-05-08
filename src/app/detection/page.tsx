@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import InvestigateModal from "@/app/components/detection/InvestigateModal";
@@ -12,6 +12,8 @@ import {
   Shield, AlertTriangle, Activity, RefreshCw, Sliders,
   Search, Monitor, Clock, Hash,
 } from "lucide-react";
+
+type DBAsset = { name: string; nomMachine: string; os: string; ip: string };
 
 const SEVERITY_STYLES: Record<string, { text: string; bg: string; border: string }> = {
   Critical: { text: "text-red-400",    bg: "bg-red-900/20",    border: "border-red-800/50"    },
@@ -34,11 +36,30 @@ export default function DetectionPage() {
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
   // Per-alert status overrides (what the analyst set via InvestigateModal)
   const [alertStatuses, setAlertStatuses] = useState<Record<string, AlertStatus>>({});
+  const [dbAssets, setDbAssets] = useState<DBAsset[]>([]);
 
   useEffect(() => {
     const ts = localStorage.getItem("cyberlab_attack_launch");
     setLaunchTimestamp(ts ?? null);
   }, []);
+
+  useEffect(() => {
+    fetch("/api/assets")
+      .then(r => r.ok ? r.json() : [])
+      .then((data: unknown) => { if (Array.isArray(data)) setDbAssets(data as DBAsset[]); })
+      .catch(() => {});
+  }, []);
+
+  const assetMap = useMemo(() => {
+    const byIp:   Record<string, DBAsset> = {};
+    const byName: Record<string, DBAsset> = {};
+    dbAssets.forEach(a => {
+      if (a.ip)         byIp[a.ip]                       = a;
+      if (a.nomMachine) byName[a.nomMachine.toLowerCase()] = a;
+      if (a.name)       byName[a.name.toLowerCase()]       = a;
+    });
+    return { byIp, byName };
+  }, [dbAssets]);
 
   const fetchAlerts = useCallback(async (since: string) => {
     setLoading(true);
@@ -236,7 +257,7 @@ export default function DetectionPage() {
               <div className="flex items-center gap-4 px-5 py-2.5 border-b border-gray-800/40 bg-gray-900/60 shrink-0">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-20 shrink-0">Sévérité</span>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 flex-1">Alerte</span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-32 shrink-0">Agent</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-44 shrink-0">Agent / Actif</span>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-24 shrink-0">Règle</span>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-36 shrink-0">Timestamp</span>
                 <span className="w-48 shrink-0" />
@@ -259,6 +280,7 @@ export default function DetectionPage() {
                     const sev        = SEVERITY_STYLES[alert.severity];
                     const date       = new Date(alert.timestamp).toLocaleString("fr-FR");
                     const rowStatus  = alertStatuses[alert.id] ?? "New";
+                    const dbAsset    = assetMap.byIp[alert.agentIp ?? ""] ?? assetMap.byName[alert.asset.toLowerCase()];
                     const rowBorder  =
                       rowStatus === "Investigating" ? "border-l-2 border-l-amber-500/60 bg-amber-900/5"  :
                       rowStatus === "Resolved"      ? "border-l-2 border-l-emerald-500/60 bg-emerald-900/5 opacity-60" :
@@ -281,9 +303,17 @@ export default function DetectionPage() {
                           <p className="text-xs text-gray-500 truncate mt-0.5">{alert.source}</p>
                         </div>
 
-                        <div className="w-32 shrink-0 flex items-center gap-1.5">
-                          <Monitor size={11} className="text-gray-600 shrink-0" />
-                          <span className="text-xs text-gray-300 truncate">{alert.asset}</span>
+                        <div className="w-44 shrink-0 flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <Monitor size={11} className="text-gray-600 shrink-0" />
+                            <span className="text-xs text-gray-300 truncate">{alert.asset}</span>
+                          </div>
+                          {alert.agentIp && (
+                            <span className="text-[10px] text-gray-500 font-mono pl-4 truncate">{alert.agentIp}</span>
+                          )}
+                          {dbAsset?.os && (
+                            <span className="text-[10px] text-gray-600 pl-4 truncate">{dbAsset.os}</span>
+                          )}
                         </div>
 
                         <div className="w-24 shrink-0 flex items-center gap-1.5">
