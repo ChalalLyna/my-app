@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
       const ph = ids.map(() => "?").join(",");
       await pool.query(`DELETE FROM CouvertureDetection WHERE IdRegle IN (${ph})`, ids);
       await pool.query(`DELETE FROM RegleExportee WHERE IdRegleCTI IN (${ph})`, ids);
-      await pool.query(`DELETE FROM RegleCTI WHERE Categorie = ?`, [category]);
+      await pool.query(`DELETE FROM RegleCTI WHERE IdRegle IN (${ph})`, ids);
       await pool.query(`DELETE FROM RegleDeDetection WHERE IdRegle IN (${ph})`, ids);
     }
 
