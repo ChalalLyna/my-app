@@ -299,7 +299,7 @@ export default function DetectionPage() {
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-white truncate">{alert.title}</p>
+                          <p className="text-sm font-semibold text-white leading-snug">{alert.title}</p>
                           <p className="text-xs text-gray-500 truncate mt-0.5">{alert.source}</p>
                         </div>
 
