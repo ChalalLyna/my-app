@@ -254,7 +254,7 @@ export default function DetectionPage() {
               </div>
 
               {/* Column headers */}
-              <div className="flex items-center gap-4 px-5 py-2.5 border-b border-gray-800/40 bg-gray-900/60 shrink-0">
+              <div className="flex items-center gap-2 px-5 py-2.5 border-b border-gray-800/40 bg-gray-900/60 shrink-0">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-20 shrink-0">Sévérité</span>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 flex-1">Alerte</span>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-44 shrink-0">Agent / Actif</span>
@@ -290,7 +290,7 @@ export default function DetectionPage() {
                       <div
                         key={alert.id}
                         onClick={() => setSelectedAlert(alert)}
-                        className={`flex items-center gap-4 px-5 py-4 border-b border-gray-800/40 hover:bg-gray-800/20 transition-colors group cursor-pointer ${rowBorder}`}
+                        className={`flex items-center gap-2 px-5 py-4 border-b border-gray-800/40 hover:bg-gray-800/20 transition-colors group cursor-pointer ${rowBorder}`}
                       >
                         <div className="w-20 shrink-0 flex items-center gap-1.5">
                           <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${sev.text} ${sev.bg} ${sev.border}`}>
@@ -299,7 +299,7 @@ export default function DetectionPage() {
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-white leading-snug">{alert.title}</p>
+                          <p className="text-sm font-semibold text-white leading-snug line-clamp-2">{alert.title}</p>
                           <p className="text-xs text-gray-500 truncate mt-0.5">{alert.source}</p>
                         </div>
 
