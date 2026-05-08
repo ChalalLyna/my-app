@@ -77,9 +77,12 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 3. Delete existing rules for this category ───────────────
+    // Handles both:
+    //   - new format : Categorie = category  (e.g. 'windows')
+    //   - old format : Produit   = category  (logsource.product before SousCategorie existed)
     const [existing] = await pool.query(
-      "SELECT IdRegle FROM RegleCTI WHERE Categorie = ?",
-      [category]
+      "SELECT IdRegle FROM RegleCTI WHERE Categorie = ? OR Produit = ?",
+      [category, category]
     ) as any;
 
     const ids: number[] = (existing as any[]).map((r: any) => r.IdRegle);
