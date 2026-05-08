@@ -13,7 +13,7 @@ import {
   Search, Monitor, Clock, Hash,
 } from "lucide-react";
 
-type DBAsset = { name: string; nomMachine: string; os: string; ip: string };
+type DBAsset = { name: string; nomMachine: string; os: string; ip: string; category: string; description: string };
 
 const SEVERITY_STYLES: Record<string, { text: string; bg: string; border: string }> = {
   Critical: { text: "text-red-400",    bg: "bg-red-900/20",    border: "border-red-800/50"    },
@@ -304,15 +304,39 @@ export default function DetectionPage() {
                         </div>
 
                         <div className="w-44 shrink-0 flex flex-col gap-0.5">
+                          {/* Wazuh agent hostname */}
                           <div className="flex items-center gap-1.5">
                             <Monitor size={11} className="text-gray-600 shrink-0" />
                             <span className="text-xs text-gray-300 truncate">{alert.asset}</span>
                           </div>
+                          {/* IP */}
                           {alert.agentIp && (
                             <span className="text-[10px] text-gray-500 font-mono pl-4 truncate">{alert.agentIp}</span>
                           )}
-                          {dbAsset?.os && (
-                            <span className="text-[10px] text-gray-600 pl-4 truncate">{dbAsset.os}</span>
+                          {dbAsset && (
+                            <>
+                              {/* Actif.nom — only if it differs from the agent hostname */}
+                              {dbAsset.name && dbAsset.name.toLowerCase() !== alert.asset.toLowerCase() && (
+                                <span className="text-[10px] text-gray-300 pl-4 truncate">{dbAsset.name}</span>
+                              )}
+                              {/* Catégorie + OS on one line */}
+                              {(dbAsset.category || dbAsset.os) && (
+                                <div className="flex items-center gap-1.5 pl-4 flex-wrap">
+                                  {dbAsset.category && (
+                                    <span className="text-[10px] bg-gray-800 border border-gray-700/50 text-gray-400 px-1.5 py-0.5 rounded leading-none">
+                                      {dbAsset.category}
+                                    </span>
+                                  )}
+                                  {dbAsset.os && (
+                                    <span className="text-[10px] text-gray-600 truncate">{dbAsset.os}</span>
+                                  )}
+                                </div>
+                              )}
+                              {/* Description */}
+                              {dbAsset.description && (
+                                <span className="text-[10px] text-gray-600 pl-4 truncate italic">{dbAsset.description}</span>
+                              )}
+                            </>
                           )}
                         </div>
 
