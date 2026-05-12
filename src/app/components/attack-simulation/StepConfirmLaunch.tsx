@@ -37,6 +37,7 @@ interface AbilityResult {
   output:      string;
   status:      "success" | "failed";
   linkStatus:  number;
+  exitCode:    number | null;
 }
 
 type LogEntry = TerminalLine | AbilityResult;
@@ -219,11 +220,16 @@ function calderaB64(val: string | undefined | null): string {
 }
 
 // ── AbilityCard ────────────────────────────────────────────────────────────
-function failureLabel(linkStatus: number): string {
-  if (linkStatus === -1)  return "Command failed (non-zero exit)";
-  if (linkStatus === -2)  return "Discarded — agent timed out or couldn't execute";
+function failureLabel(linkStatus: number, exitCode: number | null): string {
+  if (linkStatus === 0 && exitCode !== null && exitCode !== 0)
+    return `Command exited with code ${exitCode}`;
+  if (linkStatus === -1)  return "Timeout (Caldera operation timeout)";
+  if (linkStatus === -2)  return "Discarded — skipped by Caldera planner";
+  if (linkStatus === -3)  return "Executing — result not yet collected";
+  if (linkStatus === -4)  return "Untrusted — agent marked untrusted";
+  if (linkStatus === -5)  return "High-visibility — operation paused";
   if (linkStatus === 124) return "Command timed out on agent";
-  return `Failed (status ${linkStatus})`;
+  return `Failed (Caldera status ${linkStatus})`;
 }
 
 function AbilityCard({
@@ -254,7 +260,7 @@ function AbilityCard({
           {!ok && (
             <div className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-red-950/40 border border-red-900/40">
               <span className="text-red-400 text-[10px] font-semibold uppercase tracking-widest">Raison :</span>
-              <span className="text-red-300 text-[11px]">{failureLabel(entry.linkStatus)}</span>
+              <span className="text-red-300 text-[11px]">{failureLabel(entry.linkStatus, entry.exitCode)}</span>
             </div>
           )}
           {entry.command ? (
@@ -587,15 +593,20 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
             if (!pollRes.ok) continue;
             const result = await pollRes.json();
 
-            console.log("[CyberLab] poll:", opId, "state:", result.state, "chain len:", result.chain?.length, "first link status:", result.chain?.[0]?.status);
+            // Dump all link statuses for debugging
+            console.log("[CyberLab] poll:", opId, "state:", result.state,
+              "links:", (result.chain ?? []).map((l: any) => ({ name: l.ability?.name, status: l.status, id: l.id }))
+            );
 
             for (const link of (result.chain ?? []) as any[]) {
               const key = `${opId}:${link.id}`;
-              const isFinal = link.status === 0 || link.status === -1 || link.status === -2;
+              // status 1 = collecting (agent hasn't picked it up yet) — skip
+              // status 0 = success, anything else (−1, −2, −3, −4, −5, 124…) = some form of failure/discard
+              const isFinal = typeof link.status === "number" && link.status !== 1;
               if (shownLinks.has(key) || !isFinal) continue;
               shownLinks.add(key);
 
-              console.log("[CyberLab] raw link:", JSON.stringify(link));
+              console.log("[CyberLab] final link:", JSON.stringify(link));
               const assetInfo = opToAssetRef.current[opId] ?? { name: "Unknown", ip: "" };
               const cmd = calderaB64(link.command ?? link.executor?.command);
 
@@ -613,10 +624,12 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
               };
 
               let out = "";
+              let exitCode: number | null = null;
               try {
                 const resultRes = await fetch(`/api/caldera/operations/${opId}/links/${link.id}/result`);
                 if (resultRes.ok) {
                   const resultData = await resultRes.json();
+                  if (resultData.exit_code !== undefined) exitCode = resultData.exit_code as number;
                   if (resultData.stdout !== undefined) {
                     out = extractStdout(resultData);
                   } else {
@@ -624,6 +637,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
                     const decoded = calderaB64(resultData.result ?? resultData.output ?? "");
                     try {
                       const inner = JSON.parse(decoded);
+                      if (inner.exit_code !== undefined) exitCode = inner.exit_code as number;
                       out = inner.stdout !== undefined ? extractStdout(inner) : decoded;
                     } catch {
                       out = decoded;
@@ -642,6 +656,9 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
               // Fallback 2: raw output field (last resort)
               if (!out) out = calderaB64(link.output) || "";
 
+              // Determine success: Caldera status 0 + exit_code 0 (or null when unavailable)
+              const isSuccess = link.status === 0 && (exitCode === null || exitCode === 0);
+
               const abilityEntry: AbilityResult = {
                 type:        "ability",
                 id:          key,
@@ -651,8 +668,9 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
                 assetIp:     assetInfo.ip,
                 command:     cmd,
                 output:      out,
-                status:      link.status === 0 ? "success" : "failed",
+                status:      isSuccess ? "success" : "failed",
                 linkStatus:  link.status as number,
+                exitCode,
               };
               abilityResultsRef.current.push(abilityEntry);
               setLines((prev) => [...prev, abilityEntry]);
