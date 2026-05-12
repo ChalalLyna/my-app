@@ -223,12 +223,11 @@ function calderaB64(val: string | undefined | null): string {
 function failureLabel(linkStatus: number, exitCode: number | null): string {
   if (linkStatus === 0 && exitCode !== null && exitCode !== 0)
     return `Command exited with code ${exitCode}`;
-  if (linkStatus === -1)  return "Timeout (Caldera operation timeout)";
-  if (linkStatus === -2)  return "Discarded — skipped by Caldera planner";
-  if (linkStatus === -3)  return "Executing — result not yet collected";
-  if (linkStatus === -4)  return "Untrusted — agent marked untrusted";
-  if (linkStatus === -5)  return "High-visibility — operation paused";
-  if (linkStatus === 124) return "Command timed out on agent";
+  if (linkStatus === 1)   return "Not executed — agent did not collect the task";
+  if (linkStatus === -1)  return "Caldera operation timeout";
+  if (linkStatus === -2)  return "Discarded by Caldera planner";
+  if (linkStatus === -3)  return "Interrupted — operation ended before result was collected";
+  if (linkStatus === 124) return "Command timed out on agent (>60 s)";
   return `Failed (Caldera status ${linkStatus})`;
 }
 
@@ -598,30 +597,21 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
               "links:", (result.chain ?? []).map((l: any) => ({ name: l.ability?.name, status: l.status, id: l.id }))
             );
 
-            for (const link of (result.chain ?? []) as any[]) {
+            const normalize = (s: string) => s.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+            const extractStdout = (obj: any): string => {
+              let s = normalize(obj.stdout ?? "");
+              const err = normalize(obj.stderr ?? "");
+              if (err) s += (s ? "\n" : "") + "[stderr] " + err;
+              return s;
+            };
+
+            const processLink = async (link: any) => {
               const key = `${opId}:${link.id}`;
-              // status 1 = collecting (agent hasn't picked it up yet) — skip
-              // status 0 = success, anything else (−1, −2, −3, −4, −5, 124…) = some form of failure/discard
-              const isFinal = typeof link.status === "number" && link.status !== 1;
-              if (shownLinks.has(key) || !isFinal) continue;
+              if (shownLinks.has(key)) return;
               shownLinks.add(key);
 
-              console.log("[CyberLab] final link:", JSON.stringify(link));
               const assetInfo = opToAssetRef.current[opId] ?? { name: "Unknown", ip: "" };
               const cmd = calderaB64(link.command ?? link.executor?.command);
-
-              // Fetch real output from the dedicated result endpoint.
-              // The chain's `output` field is often just "True".
-              // The result endpoint returns either:
-              //   { stdout, stderr, exit_code }  — structured JSON (newer Caldera)
-              //   { result: "<base64>" }          — legacy base64 blob
-              const normalize = (s: string) => s.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
-              const extractStdout = (obj: any): string => {
-                let s = normalize(obj.stdout ?? "");
-                const err = normalize(obj.stderr ?? "");
-                if (err) s += (s ? "\n" : "") + "[stderr] " + err;
-                return s;
-              };
 
               let out = "";
               let exitCode: number | null = null;
@@ -633,7 +623,6 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
                   if (resultData.stdout !== undefined) {
                     out = extractStdout(resultData);
                   } else {
-                    // Legacy base64 blob — decoded value may itself be a JSON object
                     const decoded = calderaB64(resultData.result ?? resultData.output ?? "");
                     try {
                       const inner = JSON.parse(decoded);
@@ -644,19 +633,17 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
                     }
                   }
                 }
-              } catch { /* ignore — fallback below */ }
+              } catch { /* ignore */ }
 
-              // Fallback 1: parsed facts (e.g. Local FQDN stored as a fact)
               if (!out) {
                 const factValue = (link.facts as any[] | undefined)
                   ?.map((f: any) => `${f.trait}: ${f.value}`)
                   .join("\n");
                 out = factValue || "";
               }
-              // Fallback 2: raw output field (last resort)
               if (!out) out = calderaB64(link.output) || "";
 
-              // Determine success: Caldera status 0 + exit_code 0 (or null when unavailable)
+              // status 0 + exit_code 0 (or unavailable) = success; everything else = failed
               const isSuccess = link.status === 0 && (exitCode === null || exitCode === 0);
 
               const abilityEntry: AbilityResult = {
@@ -674,10 +661,22 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
               };
               abilityResultsRef.current.push(abilityEntry);
               setLines((prev) => [...prev, abilityEntry]);
+            };
+
+            // Phase A — process links that are definitively final at any point
+            // 0=finish  -1=caldera-timeout  -2=discard  124=agent-timeout
+            const FINAL_MID = new Set([0, -1, -2, 124]);
+            for (const link of (result.chain ?? []) as any[]) {
+              if (!FINAL_MID.has(link.status)) continue;
+              await processLink(link);
             }
 
             const state: string = result.state ?? "";
             if (state === "finished" || state === "cleanup" || state === "out_of_time") {
+              // Phase B — sweep remaining links (status 1=never collected, -3=interrupted)
+              for (const link of (result.chain ?? []) as any[]) {
+                await processLink(link);
+              }
               finishedOps.add(opId);
               setLines((prev) => [...prev, {
                 type: "success",
