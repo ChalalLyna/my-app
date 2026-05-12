@@ -36,8 +36,6 @@ interface AbilityResult {
   command:     string;
   output:      string;
   status:      "success" | "failed";
-  linkStatus:  number;
-  exitCode:    number | null;
 }
 
 type LogEntry = TerminalLine | AbilityResult;
@@ -220,17 +218,6 @@ function calderaB64(val: string | undefined | null): string {
 }
 
 // ── AbilityCard ────────────────────────────────────────────────────────────
-function failureLabel(linkStatus: number, exitCode: number | null): string {
-  if (linkStatus === 0 && exitCode !== null && exitCode !== 0)
-    return `Command exited with code ${exitCode}`;
-  if (linkStatus === 1)   return "Not executed — agent did not collect the task";
-  if (linkStatus === -1)  return "Caldera operation timeout";
-  if (linkStatus === -2)  return "Discarded by Caldera planner";
-  if (linkStatus === -3)  return "Interrupted — operation ended before result was collected";
-  if (linkStatus === 124) return "Command timed out on agent (>60 s)";
-  return `Failed (Caldera status ${linkStatus})`;
-}
-
 function AbilityCard({
   entry, expanded, onToggle,
 }: { entry: AbilityResult; expanded: boolean; onToggle: () => void }) {
@@ -256,12 +243,6 @@ function AbilityCard({
       </button>
       {expanded && (
         <div className="px-3 py-2.5 bg-gray-950/80 space-y-3 border-t border-gray-800/40">
-          {!ok && (
-            <div className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-red-950/40 border border-red-900/40">
-              <span className="text-red-400 text-[10px] font-semibold uppercase tracking-widest">Raison :</span>
-              <span className="text-red-300 text-[11px]">{failureLabel(entry.linkStatus, entry.exitCode)}</span>
-            </div>
-          )}
           {entry.command ? (
             <div>
               <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-1">Command</p>
@@ -592,41 +573,36 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
             if (!pollRes.ok) continue;
             const result = await pollRes.json();
 
-            // Dump all link statuses for debugging
-            console.log("[CyberLab] poll:", opId, "state:", result.state,
-              "links:", (result.chain ?? []).map((l: any) => ({ name: l.ability?.name, status: l.status, id: l.id }))
-            );
+            console.log("[CyberLab] poll:", opId, "state:", result.state, "chain len:", result.chain?.length);
 
-            const normalize = (s: string) => s.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
-            const extractStdout = (obj: any): string => {
-              let s = normalize(obj.stdout ?? "");
-              const err = normalize(obj.stderr ?? "");
-              if (err) s += (s ? "\n" : "") + "[stderr] " + err;
-              return s;
-            };
-
-            const processLink = async (link: any) => {
+            for (const link of (result.chain ?? []) as any[]) {
               const key = `${opId}:${link.id}`;
-              if (shownLinks.has(key)) return;
+              const isFinal = link.status === 0 || link.status === -1;
+              if (shownLinks.has(key) || !isFinal) continue;
               shownLinks.add(key);
 
               const assetInfo = opToAssetRef.current[opId] ?? { name: "Unknown", ip: "" };
               const cmd = calderaB64(link.command ?? link.executor?.command);
 
+              const normalize = (s: string) => s.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+              const extractStdout = (obj: any): string => {
+                let s = normalize(obj.stdout ?? "");
+                const err = normalize(obj.stderr ?? "");
+                if (err) s += (s ? "\n" : "") + "[stderr] " + err;
+                return s;
+              };
+
               let out = "";
-              let exitCode: number | null = null;
               try {
                 const resultRes = await fetch(`/api/caldera/operations/${opId}/links/${link.id}/result`);
                 if (resultRes.ok) {
                   const resultData = await resultRes.json();
-                  if (resultData.exit_code !== undefined) exitCode = Number(resultData.exit_code);
                   if (resultData.stdout !== undefined) {
                     out = extractStdout(resultData);
                   } else {
                     const decoded = calderaB64(resultData.result ?? resultData.output ?? "");
                     try {
                       const inner = JSON.parse(decoded);
-                      if (inner.exit_code !== undefined) exitCode = Number(inner.exit_code);
                       out = inner.stdout !== undefined ? extractStdout(inner) : decoded;
                     } catch {
                       out = decoded;
@@ -643,11 +619,6 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
               }
               if (!out) out = calderaB64(link.output) || "";
 
-              // status 0 + exit_code 0 = success
-              // if no exit_code from API, use chain output field: "True" = output captured = success
-              const chainHasOutput = link.output === "True";
-              const isSuccess = link.status === 0 && (exitCode !== null ? exitCode === 0 : chainHasOutput);
-
               const abilityEntry: AbilityResult = {
                 type:        "ability",
                 id:          key,
@@ -657,28 +628,14 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
                 assetIp:     assetInfo.ip,
                 command:     cmd,
                 output:      out,
-                status:      isSuccess ? "success" : "failed",
-                linkStatus:  link.status as number,
-                exitCode,
+                status:      link.status === 0 ? "success" : "failed",
               };
               abilityResultsRef.current.push(abilityEntry);
               setLines((prev) => [...prev, abilityEntry]);
-            };
-
-            // Phase A — process links that are definitively final at any point
-            // 0=finish  -1=caldera-timeout  -2=discard  124=agent-timeout
-            const FINAL_MID = new Set([0, -1, -2, 124]);
-            for (const link of (result.chain ?? []) as any[]) {
-              if (!FINAL_MID.has(link.status)) continue;
-              await processLink(link);
             }
 
             const state: string = result.state ?? "";
             if (state === "finished" || state === "cleanup" || state === "out_of_time") {
-              // Phase B — sweep remaining links (status 1=never collected, -3=interrupted)
-              for (const link of (result.chain ?? []) as any[]) {
-                await processLink(link);
-              }
               finishedOps.add(opId);
               setLines((prev) => [...prev, {
                 type: "success",
