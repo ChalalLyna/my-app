@@ -16,6 +16,7 @@ import {
   Activity,
   UserCog,
   Database,
+  Terminal,
 } from "lucide-react";
 import { UserRole } from "@/app/context/AuthContext";
 
@@ -47,7 +48,7 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: "Detection",               icon: Eye,             href: "/detection" },
     { label: "Mission",                 icon: Flag,            href: "/mission" },
     { label: "CTI",                     icon: Shield,          href: "/cti" },
-    
+    { label: "Manual Pentest",          icon: Terminal,        href: "/manual-pentest" },
   ],
 
   // ─── APPRENANT ───────────────────────────────────────────────
@@ -58,5 +59,6 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: "CTI",               icon: Shield,          href: "/cti" },
     { label: "Guides",            icon: GraduationCap,   href: "/cours" },
     { label: "Scenarios",         icon: Layers,          href: "/scenarios" },
+    { label: "Manual Pentest",    icon: Terminal,        href: "/manual-pentest" },
   ],
 };
