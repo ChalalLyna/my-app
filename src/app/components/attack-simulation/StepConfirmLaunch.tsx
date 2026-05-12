@@ -36,6 +36,7 @@ interface AbilityResult {
   command:     string;
   output:      string;
   status:      "success" | "failed";
+  linkStatus:  number;
 }
 
 type LogEntry = TerminalLine | AbilityResult;
@@ -218,6 +219,13 @@ function calderaB64(val: string | undefined | null): string {
 }
 
 // ── AbilityCard ────────────────────────────────────────────────────────────
+function failureLabel(linkStatus: number): string {
+  if (linkStatus === -1)  return "Command failed (non-zero exit)";
+  if (linkStatus === -2)  return "Discarded — agent timed out or couldn't execute";
+  if (linkStatus === 124) return "Command timed out on agent";
+  return `Failed (status ${linkStatus})`;
+}
+
 function AbilityCard({
   entry, expanded, onToggle,
 }: { entry: AbilityResult; expanded: boolean; onToggle: () => void }) {
@@ -243,6 +251,12 @@ function AbilityCard({
       </button>
       {expanded && (
         <div className="px-3 py-2.5 bg-gray-950/80 space-y-3 border-t border-gray-800/40">
+          {!ok && (
+            <div className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-red-950/40 border border-red-900/40">
+              <span className="text-red-400 text-[10px] font-semibold uppercase tracking-widest">Raison :</span>
+              <span className="text-red-300 text-[11px]">{failureLabel(entry.linkStatus)}</span>
+            </div>
+          )}
           {entry.command ? (
             <div>
               <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-1">Command</p>
@@ -577,7 +591,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
 
             for (const link of (result.chain ?? []) as any[]) {
               const key = `${opId}:${link.id}`;
-              const isFinal = link.status === 0 || link.status === -1;
+              const isFinal = link.status === 0 || link.status === -1 || link.status === -2;
               if (shownLinks.has(key) || !isFinal) continue;
               shownLinks.add(key);
 
@@ -638,6 +652,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
                 command:     cmd,
                 output:      out,
                 status:      link.status === 0 ? "success" : "failed",
+                linkStatus:  link.status as number,
               };
               abilityResultsRef.current.push(abilityEntry);
               setLines((prev) => [...prev, abilityEntry]);
@@ -667,17 +682,17 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
         } catch { /* ignore transient poll errors */ }
       }, 3_000);
 
-      // Safety timeout: 10 min
+      // Safety timeout: 60 min
       setTimeout(() => {
         if (!doneRef.current) {
           if (pollRef.current) clearInterval(pollRef.current);
-          setLines((prev) => [...prev, { type: "warn", text: "[!] Timeout — check Caldera UI for full results" }]);
+          setLines((prev) => [...prev, { type: "warn", text: "[!] Timeout (60 min) — check Caldera UI for full results" }]);
           doneRef.current = true;
           setRunning(false);
           setDone(true);
           registerAttack("stoppé");
         }
-      }, 600_000);
+      }, 3_600_000);
 
     } catch (err: any) {
       setLines((prev) => [...prev, { type: "error", text: `[✗] ${err.message}` }]);
