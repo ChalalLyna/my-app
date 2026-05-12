@@ -619,14 +619,14 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
                 const resultRes = await fetch(`/api/caldera/operations/${opId}/links/${link.id}/result`);
                 if (resultRes.ok) {
                   const resultData = await resultRes.json();
-                  if (resultData.exit_code !== undefined) exitCode = resultData.exit_code as number;
+                  if (resultData.exit_code !== undefined) exitCode = Number(resultData.exit_code);
                   if (resultData.stdout !== undefined) {
                     out = extractStdout(resultData);
                   } else {
                     const decoded = calderaB64(resultData.result ?? resultData.output ?? "");
                     try {
                       const inner = JSON.parse(decoded);
-                      if (inner.exit_code !== undefined) exitCode = inner.exit_code as number;
+                      if (inner.exit_code !== undefined) exitCode = Number(inner.exit_code);
                       out = inner.stdout !== undefined ? extractStdout(inner) : decoded;
                     } catch {
                       out = decoded;
@@ -643,8 +643,10 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
               }
               if (!out) out = calderaB64(link.output) || "";
 
-              // status 0 + exit_code 0 (or unavailable) = success; everything else = failed
-              const isSuccess = link.status === 0 && (exitCode === null || exitCode === 0);
+              // status 0 + exit_code 0 = success
+              // if no exit_code from API, use chain output field: "True" = output captured = success
+              const chainHasOutput = link.output === "True";
+              const isSuccess = link.status === 0 && (exitCode !== null ? exitCode === 0 : chainHasOutput);
 
               const abilityEntry: AbilityResult = {
                 type:        "ability",
