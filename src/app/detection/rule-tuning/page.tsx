@@ -360,22 +360,31 @@ function CtiModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-gray-950 border border-gray-800 rounded-2xl p-6 max-w-sm mx-4 shadow-2xl">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-600/15 flex items-center justify-center">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-xl bg-amber-600/15 flex items-center justify-center shrink-0">
             <BookOpen size={16} className="text-amber-400" />
           </div>
           <h3 className="text-white font-bold">Règles CTI</h3>
         </div>
         <p className="text-gray-400 text-sm leading-relaxed">
-          Bibliothèque de règles CTI (Cyber Threat Intelligence) pour aider l'apprenant à écrire des règles de détection et s'inspirer d'exemples concrets.
-          <span className="block mt-2 text-amber-400 font-semibold">À implémenter.</span>
+          La base CTI regroupe des règles de détection issues de Sigma, converties au format Wazuh.
+          Consultez-la pour vous inspirer d'exemples concrets et affiner vos propres règles de détection.
         </p>
-        <button
-          onClick={onClose}
-          className="mt-5 w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 text-sm text-gray-300 hover:text-white transition-colors"
-        >
-          Fermer
-        </button>
+        <div className="flex flex-col gap-2 mt-5">
+          <button
+            onClick={() => window.open("/cti", "_blank")}
+            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl bg-amber-600/15 border border-amber-700/30 text-amber-400 hover:bg-amber-600/25 text-sm font-semibold transition-all"
+          >
+            <BookOpen size={14} />
+            Ouvrir la base CTI
+          </button>
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-sm text-gray-300 hover:text-white transition-colors"
+          >
+            Fermer
+          </button>
+        </div>
       </div>
     </div>
   );
