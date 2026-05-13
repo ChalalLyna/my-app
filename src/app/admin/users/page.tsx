@@ -24,7 +24,7 @@ type Role = "admin" | "consultant" | "apprenant";
 const ROLE_META: Record<Role, { label: string; color: string; bg: string; icon: React.ComponentType<{ size: number }> }> = {
   admin:      { label: "Admin",      color: "text-red-400",   bg: "bg-red-500/10",   icon: ShieldCheck },
   consultant: { label: "Consultant", color: "text-blue-400",  bg: "bg-blue-500/10",  icon: UserCog },
-  apprenant:  { label: "Apprenant",  color: "text-green-400", bg: "bg-green-500/10", icon: GraduationCap },
+  apprenant:  { label: "Learner",    color: "text-green-400", bg: "bg-green-500/10", icon: GraduationCap },
 };
 
 const EMPTY_FORM = { nom: "", prenom: "", email: "", role: "apprenant" as Role, password: "" };
@@ -85,11 +85,11 @@ export default function UsersPage() {
 
   async function handleSave() {
     if (!form.nom || !form.prenom || !form.email || !form.role) {
-      setError("Tous les champs sont requis.");
+      setError("All fields are required.");
       return;
     }
     if (modal === "add" && !form.password) {
-      setError("Le mot de passe est requis.");
+      setError("Password is required.");
       return;
     }
     setSaving(true);
@@ -103,7 +103,7 @@ export default function UsersPage() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Erreur inconnue."); return; }
+      if (!res.ok) { setError(data.error ?? "Unknown error."); return; }
       setModal(null);
       fetchUsers();
     } finally {
@@ -117,7 +117,7 @@ export default function UsersPage() {
     try {
       const res  = await fetch(`/api/admin/users/${deleteTarget.IdUtilisateur}`, { method: "DELETE" });
       const data = await res.json();
-      if (!res.ok) { alert(data.error ?? "Erreur lors de la suppression."); return; }
+      if (!res.ok) { alert(data.error ?? "Delete failed."); return; }
       setDeleteTarget(null);
       fetchUsers();
     } finally {
@@ -137,18 +137,18 @@ export default function UsersPage() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <Users size={16} className="text-brand" />
-              <span className="text-xs font-semibold uppercase tracking-widest text-brand">Administrateur</span>
+              <span className="text-xs font-semibold uppercase tracking-widest text-brand">Administrator</span>
             </div>
-            <h1 className="text-2xl font-bold text-white">Gestion des utilisateurs</h1>
+            <h1 className="text-2xl font-bold text-white">User management</h1>
             <p className="text-gray-500 text-sm mt-0.5">
-              {users.length} utilisateur{users.length !== 1 ? "s" : ""} enregistré{users.length !== 1 ? "s" : ""}
+              {users.length} user{users.length !== 1 ? "s" : ""} registered
             </p>
           </div>
           <button
             onClick={openAdd}
             className="flex items-center gap-2 bg-brand/10 hover:bg-brand/20 border border-brand/30 text-brand px-4 py-2 rounded-xl text-sm font-medium transition-colors"
           >
-            <Plus size={15} /> Ajouter un utilisateur
+            <Plus size={15} /> Add user
           </button>
         </div>
 
@@ -158,7 +158,7 @@ export default function UsersPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher par nom, email, rôle…"
+            placeholder="Search by name, email, role…"
             className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50"
           />
         </div>
@@ -167,20 +167,20 @@ export default function UsersPage() {
         <div className="bg-gray-900 border border-gray-800/60 rounded-2xl overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-16 text-gray-500">
-              <Loader2 size={20} className="animate-spin mr-2" /> Chargement…
+              <Loader2 size={20} className="animate-spin mr-2" /> Loading…
             </div>
           ) : filtered.length === 0 ? (
             <div className="flex items-center justify-center py-16 text-gray-500 text-sm">
-              Aucun utilisateur trouvé.
+              No users found.
             </div>
           ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-800/60">
-                  <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-6 py-3">Utilisateur</th>
+                  <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-6 py-3">User</th>
                   <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-6 py-3">Email</th>
-                  <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-6 py-3">Rôle</th>
-                  <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-6 py-3">Créé le</th>
+                  <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-6 py-3">Role</th>
+                  <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-6 py-3">Created</th>
                   <th className="text-right text-xs text-gray-500 font-semibold uppercase tracking-wider px-6 py-3">Actions</th>
                 </tr>
               </thead>
@@ -201,7 +201,7 @@ export default function UsersPage() {
                           </div>
                           <div>
                             <p className="text-white font-medium">{u.prenom} {u.nom}</p>
-                            {isMe && <span className="text-xs text-brand">Vous</span>}
+                            {isMe && <span className="text-xs text-brand">You</span>}
                           </div>
                         </div>
                       </td>
@@ -213,13 +213,13 @@ export default function UsersPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-gray-500">
-                        {new Date(u.DateCreation).toLocaleDateString("fr-FR")}
+                        {new Date(u.DateCreation).toLocaleDateString("en-US")}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => openEdit(u)}
-                            title="Modifier"
+                            title="Edit"
                             className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/50 transition-colors"
                           >
                             <Pencil size={14} />
@@ -227,7 +227,7 @@ export default function UsersPage() {
                           <button
                             onClick={() => setDeleteTarget(u)}
                             disabled={isMe}
-                            title={isMe ? "Vous ne pouvez pas supprimer votre propre compte" : "Supprimer"}
+                            title={isMe ? "You cannot delete your own account" : "Delete"}
                             className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                           >
                             <Trash2 size={14} />
@@ -249,7 +249,7 @@ export default function UsersPage() {
           <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-white">
-                {modal === "add" ? "Ajouter un utilisateur" : "Modifier l'utilisateur"}
+                {modal === "add" ? "Add user" : "Edit user"}
               </h2>
               <button
                 onClick={() => setModal(null)}
@@ -262,7 +262,7 @@ export default function UsersPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1.5 font-medium">Prénom</label>
+                  <label className="block text-xs text-gray-400 mb-1.5 font-medium">First name</label>
                   <input
                     value={form.prenom}
                     onChange={(e) => setForm((f) => ({ ...f, prenom: e.target.value }))}
@@ -271,7 +271,7 @@ export default function UsersPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1.5 font-medium">Nom</label>
+                  <label className="block text-xs text-gray-400 mb-1.5 font-medium">Last name</label>
                   <input
                     value={form.nom}
                     onChange={(e) => setForm((f) => ({ ...f, nom: e.target.value }))}
@@ -293,13 +293,13 @@ export default function UsersPage() {
               </div>
 
               <div>
-                <label className="block text-xs text-gray-400 mb-1.5 font-medium">Rôle</label>
+                <label className="block text-xs text-gray-400 mb-1.5 font-medium">Role</label>
                 <select
                   value={form.role}
                   onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as Role }))}
                   className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand/50"
                 >
-                  <option value="apprenant">Apprenant</option>
+                  <option value="apprenant">Learner</option>
                   <option value="consultant">Consultant</option>
                   <option value="admin">Admin</option>
                 </select>
@@ -307,16 +307,16 @@ export default function UsersPage() {
 
               <div>
                 <label className="block text-xs text-gray-400 mb-1.5 font-medium">
-                  Mot de passe{" "}
+                  Password{" "}
                   {modal === "edit" && (
-                    <span className="text-gray-600">(laisser vide pour ne pas modifier)</span>
+                    <span className="text-gray-600">(leave blank to keep unchanged)</span>
                   )}
                 </label>
                 <input
                   type="password"
                   value={form.password}
                   onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                  placeholder={modal === "add" ? "Minimum 8 caractères" : "••••••••"}
+                  placeholder={modal === "add" ? "Minimum 8 characters" : "••••••••"}
                   className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50"
                 />
               </div>
@@ -332,7 +332,7 @@ export default function UsersPage() {
                   onClick={() => setModal(null)}
                   className="flex-1 py-2 rounded-xl text-sm font-medium text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 transition-colors"
                 >
-                  Annuler
+                  Cancel
                 </button>
                 <button
                   onClick={handleSave}
@@ -340,7 +340,7 @@ export default function UsersPage() {
                   className="flex-1 py-2 rounded-xl text-sm font-medium bg-brand/20 hover:bg-brand/30 border border-brand/30 text-brand transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {saving && <Loader2 size={14} className="animate-spin" />}
-                  {modal === "add" ? "Créer" : "Enregistrer"}
+                  {modal === "add" ? "Create" : "Save"}
                 </button>
               </div>
             </div>
@@ -357,19 +357,19 @@ export default function UsersPage() {
                 <Trash2 size={18} className="text-red-400" />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-white">Supprimer l'utilisateur</h2>
+                <h2 className="text-sm font-bold text-white">Delete user</h2>
                 <p className="text-xs text-gray-400">{deleteTarget.prenom} {deleteTarget.nom}</p>
               </div>
             </div>
             <p className="text-sm text-gray-400 mb-5">
-              Cette action supprimera définitivement le compte et toutes les données associées. Elle est irréversible.
+              This action will permanently delete the account and all associated data. It cannot be undone.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteTarget(null)}
                 className="flex-1 py-2 rounded-xl text-sm font-medium text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 transition-colors"
               >
-                Annuler
+                Cancel
               </button>
               <button
                 onClick={handleDelete}
@@ -377,7 +377,7 @@ export default function UsersPage() {
                 className="flex-1 py-2 rounded-xl text-sm font-medium bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {deleting && <Loader2 size={14} className="animate-spin" />}
-                Supprimer
+                Delete
               </button>
             </div>
           </div>

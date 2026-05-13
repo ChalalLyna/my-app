@@ -14,10 +14,10 @@ import {
 // ─── Constants ────────────────────────────────────────────────────────────────
  
 const STATUS_STYLES: Record<MissionStatus, { text: string; bg: string; border: string; dot: string }> = {
-  "Terminée":  { text: "text-emerald-400", bg: "bg-emerald-900/20", border: "border-emerald-800/40", dot: "bg-emerald-500" },
-  "En cours":  { text: "text-blue-400",    bg: "bg-blue-900/20",    border: "border-blue-800/40",    dot: "bg-blue-500"    },
-  "Planifiée": { text: "text-amber-400",   bg: "bg-amber-900/20",   border: "border-amber-800/40",   dot: "bg-amber-400"   },
-  "Échouée":   { text: "text-red-400",     bg: "bg-red-900/20",     border: "border-red-800/40",     dot: "bg-red-500"     },
+  "Completed":   { text: "text-emerald-400", bg: "bg-emerald-900/20", border: "border-emerald-800/40", dot: "bg-emerald-500" },
+  "In Progress": { text: "text-blue-400",    bg: "bg-blue-900/20",    border: "border-blue-800/40",    dot: "bg-blue-500"    },
+  "Planned":     { text: "text-amber-400",   bg: "bg-amber-900/20",   border: "border-amber-800/40",   dot: "bg-amber-400"   },
+  "Failed":      { text: "text-red-400",     bg: "bg-red-900/20",     border: "border-red-800/40",     dot: "bg-red-500"     },
 };
  
 const TYPE_STYLES: Record<MissionType, { text: string; bg: string; border: string; icon: React.ComponentType<any> }> = {
@@ -59,10 +59,10 @@ function CreateMissionDrawer({ onClose, onCreate }: CreateMissionDrawerProps) {
       id: `M${String(MOCK_MISSIONS.length + 1).padStart(3, "0")}`,
       name: name.trim(),
       type,
-      status: "Planifiée",
+      status: "Planned",
       tasks: selectedTasks,
       createdAt: new Date().toISOString(),
-      target: target.trim() || "Non défini",
+      target: target.trim() || "Not defined",
       createdBy: "John Doe",
     };
     onCreate(newMission);
@@ -84,8 +84,8 @@ function CreateMissionDrawer({ onClose, onCreate }: CreateMissionDrawerProps) {
               <Plus size={15} className="text-brand" />
             </div>
             <div>
-              <p className="text-white font-bold">Nouvelle mission</p>
-              <p className="text-gray-500 text-xs">Définissez les paramètres et les tâches</p>
+              <p className="text-white font-bold">New mission</p>
+              <p className="text-gray-500 text-xs">Define the parameters and tasks</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-colors">
@@ -99,7 +99,7 @@ function CreateMissionDrawer({ onClose, onCreate }: CreateMissionDrawerProps) {
           {/* Name */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-              Nom de la mission <span className="text-red-400">*</span>
+              Mission name <span className="text-red-400">*</span>
             </label>
             <input
               value={name}
@@ -111,7 +111,7 @@ function CreateMissionDrawer({ onClose, onCreate }: CreateMissionDrawerProps) {
  
           {/* Type */}
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">Type de mission</label>
+            <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">Mission type</label>
             <div className="grid grid-cols-2 gap-2">
               {MISSION_TYPES.map(t => {
                 const st = TYPE_STYLES[t];
@@ -137,7 +137,7 @@ function CreateMissionDrawer({ onClose, onCreate }: CreateMissionDrawerProps) {
  
           {/* Target */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">Cible(s)</label>
+            <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">Target(s)</label>
             <input
               value={target}
               onChange={e => setTarget(e.target.value)}
@@ -150,11 +150,11 @@ function CreateMissionDrawer({ onClose, onCreate }: CreateMissionDrawerProps) {
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-                Tâches <span className="text-red-400">*</span>
+                Tasks <span className="text-red-400">*</span>
               </label>
               {selectedTasks.length > 0 && (
                 <span className="text-xs font-semibold text-brand bg-brand/10 px-2 py-0.5 rounded-full">
-                  {selectedTasks.length} sélectionnée{selectedTasks.length > 1 ? "s" : ""}
+                  {selectedTasks.length} selected
                 </span>
               )}
             </div>
@@ -210,7 +210,7 @@ function CreateMissionDrawer({ onClose, onCreate }: CreateMissionDrawerProps) {
             onClick={onClose}
             className="px-4 py-2.5 rounded-xl border border-gray-700 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
           >
-            Annuler
+            Cancel
           </button>
           <button
             onClick={handleCreate}
@@ -222,7 +222,7 @@ function CreateMissionDrawer({ onClose, onCreate }: CreateMissionDrawerProps) {
             }`}
           >
             <Flag size={14} />
-            Créer la mission
+            Create mission
           </button>
         </div>
       </div>
@@ -236,7 +236,7 @@ function MissionCard({ mission, onClick }: { mission: Mission; onClick: () => vo
   const status = STATUS_STYLES[mission.status];
   const type   = TYPE_STYLES[mission.type];
   const TypeIcon = type.icon;
-  const date = new Date(mission.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+  const date = new Date(mission.createdAt).toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" });
   const taskLabels = mission.tasks.slice(0, 3).map(id => MISSION_TASKS.find(t => t.id === id)?.label ?? id);
  
   return (
@@ -275,7 +275,7 @@ function MissionCard({ mission, onClick }: { mission: Mission; onClick: () => vo
         </div>
         <div className="flex items-center gap-1.5">
           <ClipboardList size={11} className="text-gray-600" />
-          <span>{mission.tasks.length} tâches</span>
+          <span>{mission.tasks.length} tasks</span>
         </div>
       </div>
  
@@ -288,13 +288,13 @@ function MissionCard({ mission, onClick }: { mission: Mission; onClick: () => vo
         ))}
         {mission.tasks.length > 3 && (
           <span className="text-[10px] font-medium px-2 py-0.5 rounded-lg bg-gray-800/60 border border-gray-700/40 text-gray-600">
-            +{mission.tasks.length - 3} autres
+            +{mission.tasks.length - 3} more
           </span>
         )}
         {mission.report && (
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-indigo-900/30 border border-indigo-800/40 text-indigo-400 ml-auto">
             <FileText size={9} className="inline mr-1" />
-            Rapport dispo
+            Report available
           </span>
         )}
       </div>
@@ -309,13 +309,13 @@ export default function MissionPage() {
   const [missions, setMissions] = useState<Mission[]>(MOCK_MISSIONS);
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("Toutes");
+  const [filterStatus, setFilterStatus] = useState<string>("All");
  
   const filtered = missions.filter(m => {
     const matchSearch = m.name.toLowerCase().includes(search.toLowerCase()) ||
                         m.type.toLowerCase().includes(search.toLowerCase()) ||
                         m.id.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = filterStatus === "Toutes" || m.status === filterStatus;
+    const matchStatus = filterStatus === "All" || m.status === filterStatus;
     return matchSearch && matchStatus;
   });
  
@@ -325,9 +325,9 @@ export default function MissionPage() {
  
   const stats = {
     total:     missions.length,
-    enCours:   missions.filter(m => m.status === "En cours").length,
-    terminees: missions.filter(m => m.status === "Terminée").length,
-    planifiees:missions.filter(m => m.status === "Planifiée").length,
+    enCours:   missions.filter(m => m.status === "In Progress").length,
+    terminees: missions.filter(m => m.status === "Completed").length,
+    planifiees:missions.filter(m => m.status === "Planned").length,
   };
  
   return (
@@ -342,7 +342,7 @@ export default function MissionPage() {
               Missions
             </h1>
             <p className="text-gray-500 text-sm mt-0.5">
-              Planifiez, exécutez et analysez vos missions de sécurité
+              Plan, execute and analyze your security missions
             </p>
           </div>
           <button
@@ -350,17 +350,17 @@ export default function MissionPage() {
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white text-sm font-semibold shadow-md shadow-brand/20 transition-all"
           >
             <Plus size={15} />
-            Nouvelle mission
+            New mission
           </button>
         </div>
  
         {/* Stats */}
         <div className="grid grid-cols-4 gap-3">
           {[
-            { label: "Total",      value: stats.total,      color: "text-white",        border: "border-gray-800"         },
-            { label: "En cours",   value: stats.enCours,    color: "text-blue-400",     border: "border-blue-800/30"      },
-            { label: "Terminées",  value: stats.terminees,  color: "text-emerald-400",  border: "border-emerald-800/30"   },
-            { label: "Planifiées", value: stats.planifiees, color: "text-amber-400",    border: "border-amber-800/30"     },
+            { label: "Total",       value: stats.total,      color: "text-white",        border: "border-gray-800"         },
+            { label: "In Progress", value: stats.enCours,    color: "text-blue-400",     border: "border-blue-800/30"      },
+            { label: "Completed",   value: stats.terminees,  color: "text-emerald-400",  border: "border-emerald-800/30"   },
+            { label: "Planned",     value: stats.planifiees, color: "text-amber-400",    border: "border-amber-800/30"     },
           ].map(s => (
             <div key={s.label} className={`bg-gray-900 border ${s.border} rounded-xl p-4`}>
               <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
@@ -377,12 +377,12 @@ export default function MissionPage() {
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Rechercher une mission..."
+              placeholder="Search missions..."
               className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all"
             />
           </div>
           <div className="flex items-center gap-1.5">
-            {["Toutes", "En cours", "Terminée", "Planifiée", "Échouée"].map(s => (
+            {["All", "In Progress", "Completed", "Planned", "Failed"].map(s => (
               <button
                 key={s}
                 onClick={() => setFilterStatus(s)}
@@ -404,8 +404,8 @@ export default function MissionPage() {
             <div className="w-16 h-16 rounded-2xl bg-gray-800/60 border border-gray-700/40 flex items-center justify-center">
               <Flag size={28} className="text-gray-700" />
             </div>
-            <p className="text-white font-bold">Aucune mission trouvée</p>
-            <p className="text-gray-500 text-sm">Créez votre première mission avec le bouton ci-dessus.</p>
+            <p className="text-white font-bold">No missions found</p>
+            <p className="text-gray-500 text-sm">Create your first mission using the button above.</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4">

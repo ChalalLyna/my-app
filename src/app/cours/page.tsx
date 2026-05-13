@@ -53,7 +53,7 @@ export default function HubFormationPage() {
   useEffect(() => { fetchGuides(); }, [fetchGuides]);
 
   async function handleDelete(guide: Guide) {
-    if (!window.confirm(`Supprimer "${guide.titre}" ?`)) return;
+    if (!window.confirm(`Delete "${guide.titre}"?`)) return;
     setDeleting(guide.id);
     await fetch(`/api/guides/${guide.id}`, { method: "DELETE" });
     setDeleting(null);
@@ -90,7 +90,7 @@ export default function HubFormationPage() {
             </div>
             <h1 className="text-2xl font-bold text-white">Guides</h1>
             <p className="text-gray-500 text-sm mt-1">
-              Guides et ressources pour progresser en cybersécurité
+              Guides and resources to improve your cybersecurity skills
             </p>
           </div>
           {isAdmin && (
@@ -99,7 +99,7 @@ export default function HubFormationPage() {
               className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-xl transition-colors"
             >
               <Plus size={15} />
-              Ajouter un guide
+              Add guide
             </Link>
           )}
         </div>
@@ -110,7 +110,7 @@ export default function HubFormationPage() {
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
             <input
               type="text"
-              placeholder="Rechercher un guide…"
+              placeholder="Search guides…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-8 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/50"
@@ -125,7 +125,7 @@ export default function HubFormationPage() {
                   : "bg-gray-900 border-gray-800 text-gray-400 hover:border-gray-700"
               }`}
             >
-              Tous
+              All
             </button>
             {categories.map((cat) => {
               const meta = getCategoryMeta(cat);
@@ -151,11 +151,11 @@ export default function HubFormationPage() {
         {/* Content */}
         {loading ? (
           <div className="flex items-center justify-center py-24 text-gray-600 text-sm">
-            Chargement…
+            Loading…
           </div>
         ) : Object.keys(grouped).length === 0 ? (
           <div className="flex items-center justify-center py-24 text-gray-600 text-sm">
-            Aucun guide trouvé.
+            No guides found.
           </div>
         ) : (
           <div className="space-y-10">

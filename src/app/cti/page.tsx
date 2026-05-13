@@ -50,10 +50,10 @@ const PAGE_SIZE = 50;
 const ALL_CATEGORIES = ["windows", "linux", "macos", "network", "cloud", "web"] as const;
 
 const SEVERITY_META: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  critical: { label: "Critique", color: "text-red-400",    bg: "bg-red-500/10",    dot: "bg-red-400"    },
-  high:     { label: "Haute",    color: "text-orange-400", bg: "bg-orange-500/10", dot: "bg-orange-400" },
-  medium:   { label: "Moyenne",  color: "text-yellow-400", bg: "bg-yellow-500/10", dot: "bg-yellow-400" },
-  low:      { label: "Faible",   color: "text-blue-400",   bg: "bg-blue-500/10",   dot: "bg-blue-400"   },
+  critical: { label: "Critical", color: "text-red-400",    bg: "bg-red-500/10",    dot: "bg-red-400"    },
+  high:     { label: "High",     color: "text-orange-400", bg: "bg-orange-500/10", dot: "bg-orange-400" },
+  medium:   { label: "Medium",   color: "text-yellow-400", bg: "bg-yellow-500/10", dot: "bg-yellow-400" },
+  low:      { label: "Low",      color: "text-blue-400",   bg: "bg-blue-500/10",   dot: "bg-blue-400"   },
 };
 
 const CATEGORY_META: Record<string, { color: string; bg: string }> = {
@@ -240,15 +240,15 @@ export default function CTIPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setImportMsg({ ok: false, text: data.error ?? "Erreur inconnue." });
+        setImportMsg({ ok: false, text: data.error ?? "Unknown error." });
       } else {
-        setImportMsg({ ok: true, text: `${data.count} règles importées pour « ${cat} ».` });
+        setImportMsg({ ok: true, text: `${data.count} rules imported for "${cat}".` });
         fetchCategories(category);
         setPage(0);
         fetchRules(0, search, category, subcategory, severity);
       }
     } catch {
-      setImportMsg({ ok: false, text: "Erreur réseau." });
+      setImportMsg({ ok: false, text: "Network error." });
     } finally {
       setImporting(null);
     }
@@ -261,7 +261,7 @@ export default function CTIPage() {
 
   function fmtDate(d: string | null) {
     if (!d) return "—";
-    try { return new Date(d).toLocaleDateString("fr-FR"); } catch { return d; }
+    try { return new Date(d).toLocaleDateString("en-US"); } catch { return d; }
   }
 
   function parseMitre(raw: string | null): string[] {
@@ -287,8 +287,8 @@ export default function CTIPage() {
             <h1 className="text-2xl font-bold text-white">Base CTI</h1>
             <p className="text-gray-500 text-sm mt-0.5">
               {total > 0
-                ? `${total} règle${total !== 1 ? "s" : ""} · ${catData.imported.length} catégorie${catData.imported.length !== 1 ? "s" : ""} importée${catData.imported.length !== 1 ? "s" : ""}`
-                : "Aucune règle importée"}
+                ? `${total} rule${total !== 1 ? "s" : ""} · ${catData.imported.length} categor${catData.imported.length !== 1 ? "ies" : "y"} imported`
+                : "No rules imported"}
             </p>
           </div>
 
@@ -298,7 +298,7 @@ export default function CTIPage() {
               className="flex items-center gap-2 bg-brand/10 hover:bg-brand/20 border border-brand/30 text-brand px-4 py-2 rounded-xl text-sm font-medium transition-colors"
             >
               <FolderOpen size={15} />
-              Gérer les catégories
+              Manage categories
             </button>
           )}
         </div>
@@ -338,7 +338,7 @@ export default function CTIPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher par titre, auteur, technique…"
+              placeholder="Search by title, author, technique…"
               className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50"
             />
             {search && (
@@ -357,7 +357,7 @@ export default function CTIPage() {
             onChange={(e) => handleCategoryChange(e.target.value)}
             className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand/50 min-w-35"
           >
-            <option value="">Toutes les catégories</option>
+            <option value="">All categories</option>
             {catData.imported.map((c) => (
               <option key={c.name} value={c.name} className="capitalize">{c.name}</option>
             ))}
@@ -370,7 +370,7 @@ export default function CTIPage() {
             disabled={catData.subcategories.length === 0}
             className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand/50 min-w-35 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <option value="">Toutes les sous-catégories</option>
+            <option value="">All subcategories</option>
             {catData.subcategories.map((s) => (
               <option key={s.name} value={s.name}>{s.name}</option>
             ))}
@@ -382,11 +382,11 @@ export default function CTIPage() {
             onChange={(e) => { setSeverity(e.target.value); setPage(0); }}
             className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand/50 min-w-35"
           >
-            <option value="">Toutes les sévérités</option>
-            <option value="critical">Critique</option>
-            <option value="high">Haute</option>
-            <option value="medium">Moyenne</option>
-            <option value="low">Faible</option>
+            <option value="">All severities</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
           </select>
         </div>
 
@@ -394,15 +394,15 @@ export default function CTIPage() {
         <div className="bg-gray-900 border border-gray-800/60 rounded-2xl overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-20 text-gray-500">
-              <Loader2 size={20} className="animate-spin mr-2" /> Chargement…
+              <Loader2 size={20} className="animate-spin mr-2" /> Loading…
             </div>
           ) : rules.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-gray-500 gap-3">
               <Shield size={32} className="opacity-20" />
               <p className="text-sm">
                 {catData.imported.length === 0
-                  ? "Aucune règle CTI — importez une catégorie via « Gérer les catégories »."
-                  : "Aucune règle ne correspond à ces filtres."}
+                  ? "No CTI rules — import a category via \"Manage categories\"."
+                  : "No rules match these filters."}
               </p>
             </div>
           ) : (
@@ -411,13 +411,13 @@ export default function CTIPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-800/60">
-                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-5 py-3">Titre</th>
-                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Catégorie</th>
-                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Sous-catégorie</th>
-                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Sévérité</th>
-                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Techniques MITRE</th>
-                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Auteur</th>
-                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Modifié</th>
+                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-5 py-3">Title</th>
+                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Category</th>
+                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Subcategory</th>
+                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Severity</th>
+                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">MITRE Techniques</th>
+                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Author</th>
+                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Modified</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -461,7 +461,7 @@ export default function CTIPage() {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-5 py-3 border-t border-gray-800/60">
                   <p className="text-xs text-gray-500">
-                    {pageStart}–{pageEnd} sur {total} règles
+                    {pageStart}–{pageEnd} of {total} rules
                   </p>
                   <div className="flex items-center gap-1">
                     <button
@@ -495,7 +495,7 @@ export default function CTIPage() {
           <div className="bg-gray-900 border border-gray-800/60 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
             {detailLoading ? (
               <div className="flex items-center justify-center py-20 text-gray-500">
-                <Loader2 size={20} className="animate-spin mr-2" /> Chargement…
+                <Loader2 size={20} className="animate-spin mr-2" /> Loading…
               </div>
             ) : detail && (
               <>
@@ -512,7 +512,7 @@ export default function CTIPage() {
                       )}
                     </div>
                     <h2 className="text-base font-bold text-white leading-snug">
-                      {detail.Titre ?? "Sans titre"}
+                      {detail.Titre ?? "Untitled"}
                     </h2>
                     {detail.IdSigma && (
                       <p className="text-xs text-gray-600 font-mono mt-0.5">{detail.IdSigma}</p>
@@ -566,9 +566,9 @@ export default function CTIPage() {
                           <Calendar size={11} /> Dates
                         </p>
                         <p className="text-xs text-gray-400">
-                          Ajouté : {fmtDate(detail.DateAjout)}
+                          Added: {fmtDate(detail.DateAjout)}
                           {detail.DerniereModification && (
-                            <> · Modifié : {fmtDate(detail.DerniereModification)}</>
+                            <> · Modified: {fmtDate(detail.DerniereModification)}</>
                           )}
                         </p>
                       </div>
@@ -578,7 +578,7 @@ export default function CTIPage() {
                   {(detail.YamlSigmaOriginal || detail.XmlWazuh) && (
                     <div>
                       <p className="text-xs text-yellow-500/80 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2 mb-3">
-                        ⚠️ La traduction automatique vers XML Wazuh peut ne pas être totalement fidèle à la règle Sigma originale. Vérifiez avant tout déploiement.
+                        ⚠️ The automatic translation to Wazuh XML may not be fully faithful to the original Sigma rule. Verify before any deployment.
                       </p>
                       <div className="flex gap-1 mb-2">
                         {detail.YamlSigmaOriginal && (
@@ -624,7 +624,7 @@ export default function CTIPage() {
             <div className="flex items-center justify-between p-5 border-b border-gray-800/60">
               <div className="flex items-center gap-2">
                 <FolderOpen size={16} className="text-brand" />
-                <h2 className="text-base font-bold text-white">Gestion des catégories CTI</h2>
+                <h2 className="text-base font-bold text-white">CTI category management</h2>
               </div>
               <button
                 onClick={() => { setShowManage(false); setImportMsg(null); }}
@@ -654,7 +654,7 @@ export default function CTIPage() {
               {importing && (
                 <div className="flex items-center gap-2 p-3 rounded-xl text-xs text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 mb-2">
                   <Loader2 size={13} className="animate-spin shrink-0" />
-                  Import en cours pour « {importing} » — peut prendre quelques minutes (clone Git + parsing YAML)…
+                  Importing "{importing}" — may take a few minutes (Git clone + YAML parsing)…
                 </div>
               )}
 
@@ -682,7 +682,7 @@ export default function CTIPage() {
                             {imported.count} règle{imported.count !== 1 ? "s" : ""}
                           </span>
                         ) : (
-                          <span className="text-xs text-gray-600">Non importé</span>
+                          <span className="text-xs text-gray-600">Not imported</span>
                         )}
                       </div>
 
@@ -702,7 +702,7 @@ export default function CTIPage() {
                         ) : (
                           <Plus size={12} />
                         )}
-                        {isImporting ? "En cours…" : imported ? "Actualiser" : "Importer"}
+                        {isImporting ? "Importing…" : imported ? "Refresh" : "Import"}
                       </button>
                     </div>
                   );

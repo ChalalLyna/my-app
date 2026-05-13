@@ -30,7 +30,7 @@ export default function StepSelectAsset({ selectedAssets, onToggleAsset }: Props
     setError(null);
     fetch("/api/assets")
       .then((r) => {
-        if (!r.ok) throw new Error(`Erreur ${r.status}`);
+        if (!r.ok) throw new Error(`Error ${r.status}`);
         return r.json();
       })
       .then((data) => {
@@ -65,7 +65,7 @@ export default function StepSelectAsset({ selectedAssets, onToggleAsset }: Props
         {selectedCount > 0 && (
           <span className="flex items-center gap-1.5 text-xs font-semibold text-brand bg-brand/10 px-2.5 py-1 rounded-lg">
             <CheckSquare size={12} />
-            {selectedCount} actif{selectedCount > 1 ? "s" : ""} sélectionné{selectedCount > 1 ? "s" : ""}
+            {selectedCount} asset{selectedCount > 1 ? "s" : ""} selected
           </span>
         )}
       </div>
@@ -77,7 +77,7 @@ export default function StepSelectAsset({ selectedAssets, onToggleAsset }: Props
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Rechercher par nom, OS, catégorie..."
+          placeholder="Search by name, OS, category..."
           className="w-full bg-gray-800/60 border border-gray-700/80 rounded-xl pl-10 pr-4 py-2.5 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all"
         />
       </div>
@@ -93,7 +93,7 @@ export default function StepSelectAsset({ selectedAssets, onToggleAsset }: Props
                 : "bg-gray-800 text-gray-500 hover:text-gray-300"
             }`}
           >
-            Tous ({assets.length})
+            All ({assets.length})
           </button>
           {categories.map((cat) => (
             <button
@@ -118,7 +118,7 @@ export default function StepSelectAsset({ selectedAssets, onToggleAsset }: Props
       {loading && (
         <div className="flex flex-col items-center justify-center flex-1 gap-3">
           <Loader2 size={26} className="text-brand animate-spin" />
-          <p className="text-sm text-gray-400">Chargement des actifs...</p>
+          <p className="text-sm text-gray-400">Loading assets...</p>
         </div>
       )}
 
@@ -127,7 +127,7 @@ export default function StepSelectAsset({ selectedAssets, onToggleAsset }: Props
         <div className="flex flex-col items-center justify-center flex-1 gap-3 px-4">
           <AlertCircle size={26} className="text-red-400" />
           <p className="text-sm text-red-400 font-semibold text-center">{error}</p>
-          <button onClick={loadAssets} className="text-xs text-brand hover:underline">Réessayer</button>
+          <button onClick={loadAssets} className="text-xs text-brand hover:underline">Retry</button>
         </div>
       )}
 
@@ -136,7 +136,7 @@ export default function StepSelectAsset({ selectedAssets, onToggleAsset }: Props
         <>
           {filtered.length === 0 && (
             <p className="text-sm text-gray-600 text-center py-8">
-              {assets.length === 0 ? "Aucun actif dans la base de données" : "Aucun actif correspondant"}
+              {assets.length === 0 ? "No assets in the database" : "No matching assets"}
             </p>
           )}
           <div className="grid grid-cols-2 gap-3 overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-700 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin] [scrollbar-color:#374151_transparent]">

@@ -32,7 +32,7 @@ export const MOCK_RULES: DetectionRule[] = [
   {
     id: "R001",
     name: "PowerShell Encoded Command",
-    description: "Détecte l'exécution de commandes PowerShell encodées en base64, souvent utilisées pour obfusquer du code malveillant.",
+    description: "Detects execution of base64-encoded PowerShell commands, commonly used to obfuscate malicious code.",
     severity: "Critical",
     status: "active",
     ttp: "T1059",
@@ -72,7 +72,7 @@ level: critical
   {
     id: "R002",
     name: "SMB Lateral Movement",
-    description: "Détecte les connexions SMB suspectes entre postes de travail, indicateur de mouvement latéral.",
+    description: "Detects suspicious SMB connections between workstations, an indicator of lateral movement.",
     severity: "High",
     status: "active",
     ttp: "T1021",
@@ -111,7 +111,7 @@ level: high
   {
     id: "R003",
     name: "After-Hours Login",
-    description: "Détecte les connexions de comptes de service en dehors des heures ouvrables (avant 7h ou après 20h).",
+    description: "Detects service account logins outside business hours (before 7am or after 8pm).",
     severity: "Medium",
     status: "active",
     ttp: "T1078",
@@ -151,7 +151,7 @@ level: medium
   {
     id: "R004",
     name: "Phishing Link Click",
-    description: "Détecte le clic sur un lien de phishing simulé via la passerelle email.",
+    description: "Detects a click on a simulated phishing link via the email gateway.",
     severity: "High",
     status: "active",
     ttp: "T1566",
@@ -189,7 +189,7 @@ level: high
   {
     id: "R005",
     name: "Process Injection Detected",
-    description: "Détecte les injections de processus via des appels système suspects (CreateRemoteThread, WriteProcessMemory).",
+    description: "Detects process injection via suspicious system calls (CreateRemoteThread, WriteProcessMemory).",
     severity: "Critical",
     status: "inactive",
     ttp: "T1055",
@@ -230,19 +230,19 @@ level: critical
 ];
  
 export const XML_TEMPLATE = `<!-- CyberLab Custom Rule -->
-<!-- Les IDs custom doivent être entre 100000 et 199999 -->
+<!-- Custom IDs must be between 100000 and 199999 -->
 <group name="cyberlab,">
   <rule id="100001" level="7">
-    <description>Nouvelle règle de détection CyberLab</description>
+    <description>New CyberLab detection rule</description>
     <group>cyberlab,</group>
   </rule>
 </group>
 `;
 
-export const YAML_TEMPLATE = `title: Nouvelle Règle de Détection
+export const YAML_TEMPLATE = `title: New Detection Rule
 id: R006
 status: experimental
-description: Description de la règle
+description: Rule description
 author: CyberLab
 date: ${new Date().toISOString().split("T")[0].replace(/-/g, "/")}
 references:
@@ -257,14 +257,14 @@ detection:
   selection:
     EventID: 4104
     CommandLine|contains:
-      - 'motclé1'
-      - 'motclé2'
+      - 'keyword1'
+      - 'keyword2'
   condition: selection
 fields:
   - CommandLine
   - User
   - ParentImage
 falsepositives:
-  - Comportement légitime possible
+  - Possible legitimate behavior
 level: medium
 `;

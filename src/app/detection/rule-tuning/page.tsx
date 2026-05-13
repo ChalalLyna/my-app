@@ -59,8 +59,8 @@ interface RestartModalProps {
  
 function RestartConfirmModal({ action, restarting, error, onConfirm, onCancel }: RestartModalProps) {
   const label =
-    action.type === "create" ? "créée" :
-    action.type === "modify" ? "modifiée" : "supprimée";
+    action.type === "create" ? "created" :
+    action.type === "modify" ? "modified" : "deleted";
  
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -71,19 +71,19 @@ function RestartConfirmModal({ action, restarting, error, onConfirm, onCancel }:
             <RotateCcw size={18} className="text-amber-400" />
           </div>
           <div>
-            <h3 className="text-white font-bold">Redémarrer Wazuh Manager ?</h3>
+            <h3 className="text-white font-bold">Restart Wazuh Manager?</h3>
             <p className="text-gray-500 text-xs mt-0.5">
-              Règle {label} · <span className="font-mono">{action.filename}</span>
+              Rule {label} · <span className="font-mono">{action.filename}</span>
             </p>
           </div>
         </div>
  
         <p className="text-gray-400 text-sm leading-relaxed mb-2">
-          La règle a été <span className="text-white font-semibold">{label}</span> dans Wazuh.
-          Un <span className="text-white font-semibold">redémarrage du Manager</span> est nécessaire pour appliquer les changements.
+          The rule has been <span className="text-white font-semibold">{label}</span> in Wazuh.
+          A <span className="text-white font-semibold">Manager restart</span> is required to apply the changes.
         </p>
         <p className="text-amber-400/80 text-xs mb-5">
-          Si vous refusez, la modification sera <span className="font-semibold">annulée et restaurée</span> à son état précédent.
+          If you decline, the change will be <span className="font-semibold">cancelled and restored</span> to its previous state.
         </p>
  
         {error && (
@@ -99,7 +99,7 @@ function RestartConfirmModal({ action, restarting, error, onConfirm, onCancel }:
             disabled={restarting}
             className="flex-1 px-4 py-2.5 rounded-xl border border-gray-700 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition-colors disabled:opacity-40"
           >
-            Non — Annuler les changements
+            No — Cancel changes
           </button>
           <button
             onClick={onConfirm}
@@ -107,8 +107,8 @@ function RestartConfirmModal({ action, restarting, error, onConfirm, onCancel }:
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold transition-all disabled:opacity-40"
           >
             {restarting
-              ? <><Loader2 size={14} className="animate-spin" /> Redémarrage...</>
-              : <><RotateCcw size={14} /> Oui — Redémarrer</>
+              ? <><Loader2 size={14} className="animate-spin" /> Restarting...</>
+              : <><RotateCcw size={14} /> Yes — Restart</>
             }
           </button>
         </div>
@@ -145,9 +145,9 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
           </div>
           <div>
             <p className="text-white font-bold text-sm">
-              {isNew ? "Nouvelle règle" : `Modifier — ${rule.name}`}
+              {isNew ? "New rule" : `Edit — ${rule.name}`}
             </p>
-            <p className="text-gray-500 text-[11px]">Format XML · Wazuh</p>
+            <p className="text-gray-500 text-[11px]">XML format · Wazuh</p>
           </div>
         </div>
         <button onClick={onCancel} className="p-1.5 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-colors">
@@ -159,7 +159,7 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
         <div className="mx-6 mt-4 flex items-start gap-2 p-3 bg-amber-900/15 border border-amber-800/30 rounded-xl shrink-0">
           <AlertTriangle size={13} className="text-amber-500 shrink-0 mt-0.5" />
           <p className="text-xs text-amber-500/80">
-            Règle système — la modification créera <span className="font-mono">cyberlab_override_{rule?.wazuhId}.xml</span> dans Wazuh.
+            System rule — editing will create <span className="font-mono">cyberlab_override_{rule?.wazuhId}.xml</span> in Wazuh.
           </p>
         </div>
       )}
@@ -167,7 +167,7 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
       <div className="flex-1 flex overflow-hidden">
         {/* Left: metadata */}
         <div className="w-64 border-r border-gray-800/60 flex flex-col gap-4 p-5 shrink-0 overflow-y-auto">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600">Métadonnées</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600">Metadata</p>
  
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Description</label>
@@ -175,14 +175,14 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
               value={description}
               onChange={e => setDescription(e.target.value)}
               rows={3}
-              placeholder="Description de la règle..."
+              placeholder="Rule description..."
               className="bg-gray-800/60 border border-gray-700/80 rounded-lg px-3 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all resize-none"
             />
           </div>
  
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-              Niveau Wazuh (0–15)
+              Wazuh level (0–15)
             </label>
             <div className="flex items-center gap-3">
               <input
@@ -200,7 +200,7 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
           </div>
  
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Groupes (virgule)</label>
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Groups (comma-separated)</label>
             <input
               value={groups}
               onChange={e => setGroups(e.target.value)}
@@ -212,16 +212,16 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
           <div className="mt-auto p-3 bg-gray-800/30 border border-gray-800/40 rounded-xl">
             <div className="flex items-center gap-1.5 mb-2">
               <Info size={11} className="text-gray-600" />
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-600">Référence XML</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-600">XML Reference</p>
             </div>
             <div className="space-y-1.5 text-[10px] text-gray-500 font-mono">
               {[
-                ["<description>", "texte de la règle"],
-                ["<if_sid>",      "règle parente"],
-                ["<regex>",       "expression régulière"],
-                ["<match>",       "correspondance texte"],
-                ["<field>",       "champ du log"],
-                ["<group>",       "catégorie"],
+                ["<description>", "rule text"],
+                ["<if_sid>",      "parent rule"],
+                ["<regex>",       "regular expression"],
+                ["<match>",       "text match"],
+                ["<field>",       "log field"],
+                ["<group>",       "category"],
               ].map(([tag, desc]) => (
                 <div key={tag} className="flex gap-2">
                   <span className="text-indigo-400 shrink-0">{tag}</span>
@@ -250,7 +250,7 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-800 border border-gray-700 text-xs text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
               >
                 <Save size={11} />
-                Télécharger l'original
+                Download original
               </button>
             )}
           </div>
@@ -272,7 +272,7 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
           {isNew && (
             <div className="flex items-center gap-2 text-xs text-gray-600">
               <AlertTriangle size={12} className="text-amber-500" />
-              Les nouvelles règles seront actives après le redémarrage.
+              New rules will be active after restart.
             </div>
           )}
           {saveError && <p className="text-xs text-red-400">{saveError}</p>}
@@ -282,7 +282,7 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
             onClick={onCancel}
             className="px-4 py-2 rounded-lg border border-gray-700 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
           >
-            Annuler
+            Cancel
           </button>
           <button
             onClick={() => onSave(xml, { description, level, groups })}
@@ -292,7 +292,7 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
             }`}
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            {isNew ? "Créer dans Wazuh" : "Sauvegarder"}
+            {isNew ? "Create in Wazuh" : "Save"}
           </button>
         </div>
       </div>
@@ -314,7 +314,7 @@ function RuleCard({ rule, onEdit, onToggle, onDelete, loadingEdit }: RuleCardPro
   const sev = SEVERITY_STYLES[rule.severity];
   return (
     <div className={`flex items-center gap-4 px-5 py-4 border-b border-gray-800/40 hover:bg-gray-800/20 transition-colors group ${rule.status === "inactive" ? "opacity-50" : ""}`}>
-      <button onClick={onToggle} title={rule.status === "active" ? "Désactiver" : "Activer"} className="shrink-0">
+      <button onClick={onToggle} title={rule.status === "active" ? "Disable" : "Enable"} className="shrink-0">
         {rule.status === "active"
           ? <CheckCircle size={17} className="text-emerald-400 hover:text-emerald-300 transition-colors" />
           : <XCircle    size={17} className="text-gray-600 hover:text-gray-400 transition-colors" />
@@ -340,7 +340,7 @@ function RuleCard({ rule, onEdit, onToggle, onDelete, loadingEdit }: RuleCardPro
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-xs font-medium transition-all disabled:opacity-50"
         >
           {loadingEdit ? <Loader2 size={12} className="animate-spin" /> : <Edit2 size={12} />}
-          Modifier
+          Edit
         </button>
         <button
           onClick={onDelete}
@@ -367,8 +367,8 @@ function CtiModal({ onClose }: { onClose: () => void }) {
           <h3 className="text-white font-bold">Règles CTI</h3>
         </div>
         <p className="text-gray-400 text-sm leading-relaxed">
-          La base CTI regroupe des règles de détection issues de Sigma, converties au format Wazuh.
-          Consultez-la pour vous inspirer d'exemples concrets et affiner vos propres règles de détection.
+          The CTI database contains detection rules derived from Sigma, converted to Wazuh format.
+          Browse it for concrete examples to inspire and refine your own detection rules.
         </p>
         <div className="flex flex-col gap-2 mt-5">
           <button
@@ -376,13 +376,13 @@ function CtiModal({ onClose }: { onClose: () => void }) {
             className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl bg-amber-600/15 border border-amber-700/30 text-amber-400 hover:bg-amber-600/25 text-sm font-semibold transition-all"
           >
             <BookOpen size={14} />
-            Ouvrir la base CTI
+            Open CTI database
           </button>
           <button
             onClick={onClose}
             className="w-full px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-sm text-gray-300 hover:text-white transition-colors"
           >
-            Fermer
+            Close
           </button>
         </div>
       </div>
@@ -629,7 +629,7 @@ function RuleTuningPageInner() {
                 Rule Tuning
               </h1>
               <p className="text-gray-500 text-sm mt-0.5">
-                {total > 0 ? `${total} règles Wazuh · ${activeCount} actives` : "Règles Wazuh"}
+                {total > 0 ? `${total} Wazuh rules · ${activeCount} active` : "Wazuh rules"}
               </p>
             </div>
           </div>
@@ -640,14 +640,14 @@ function RuleTuningPageInner() {
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600/15 border border-amber-700/30 text-amber-400 hover:bg-amber-600/25 text-sm font-semibold transition-all"
             >
               <BookOpen size={15} />
-              Règles CTI
+              CTI rules
             </button>
             <button
               onClick={() => { setSaveError(null); setEditorTarget(null); }}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white text-sm font-semibold shadow-md shadow-brand/20 transition-all"
             >
               <Plus size={15} />
-              Nouvelle règle
+              New rule
             </button>
           </div>
         </div>
@@ -655,9 +655,9 @@ function RuleTuningPageInner() {
         {/* Stats */}
         <div className="grid grid-cols-4 gap-3 mb-6">
           {[
-            { label: "Total",     value: total,        color: "text-white",       border: "border-gray-800"       },
-            { label: "Actives",   value: activeCount,  color: "text-emerald-400", border: "border-emerald-800/30" },
-            { label: "Inactives", value: inactiveCount,color: "text-gray-500",    border: "border-gray-800"       },
+            { label: "Total",    value: total,        color: "text-white",       border: "border-gray-800"       },
+            { label: "Active",   value: activeCount,  color: "text-emerald-400", border: "border-emerald-800/30" },
+            { label: "Inactive", value: inactiveCount,color: "text-gray-500",    border: "border-gray-800"       },
             { label: "Critical",  value: rules.filter(r => r.severity === "Critical").length, color: "text-red-400", border: "border-red-800/30" },
           ].map(s => (
             <div key={s.label} className={`bg-gray-900 border ${s.border} rounded-xl p-4`}>
@@ -687,7 +687,7 @@ function RuleTuningPageInner() {
                     type="text"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    placeholder="Rechercher une règle, ID, groupe..."
+                    placeholder="Search rules, ID, group..."
                     className="w-full bg-gray-800/60 border border-gray-700/80 rounded-xl pl-10 pr-4 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all"
                   />
                 </div>
@@ -702,7 +702,7 @@ function RuleTuningPageInner() {
                           : "bg-gray-800/60 text-gray-500 hover:text-gray-300 border border-gray-800"
                       }`}
                     >
-                      {f === "all" ? "Toutes" : f === "active" ? "Actives" : "Inactives"}
+                      {f === "all" ? "All" : f === "active" ? "Active" : "Inactive"}
                     </button>
                   ))}
                 </div>
@@ -718,8 +718,8 @@ function RuleTuningPageInner() {
               <div className="flex items-center gap-4 px-5 py-2.5 border-b border-gray-800/40 bg-gray-900/60 shrink-0">
                 <span className="w-5 shrink-0" />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-14">ID</span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-16">Sévérité</span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 flex-1">Règle / Groupes</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-16">Severity</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 flex-1">Rule / Groups</span>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-16">Niveau</span>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-48">Fichier</span>
                 <span className="w-28 shrink-0" />
@@ -729,7 +729,7 @@ function RuleTuningPageInner() {
                 {loading ? (
                   <div className="flex items-center justify-center py-16 gap-2 text-gray-600">
                     <Loader2 size={16} className="animate-spin" />
-                    <span className="text-sm">Chargement des règles Wazuh...</span>
+                    <span className="text-sm">Loading Wazuh rules...</span>
                   </div>
                 ) : apiError ? (
                   <div className="flex flex-col items-center justify-center py-16 gap-3">

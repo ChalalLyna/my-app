@@ -9,9 +9,9 @@ import { ArrowLeft, Save, Loader2, Volume2 } from "lucide-react";
 const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false });
 
 const NIVEAUX = [
-  { value: "beginner",     label: "Débutant" },
-  { value: "intermediate", label: "Intermédiaire" },
-  { value: "advanced",     label: "Avancé" },
+  { value: "beginner",     label: "Beginner" },
+  { value: "intermediate", label: "Intermediate" },
+  { value: "advanced",     label: "Advanced" },
 ];
 
 interface ScenarioFormProps {
@@ -42,7 +42,7 @@ export default function ScenarioForm({ scenarioId, initialData }: ScenarioFormPr
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!titre.trim() || !contenu.trim()) {
-      setError("Le titre et le contenu sont requis.");
+      setError("Title and content are required.");
       return;
     }
 
@@ -62,7 +62,7 @@ export default function ScenarioForm({ scenarioId, initialData }: ScenarioFormPr
 
     if (!res.ok) {
       const data = await res.json();
-      setError(data.error ?? "Une erreur est survenue.");
+      setError(data.error ?? "An error occurred.");
       return;
     }
 
@@ -80,15 +80,15 @@ export default function ScenarioForm({ scenarioId, initialData }: ScenarioFormPr
             className="flex items-center gap-2 text-gray-500 hover:text-white text-sm mb-6 transition-colors"
           >
             <ArrowLeft size={15} />
-            Retour
+            Back
           </button>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-semibold uppercase tracking-widest text-indigo-400 bg-indigo-500/10 px-2.5 py-0.5 rounded-full">
-              {isEdit ? "Modifier" : "Nouveau"}
+              {isEdit ? "Edit" : "New"}
             </span>
           </div>
           <h1 className="text-2xl font-bold text-white">
-            {isEdit ? "Modifier le scénario" : "Ajouter un scénario"}
+            {isEdit ? "Edit scenario" : "Add scenario"}
           </h1>
         </div>
 
@@ -98,19 +98,19 @@ export default function ScenarioForm({ scenarioId, initialData }: ScenarioFormPr
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2 space-y-1.5">
               <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                Titre <span className="text-red-500">*</span>
+                Title <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={titre}
                 onChange={(e) => setTitre(e.target.value)}
-                placeholder="Titre du scénario"
+                placeholder="Scenario title"
                 className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50"
               />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                Niveau <span className="text-red-500">*</span>
+                Level <span className="text-red-500">*</span>
               </label>
               <select
                 value={niveau}
@@ -132,7 +132,7 @@ export default function ScenarioForm({ scenarioId, initialData }: ScenarioFormPr
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Courte description affichée sur la carte…"
+              placeholder="Short description shown on the card…"
               rows={2}
               className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 resize-none"
             />
@@ -141,12 +141,12 @@ export default function ScenarioForm({ scenarioId, initialData }: ScenarioFormPr
           {/* Objectif */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Objectif pédagogique
+              Learning objective
             </label>
             <textarea
               value={objectif}
               onChange={(e) => setObjectif(e.target.value)}
-              placeholder="Ce que l'apprenant doit accomplir…"
+              placeholder="What the learner must accomplish…"
               rows={3}
               className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 resize-none"
             />
@@ -169,15 +169,15 @@ export default function ScenarioForm({ scenarioId, initialData }: ScenarioFormPr
             </button>
             <Volume2 size={14} className={bruitRecommande ? "text-indigo-400" : "text-gray-600"} />
             <div>
-              <p className="text-sm font-medium text-white">Bruit ambiant recommandé</p>
-              <p className="text-xs text-gray-500">Activer la simulation de trafic réseau réaliste pendant ce scénario</p>
+              <p className="text-sm font-medium text-white">Recommended ambient noise</p>
+              <p className="text-xs text-gray-500">Enable realistic network traffic simulation during this scenario</p>
             </div>
           </div>
 
           {/* Markdown Editor */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Contenu (Markdown) <span className="text-red-500">*</span>
+              Content (Markdown) <span className="text-red-500">*</span>
             </label>
             <div data-color-mode="dark" className="rounded-xl overflow-hidden border border-gray-800">
               <MDEditor
@@ -201,7 +201,7 @@ export default function ScenarioForm({ scenarioId, initialData }: ScenarioFormPr
               onClick={() => router.back()}
               className="px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-400 border border-gray-800 hover:border-gray-700 hover:text-white transition-colors"
             >
-              Annuler
+              Cancel
             </button>
             <button
               type="submit"
@@ -209,7 +209,7 @@ export default function ScenarioForm({ scenarioId, initialData }: ScenarioFormPr
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-              {isEdit ? "Enregistrer les modifications" : "Créer le scénario"}
+              {isEdit ? "Save changes" : "Create scenario"}
             </button>
           </div>
 

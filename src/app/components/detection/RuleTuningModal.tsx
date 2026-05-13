@@ -40,7 +40,7 @@ export default function RuleTuningModal({ onClose }: Props) {
             </div>
             <div>
               <p className="text-white font-bold">Rule Tuning</p>
-              <p className="text-gray-500 text-xs">Gérer les règles de détection SIEM</p>
+              <p className="text-gray-500 text-xs">Manage SIEM detection rules</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-colors">
@@ -79,7 +79,7 @@ export default function RuleTuningModal({ onClose }: Props) {
 
               {/* Threshold */}
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-[10px] text-gray-600 uppercase tracking-wider">Seuil</span>
+                <span className="text-[10px] text-gray-600 uppercase tracking-wider">Threshold</span>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => updateThreshold(rule.id, rule.threshold - 1)}
@@ -100,17 +100,17 @@ export default function RuleTuningModal({ onClose }: Props) {
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-800/60 flex-shrink-0">
           <button className="flex items-center gap-2 text-sm text-gray-500 hover:text-brand transition-colors font-medium">
             <Plus size={14} />
-            Nouvelle règle
+            New rule
           </button>
           <div className="flex gap-2">
             <button onClick={onClose} className="px-4 py-2 rounded-lg border border-gray-700 text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
-              Annuler
+              Cancel
             </button>
             <button
               onClick={onClose}
               className="px-4 py-2 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-semibold shadow-md shadow-brand/20 transition-all"
             >
-              Sauvegarder
+              Save
             </button>
           </div>
         </div>

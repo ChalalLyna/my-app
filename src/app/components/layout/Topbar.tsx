@@ -10,7 +10,7 @@ import { useAuth, UserRole } from "@/app/context/AuthContext";
 const ROLE_META: Record<UserRole, { label: string; color: string; bg: string; Icon: React.ComponentType<{ size: number }> }> = {
   admin:      { label: "Admin",      color: "text-red-400",   bg: "bg-red-500/10",   Icon: ShieldCheck },
   consultant: { label: "Consultant", color: "text-blue-400",  bg: "bg-blue-500/10",  Icon: UserCog },
-  apprenant:  { label: "Apprenant",  color: "text-green-400", bg: "bg-green-500/10", Icon: GraduationCap },
+  apprenant:  { label: "Learner",    color: "text-green-400", bg: "bg-green-500/10", Icon: GraduationCap },
 };
 
 const EMPTY_FORM = {
@@ -53,15 +53,15 @@ export default function Topbar() {
 
   async function handleSave() {
     if (!form.newPassword) {
-      setError("Veuillez saisir un nouveau mot de passe.");
+      setError("Please enter a new password.");
       return;
     }
     if (!form.currentPassword) {
-      setError("Le mot de passe actuel est requis.");
+      setError("Current password is required.");
       return;
     }
     if (form.newPassword !== form.confirmPassword) {
-      setError("Les mots de passe ne correspondent pas.");
+      setError("Passwords do not match.");
       return;
     }
 
@@ -82,10 +82,10 @@ export default function Topbar() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Erreur inconnue.");
+        setError(data.error ?? "Unknown error.");
         return;
       }
-      setSuccess("Mot de passe modifié avec succès.");
+      setSuccess("Password changed successfully.");
       setTimeout(() => setProfileOpen(false), 1200);
     } finally {
       setSaving(false);
@@ -143,14 +143,14 @@ export default function Topbar() {
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-800/60 rounded-xl transition-colors text-left"
                   >
                     <User size={14} className="text-gray-500" />
-                    Mon profil
+                    My profile
                   </button>
                   <button
                     onClick={logout}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-colors text-left"
                   >
                     <LogOut size={14} />
-                    Se déconnecter
+                    Sign out
                   </button>
                 </div>
               </div>
@@ -171,7 +171,7 @@ export default function Topbar() {
                 <div className="w-9 h-9 rounded-full bg-linear-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
                   {user?.avatar}
                 </div>
-                <h2 className="text-lg font-bold text-white">Mon profil</h2>
+                <h2 className="text-lg font-bold text-white">My profile</h2>
               </div>
               <button
                 onClick={() => setProfileOpen(false)}
@@ -204,12 +204,12 @@ export default function Topbar() {
               {/* Changer le mot de passe */}
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">
-                  Changer le mot de passe
+                  Change password
                 </p>
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs text-gray-400 mb-1.5 font-medium">
-                      Mot de passe actuel
+                      Current password
                     </label>
                     <div className="relative">
                       <input
@@ -230,14 +230,14 @@ export default function Topbar() {
                   </div>
                   <div>
                     <label className="block text-xs text-gray-400 mb-1.5 font-medium">
-                      Nouveau mot de passe
+                      New password
                     </label>
                     <div className="relative">
                       <input
                         type={showNewPwd ? "text" : "password"}
                         value={form.newPassword}
                         onChange={(e) => setForm((f) => ({ ...f, newPassword: e.target.value }))}
-                        placeholder="Minimum 8 caractères"
+                        placeholder="Minimum 8 characters"
                         className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 pr-10 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50"
                       />
                       <button
@@ -251,7 +251,7 @@ export default function Topbar() {
                   </div>
                   <div>
                     <label className="block text-xs text-gray-400 mb-1.5 font-medium">
-                      Confirmer le nouveau mot de passe
+                      Confirm new password
                     </label>
                     <input
                       type="password"
@@ -272,7 +272,7 @@ export default function Topbar() {
                   onClick={() => setProfileOpen(false)}
                   className="flex-1 py-2 rounded-xl text-sm font-medium text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 transition-colors"
                 >
-                  Annuler
+                  Cancel
                 </button>
                 <button
                   onClick={handleSave}
@@ -280,7 +280,7 @@ export default function Topbar() {
                   className="flex-1 py-2 rounded-xl text-sm font-medium bg-brand/20 hover:bg-brand/30 border border-brand/30 text-brand transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {saving && <Loader2 size={14} className="animate-spin" />}
-                  Enregistrer
+                  Save
                 </button>
               </div>
             </div>

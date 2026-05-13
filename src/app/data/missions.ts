@@ -1,4 +1,4 @@
-export type MissionStatus = "En cours" | "Terminée" | "Planifiée" | "Échouée";
+export type MissionStatus = "In Progress" | "Completed" | "Planned" | "Failed";
 export type MissionType = "Red Team" | "Blue Team" | "Purple Team" | "Audit";
 
 export interface MissionTask {
@@ -35,24 +35,24 @@ export interface MissionReport {
 
 export const MISSION_TASKS: MissionTask[] = [
   // Infrastructure
-  { id: "import-rules",    label: "Importer des règles",         description: "Importer un jeu de règles Sigma depuis un fichier ou dépôt externe.",      category: "Infrastructure" },
-  { id: "export-rules",    label: "Exporter des règles",         description: "Exporter les règles de détection actives au format Sigma YAML.",             category: "Infrastructure" },
-  { id: "replicate-ad",    label: "Répliquer AD",                description: "Répliquer la structure Active Directory cible dans l'environnement Ludus.",  category: "Infrastructure" },
-  { id: "deploy-agent",    label: "Déployer un agent",           description: "Installer l'agent Caldera sur les assets cibles.",                           category: "Infrastructure" },
-  { id: "snapshot",        label: "Snapshot des VMs",            description: "Créer un snapshot de l'état actuel des machines avant la mission.",          category: "Infrastructure" },
+  { id: "import-rules",    label: "Import rules",          description: "Import a Sigma rule set from a file or external repository.",               category: "Infrastructure" },
+  { id: "export-rules",    label: "Export rules",          description: "Export active detection rules in Sigma YAML format.",                       category: "Infrastructure" },
+  { id: "replicate-ad",    label: "Replicate AD",          description: "Replicate the target Active Directory structure in the Ludus environment.", category: "Infrastructure" },
+  { id: "deploy-agent",    label: "Deploy agent",          description: "Install the Caldera agent on target assets.",                               category: "Infrastructure" },
+  { id: "snapshot",        label: "VM snapshot",           description: "Create a snapshot of the current machine state before the mission.",        category: "Infrastructure" },
   // Attack
-  { id: "recon",           label: "Reconnaissance",              description: "Phase de collecte d'informations sur la cible (OSINT, scan réseau).",        category: "Attaque" },
-  { id: "initial-access",  label: "Accès initial",               description: "Simuler une tentative d'accès initial via phishing ou exploit.",             category: "Attaque" },
-  { id: "lateral-movement",label: "Mouvement latéral",           description: "Simuler un mouvement latéral entre assets du réseau.",                       category: "Attaque" },
-  { id: "exfiltration",    label: "Exfiltration de données",     description: "Simuler une exfiltration de données sensibles hors du réseau.",              category: "Attaque" },
-  { id: "persistence",     label: "Persistance",                 description: "Établir un mécanisme de persistance sur le système compromis.",              category: "Attaque" },
+  { id: "recon",           label: "Reconnaissance",        description: "Information gathering phase on the target (OSINT, network scan).",          category: "Attack" },
+  { id: "initial-access",  label: "Initial access",        description: "Simulate an initial access attempt via phishing or exploit.",               category: "Attack" },
+  { id: "lateral-movement",label: "Lateral movement",      description: "Simulate lateral movement between network assets.",                         category: "Attack" },
+  { id: "exfiltration",    label: "Data exfiltration",     description: "Simulate sensitive data exfiltration out of the network.",                  category: "Attack" },
+  { id: "persistence",     label: "Persistence",           description: "Establish a persistence mechanism on the compromised system.",              category: "Attack" },
   // Detection
-  { id: "tune-rules",      label: "Affiner les règles SIEM",     description: "Revoir et ajuster les règles de détection suite aux résultats.",             category: "Détection" },
-  { id: "review-alerts",   label: "Analyser les alertes",        description: "Analyser toutes les alertes générées pendant la mission.",                   category: "Détection" },
-  { id: "gap-analysis",    label: "Analyse des lacunes",         description: "Identifier les attaques non détectées par le SIEM actuel.",                  category: "Détection" },
+  { id: "tune-rules",      label: "Tune SIEM rules",       description: "Review and adjust detection rules based on mission results.",               category: "Detection" },
+  { id: "review-alerts",   label: "Analyze alerts",        description: "Analyze all alerts generated during the mission.",                          category: "Detection" },
+  { id: "gap-analysis",    label: "Gap analysis",          description: "Identify attacks not detected by the current SIEM.",                        category: "Detection" },
   // Reporting
-  { id: "report",          label: "Générer un rapport",          description: "Produire le rapport de mission complet avec recommandations.",                category: "Rapport" },
-  { id: "debrief",         label: "Débrief équipe",              description: "Organiser une session de débrief avec les parties prenantes.",               category: "Rapport" },
+  { id: "report",          label: "Generate report",       description: "Produce the complete mission report with recommendations.",                  category: "Reporting" },
+  { id: "debrief",         label: "Team debrief",          description: "Organize a debrief session with stakeholders.",                             category: "Reporting" },
 ];
 
 export const MOCK_MISSIONS: Mission[] = [
@@ -60,38 +60,38 @@ export const MOCK_MISSIONS: Mission[] = [
     id: "M001",
     name: "Purple Team Q1 2025",
     type: "Purple Team",
-    status: "Terminée",
+    status: "Completed",
     tasks: ["import-rules", "replicate-ad", "initial-access", "lateral-movement", "review-alerts", "tune-rules", "report"],
     createdAt: "2025-03-01T09:00:00Z",
     completedAt: "2025-03-15T17:00:00Z",
     target: "WS-CORP-042 / SRV-DC-01",
     createdBy: "John Doe",
     report: {
-      summary: "Mission Purple Team Q1 réalisée avec succès. 7 techniques ATT&CK simulées, 5 détectées par le SIEM. 2 lacunes de détection identifiées et corrigées via rule tuning. Score de couverture amélioré de 62% à 79%.",
+      summary: "Purple Team Q1 mission completed successfully. 7 ATT&CK techniques simulated, 5 detected by the SIEM. 2 detection gaps identified and fixed via rule tuning. Coverage score improved from 62% to 79%.",
       vulnerabilities: [
-        { title: "PowerShell non supervisé", severity: "Critical", description: "Les commandes PowerShell encodées ne sont pas bloquées par l'EDR actuel, permettant une exécution arbitraire de code." },
-        { title: "Comptes de service sur-privilégiés", severity: "High", description: "Le compte svc_backup dispose de droits Domain Admin non nécessaires à son rôle." },
-        { title: "SMB v1 actif sur SRV-DC-01", severity: "High", description: "SMBv1 est actif sur le contrôleur de domaine, exposant le système à EternalBlue." },
-        { title: "Logs d'audit insuffisants", severity: "Medium", description: "Les événements de type 4624 ne sont pas correctement centralisés dans le SIEM." },
+        { title: "Unmonitored PowerShell", severity: "Critical", description: "Base64-encoded PowerShell commands are not blocked by the current EDR, allowing arbitrary code execution." },
+        { title: "Over-privileged service accounts", severity: "High", description: "The svc_backup account holds Domain Admin rights not required for its role." },
+        { title: "SMB v1 active on SRV-DC-01", severity: "High", description: "SMBv1 is active on the domain controller, exposing the system to EternalBlue." },
+        { title: "Insufficient audit logs", severity: "Medium", description: "Type 4624 events are not properly centralized in the SIEM." },
       ],
       recommendations: [
-        "Activer le mode Constrained Language de PowerShell sur tous les postes.",
-        "Revoir les droits des comptes de service — appliquer le principe du moindre privilège.",
-        "Désactiver SMBv1 sur l'ensemble des systèmes via GPO.",
-        "Centraliser les logs EventID 4624 et 4625 dans le SIEM.",
-        "Déployer une règle Sigma pour détecter les connexions après-heures sur les comptes de service.",
+        "Enable PowerShell Constrained Language Mode on all workstations.",
+        "Review service account permissions — apply the principle of least privilege.",
+        "Disable SMBv1 across all systems via GPO.",
+        "Centralize EventID 4624 and 4625 logs in the SIEM.",
+        "Deploy a Sigma rule to detect after-hours logins on service accounts.",
       ],
       score: 79,
       ttpsUsed: ["T1566", "T1078", "T1021", "T1059", "T1486", "T1048", "T1083"],
       alertsGenerated: 12,
-      duration: "14 jours",
+      duration: "14 days",
     },
   },
   {
     id: "M002",
     name: "Audit AD — Infrastructure",
     type: "Audit",
-    status: "En cours",
+    status: "In Progress",
     tasks: ["replicate-ad", "deploy-agent", "recon", "gap-analysis"],
     createdAt: "2025-04-01T10:00:00Z",
     target: "SRV-DC-01",
@@ -101,7 +101,7 @@ export const MOCK_MISSIONS: Mission[] = [
     id: "M003",
     name: "Red Team Ransomware Sim",
     type: "Red Team",
-    status: "Planifiée",
+    status: "Planned",
     tasks: ["snapshot", "initial-access", "persistence", "exfiltration", "report"],
     createdAt: "2025-04-10T14:00:00Z",
     target: "WS-CORP-042 / USER-LAPTOP-03",

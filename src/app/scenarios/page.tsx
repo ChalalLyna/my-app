@@ -23,9 +23,9 @@ const NIVEAU_META: Record<string, {
   icon:  React.ComponentType<{ size: number; className?: string }>;
   color: string; bg: string; border: string; order: number;
 }> = {
-  beginner:     { label: "Débutant",      icon: GraduationCap, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", order: 0 },
-  intermediate: { label: "Intermédiaire", icon: Zap,           color: "text-amber-400",   bg: "bg-amber-500/10",   border: "border-amber-500/20",   order: 1 },
-  advanced:     { label: "Avancé",        icon: Flame,         color: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/20",     order: 2 },
+  beginner:     { label: "Beginner",     icon: GraduationCap, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", order: 0 },
+  intermediate: { label: "Intermediate", icon: Zap,           color: "text-amber-400",   bg: "bg-amber-500/10",   border: "border-amber-500/20",   order: 1 },
+  advanced:     { label: "Advanced",     icon: Flame,         color: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/20",     order: 2 },
 };
 
 const DEFAULT_NIVEAU = { label: "Autre", icon: Layers, color: "text-gray-400", bg: "bg-gray-500/10", border: "border-gray-500/20", order: 99 };
@@ -55,7 +55,7 @@ export default function ScenariosPage() {
   useEffect(() => { fetchScenarios(); }, [fetchScenarios]);
 
   async function handleDelete(s: Scenario) {
-    if (!window.confirm(`Supprimer "${s.titre}" ?`)) return;
+    if (!window.confirm(`Delete "${s.titre}"?`)) return;
     setDeleting(s.id);
     await fetch(`/api/scenarios/${s.id}`, { method: "DELETE" });
     setDeleting(null);
@@ -91,9 +91,9 @@ export default function ScenariosPage() {
                 Scénarios
               </span>
             </div>
-            <h1 className="text-2xl font-bold text-white">Scénarios d'entraînement</h1>
+            <h1 className="text-2xl font-bold text-white">Training Scenarios</h1>
             <p className="text-gray-500 text-sm mt-1">
-              Exercices pratiques de cybersécurité offensive et défensive
+              Hands-on offensive and defensive cybersecurity exercises
             </p>
           </div>
           {isAdmin && (
@@ -102,7 +102,7 @@ export default function ScenariosPage() {
               className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-colors"
             >
               <Plus size={15} />
-              Ajouter un scénario
+              Add scenario
             </Link>
           )}
         </div>
@@ -113,7 +113,7 @@ export default function ScenariosPage() {
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
             <input
               type="text"
-              placeholder="Rechercher un scénario…"
+              placeholder="Search scenarios…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-8 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50"
@@ -128,7 +128,7 @@ export default function ScenariosPage() {
                   : "bg-gray-900 border-gray-800 text-gray-400 hover:border-gray-700"
               }`}
             >
-              Tous
+              All
             </button>
             {niveaux.map((n) => {
               const meta = getNiveauMeta(n);
@@ -153,9 +153,9 @@ export default function ScenariosPage() {
 
         {/* Content */}
         {loading ? (
-          <div className="flex items-center justify-center py-24 text-gray-600 text-sm">Chargement…</div>
+          <div className="flex items-center justify-center py-24 text-gray-600 text-sm">Loading…</div>
         ) : Object.keys(grouped).length === 0 ? (
-          <div className="flex items-center justify-center py-24 text-gray-600 text-sm">Aucun scénario trouvé.</div>
+          <div className="flex items-center justify-center py-24 text-gray-600 text-sm">No scenarios found.</div>
         ) : (
           <div className="space-y-10">
             {Object.entries(grouped).map(([niveau, items]) => {

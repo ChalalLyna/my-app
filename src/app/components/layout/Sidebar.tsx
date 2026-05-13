@@ -7,9 +7,9 @@ import { useAuth } from "@/app/context/AuthContext";
 import { NAV_ITEMS } from "@/app/config/navigation";
 
 const ROLE_COLORS = {
-  admin:      { badge: "bg-red-500/20 text-red-300",      dot: "bg-red-400",      label: "Administrateur" },
+  admin:      { badge: "bg-red-500/20 text-red-300",      dot: "bg-red-400",      label: "Administrator" },
   consultant: { badge: "bg-indigo-500/20 text-indigo-300", dot: "bg-indigo-400",  label: "Consultant" },
-  apprenant:  { badge: "bg-emerald-500/20 text-emerald-300", dot: "bg-emerald-400", label: "Apprenant" },
+  apprenant:  { badge: "bg-emerald-500/20 text-emerald-300", dot: "bg-emerald-400", label: "Learner" },
 };
 
 export default function Sidebar() {
@@ -87,7 +87,7 @@ export default function Sidebar() {
           className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:text-red-400 hover:bg-red-900/20 transition-all"
         >
           <LogOut size={15} />
-          Se déconnecter
+          Sign out
         </button>
       </div>
 
@@ -98,7 +98,7 @@ export default function Sidebar() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
           </span>
-          <span className="text-xs text-gray-500 font-medium">Système Active</span>
+          <span className="text-xs text-gray-500 font-medium">System Active</span>
         </div>
       </div>
     </aside>

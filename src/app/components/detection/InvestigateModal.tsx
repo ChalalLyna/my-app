@@ -19,7 +19,7 @@ interface Props {
 
 export default function InvestigateModal({ alert, onClose, onStatusChange }: Props) {
   const sev  = SEVERITY_STYLES[alert.severity];
-  const date = new Date(alert.timestamp).toLocaleString("fr-FR");
+  const date = new Date(alert.timestamp).toLocaleString("en-US");
 
   const [status, setStatus] = useState<AlertStatus>(alert.status);
 
@@ -62,11 +62,11 @@ export default function InvestigateModal({ alert, onClose, onStatusChange }: Pro
               { icon: Monitor,   label: "Agent",         value: alert.asset },
               { icon: Wifi,      label: "Agent IP",       value: alert.agentIp ?? "—" },
               { icon: Hash,      label: "Rule ID",        value: alert.ttp },
-              { icon: Tag,       label: "Catégories",     value: alert.ttpName || "—" },
-              { icon: Shield,    label: "Niveau",         value: alert.ruleLevel != null ? `Level ${alert.ruleLevel}` : "—" },
-              { icon: RefreshCw, label: "Déclenchements", value: alert.ruleFiredTimes != null ? `${alert.ruleFiredTimes}×` : "—" },
-              { icon: Clock,     label: "Timestamp",      value: date },
-              { icon: Server,    label: "Décodeur",       value: alert.source },
+              { icon: Tag,       label: "Categories",  value: alert.ttpName || "—" },
+              { icon: Shield,    label: "Level",       value: alert.ruleLevel != null ? `Level ${alert.ruleLevel}` : "—" },
+              { icon: RefreshCw, label: "Fired times", value: alert.ruleFiredTimes != null ? `${alert.ruleFiredTimes}×` : "—" },
+              { icon: Clock,     label: "Timestamp",   value: date },
+              { icon: Server,    label: "Decoder",     value: alert.source },
             ] as { icon: React.ElementType; label: string; value: string }[]).map(({ icon: Icon, label, value }) => (
               <div key={label} className="bg-gray-900 border border-gray-800/50 rounded-xl p-3">
                 <div className="flex items-center gap-1.5 mb-1">
@@ -88,7 +88,7 @@ export default function InvestigateModal({ alert, onClose, onStatusChange }: Pro
 
           {/* Status — live */}
           <div className="flex items-center gap-3">
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-600">Statut</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-600">Status</p>
             <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${
               status === "New"           ? "bg-blue-900/30 text-blue-400 border-blue-800/40" :
               status === "Investigating" ? "bg-amber-900/30 text-amber-400 border-amber-800/40" :
@@ -111,10 +111,10 @@ export default function InvestigateModal({ alert, onClose, onStatusChange }: Pro
 
           {/* Investigation note */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-600 mb-2">Note d'investigation</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-600 mb-2">Investigation note</p>
             <textarea
               rows={3}
-              placeholder="Ajoutez vos observations ici..."
+              placeholder="Add your observations here..."
               className="w-full bg-gray-900 border border-gray-700/80 rounded-xl px-4 py-3 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all resize-none"
             />
           </div>
@@ -126,7 +126,7 @@ export default function InvestigateModal({ alert, onClose, onStatusChange }: Pro
             onClick={onClose}
             className="px-4 py-2 rounded-lg border border-gray-700 text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
           >
-            Fermer
+            Close
           </button>
           <div className="flex gap-2">
             <button
@@ -138,7 +138,7 @@ export default function InvestigateModal({ alert, onClose, onStatusChange }: Pro
                   : "bg-amber-600/20 border-amber-700/40 text-amber-400 hover:bg-amber-600/30"
               }`}
             >
-              Marquer "Investigating"
+              Mark as Investigating
             </button>
             <button
               onClick={() => { changeStatus("Resolved"); onClose(); }}
@@ -149,7 +149,7 @@ export default function InvestigateModal({ alert, onClose, onStatusChange }: Pro
                   : "bg-emerald-600/20 border-emerald-700/40 text-emerald-400 hover:bg-emerald-600/30"
               }`}
             >
-              Résoudre
+              Resolve
             </button>
           </div>
         </div>

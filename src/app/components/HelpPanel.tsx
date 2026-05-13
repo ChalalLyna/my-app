@@ -86,7 +86,7 @@ export default function HelpPanel({ title, sections }: HelpPanelProps) {
         {/* Footer */}
         <div className="px-5 py-3 border-t border-gray-800/40 flex-shrink-0">
           <p className="text-[10px] text-gray-600 text-center">
-            Guide pédagogique CyberLab
+            CyberLab Learning Guide
           </p>
         </div>
       </div>
@@ -101,7 +101,7 @@ export default function HelpPanel({ title, sections }: HelpPanelProps) {
         }`}
       >
         <HelpCircle size={17} />
-        {isOpen ? "Fermer l'aide" : "Aide"}
+        {isOpen ? "Close help" : "Help"}
       </button>
     </>
   );

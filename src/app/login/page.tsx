@@ -28,7 +28,7 @@ function LoginForm() {
     setLoading(true);
     const result = await login(email, password, callbackUrl);
     if (!result.success) {
-      setError(result.error ?? "Erreur inconnue.");
+      setError(result.error ?? "Unknown error.");
       setLoading(false);
     }
   };
@@ -74,7 +74,7 @@ function LoginForm() {
             {/* Email */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-                Adresse Mail
+                Email Address
               </label>
               <input
                 type="email"
@@ -90,7 +90,7 @@ function LoginForm() {
             {/* Password */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-                Mot de passe
+                Password
               </label>
               <div className="relative">
                 <input
@@ -129,12 +129,12 @@ function LoginForm() {
               {loading ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  Authentification...
+                  Authenticating...
                 </>
               ) : (
                 <>
                   <Shield size={15} />
-                  Se connecter
+                  Sign in
                 </>
               )}
             </button>
@@ -145,7 +145,7 @@ function LoginForm() {
             <div className="flex items-center gap-2 mb-3">
               <Terminal size={12} className="text-gray-600" />
               <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-600">
-                Comptes de démonstration
+                Demo Accounts
               </p>
             </div>
             <div className="flex flex-col gap-1.5">
