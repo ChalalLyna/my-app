@@ -364,7 +364,7 @@ function CtiModal({ onClose }: { onClose: () => void }) {
           <div className="w-9 h-9 rounded-xl bg-amber-600/15 flex items-center justify-center shrink-0">
             <BookOpen size={16} className="text-amber-400" />
           </div>
-          <h3 className="text-white font-bold">Règles CTI</h3>
+          <h3 className="text-white font-bold">CTI Rules</h3>
         </div>
         <p className="text-gray-400 text-sm leading-relaxed">
           The CTI database contains detection rules derived from Sigma, converted to Wazuh format.
@@ -486,10 +486,10 @@ function RuleTuningPageInner() {
   const handleDelete = async (rule: WazuhRule) => {
     const isCustom = rule.relativeDirname.includes("etc");
     if (!isCustom) {
-      alert("Les règles système Wazuh ne peuvent pas être supprimées depuis cette interface.");
+      alert("Wazuh system rules cannot be deleted from this interface.");
       return;
     }
-    if (!confirm(`Supprimer "${rule.name}" (${rule.filename}) ?`)) return;
+    if (!confirm(`Delete "${rule.name}" (${rule.filename})?`)) return;
  
     // Fetch original XML for rollback before deleting
     let originalXml: string | null = null;
@@ -505,13 +505,13 @@ function RuleTuningPageInner() {
       });
       if (!res.ok) {
         const d = await res.json();
-        alert(`Erreur : ${d.error}`);
+        alert(`Error: ${d.error}`);
         return;
       }
       setRules(prev => prev.filter(r => r.id !== rule.id));
       setPendingRestart({ type: "delete", filename: rule.filename, originalXml });
     } catch (err: any) {
-      alert(`Erreur : ${err.message}`);
+      alert(`Error: ${err.message}`);
     }
   };
  
@@ -720,8 +720,8 @@ function RuleTuningPageInner() {
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-14">ID</span>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-16">Severity</span>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 flex-1">Rule / Groups</span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-16">Niveau</span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-48">Fichier</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-16">Level</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-48">File</span>
                 <span className="w-28 shrink-0" />
               </div>
  
@@ -734,15 +734,15 @@ function RuleTuningPageInner() {
                 ) : apiError ? (
                   <div className="flex flex-col items-center justify-center py-16 gap-3">
                     <AlertTriangle size={28} className="text-red-500/60" />
-                    <p className="text-sm text-red-400">Erreur Manager API : {apiError}</p>
+                    <p className="text-sm text-red-400">Manager API error: {apiError}</p>
                     <button onClick={() => fetchRules(search)} className="text-xs text-gray-400 hover:text-white underline">
-                      Réessayer
+                      Retry
                     </button>
                   </div>
                 ) : filtered.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 gap-3 text-gray-600">
                     <Shield size={32} className="text-gray-700" />
-                    <p className="text-sm">Aucune règle trouvée</p>
+                    <p className="text-sm">No rules found</p>
                   </div>
                 ) : (
                   filtered.map(rule => (

@@ -108,9 +108,9 @@ export default function DetectionPage() {
               <Shield size={28} className="text-gray-600" />
             </div>
             <div>
-              <h2 className="text-white font-bold text-xl">Aucune alerte pour le moment</h2>
+              <h2 className="text-white font-bold text-xl">No alerts yet</h2>
               <p className="text-gray-500 text-sm mt-2 leading-relaxed">
-                Aucune simulation d'attaque n'a encore été lancée. Les alertes Wazuh apparaîtront ici après une simulation.
+                No attack simulation has been launched yet. Wazuh alerts will appear here after a simulation.
               </p>
             </div>
           </div>
@@ -135,13 +135,13 @@ export default function DetectionPage() {
               Detection
             </h1>
             <p className="text-gray-500 text-sm mt-0.5">
-              Alertes depuis le {new Date(launchTimestamp).toLocaleString("fr-FR")}
+              Alerts since {new Date(launchTimestamp).toLocaleString("en-US")}
             </p>
           </div>
           <div className="flex items-center gap-3">
             {lastFetch && (
               <span className="text-xs text-gray-600">
-                Mis à jour : {lastFetch.toLocaleTimeString("fr-FR")}
+                Updated: {lastFetch.toLocaleTimeString("en-US")}
               </span>
             )}
             <button
@@ -150,7 +150,7 @@ export default function DetectionPage() {
               className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gray-800 border border-gray-700/60 text-gray-300 hover:text-white hover:bg-gray-700 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-              Actualiser
+              Refresh
             </button>
             <button
               onClick={() => router.push("/detection/rule-tuning")}
@@ -165,10 +165,10 @@ export default function DetectionPage() {
         {/* Stats */}
         <div className="grid grid-cols-4 gap-3 mb-6">
           {[
-            { label: "Total alertes",  value: alerts.length, color: "text-white",       border: "border-gray-800"       },
+            { label: "Total alerts",   value: alerts.length, color: "text-white",       border: "border-gray-800"       },
             { label: "Critical",       value: critCount,     color: "text-red-400",     border: "border-red-900/40"     },
             { label: "High",           value: highCount,     color: "text-orange-400",  border: "border-orange-900/40"  },
-            { label: "Agents touchés", value: agentCount,    color: "text-brand",       border: "border-brand/20"       },
+            { label: "Affected agents", value: agentCount,    color: "text-brand",       border: "border-brand/20"       },
           ].map(s => (
             <div key={s.label} className={`bg-gray-900 border ${s.border} rounded-xl p-4`}>
               <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
@@ -183,12 +183,12 @@ export default function DetectionPage() {
           {error && (
             <div className="flex items-center gap-3 px-5 py-3 bg-red-900/20 border-b border-red-800/40 shrink-0">
               <AlertTriangle size={14} className="text-red-400 shrink-0" />
-              <p className="text-sm text-red-400">Erreur Wazuh : {error}</p>
+              <p className="text-sm text-red-400">Wazuh error: {error}</p>
               <button
                 onClick={() => fetchAlerts(launchTimestamp)}
                 className="ml-auto text-xs text-red-400 hover:text-red-300 underline"
               >
-                Réessayer
+                Retry
               </button>
             </div>
           )}
@@ -196,7 +196,7 @@ export default function DetectionPage() {
           {loading && alerts.length === 0 ? (
             <div className="flex-1 flex items-center justify-center gap-3 text-gray-500">
               <RefreshCw size={16} className="animate-spin" />
-              <span className="text-sm">Chargement des alertes Wazuh...</span>
+              <span className="text-sm">Loading Wazuh alerts...</span>
             </div>
 
           ) : !loading && alerts.length === 0 && !error ? (
@@ -205,9 +205,9 @@ export default function DetectionPage() {
                 <Shield size={24} className="text-gray-600" />
               </div>
               <div className="text-center">
-                <p className="text-white font-semibold">Aucune alerte pour le moment</p>
+                <p className="text-white font-semibold">No alerts yet</p>
                 <p className="text-gray-500 text-sm mt-1">
-                  Aucune alerte Wazuh n'a été générée depuis le lancement de la simulation.
+                  No Wazuh alerts have been generated since the simulation was launched.
                 </p>
               </div>
               <button
@@ -229,7 +229,7 @@ export default function DetectionPage() {
                     type="text"
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    placeholder="Rechercher une alerte, asset, règle..."
+                    placeholder="Search alerts, assets, rules..."
                     className="w-full bg-gray-800/60 border border-gray-700/80 rounded-xl pl-10 pr-4 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all"
                   />
                 </div>
@@ -246,7 +246,7 @@ export default function DetectionPage() {
                             : "bg-gray-800/60 text-gray-500 hover:text-gray-300 border border-gray-800"
                         }`}
                       >
-                        {f === "all" ? "Toutes" : f}
+                        {f === "all" ? "All" : f}
                       </button>
                     );
                   })}
@@ -255,10 +255,10 @@ export default function DetectionPage() {
 
               {/* Column headers */}
               <div className="flex items-center gap-2 px-5 py-2.5 border-b border-gray-800/40 bg-gray-900/60 shrink-0">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-20 shrink-0">Sévérité</span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 flex-1">Alerte</span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-44 shrink-0">Agent / Actif</span>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-24 shrink-0">Règle</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-20 shrink-0">Severity</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 flex-1">Alert</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-44 shrink-0">Agent / Asset</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-24 shrink-0">Rule</span>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 w-36 shrink-0">Timestamp</span>
                 <span className="w-48 shrink-0" />
               </div>
@@ -268,17 +268,17 @@ export default function DetectionPage() {
                 {loading ? (
                   <div className="flex items-center justify-center py-10 gap-2 text-gray-600">
                     <RefreshCw size={14} className="animate-spin" />
-                    <span className="text-sm">Actualisation...</span>
+                    <span className="text-sm">Refreshing...</span>
                   </div>
                 ) : filteredAlerts.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 gap-3 text-gray-600">
                     <Shield size={28} className="text-gray-700" />
-                    <p className="text-sm">Aucune alerte correspondant aux filtres</p>
+                    <p className="text-sm">No alerts matching the filters</p>
                   </div>
                 ) : (
                   filteredAlerts.map(alert => {
                     const sev        = SEVERITY_STYLES[alert.severity];
-                    const date       = new Date(alert.timestamp).toLocaleString("fr-FR");
+                    const date       = new Date(alert.timestamp).toLocaleString("en-US");
                     const rowStatus  = alertStatuses[alert.id] ?? "New";
                     const dbAsset    = assetMap.byIp[alert.agentIp ?? ""] ?? assetMap.byName[alert.asset.toLowerCase()];
                     const rowBorder  =
@@ -356,13 +356,13 @@ export default function DetectionPage() {
                             onClick={e => { e.stopPropagation(); setRuleAlert(alert); }}
                             className="px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-xs font-medium transition-all"
                           >
-                            Voir règle
+                            View rule
                           </button>
                           <button
                             onClick={e => { e.stopPropagation(); setSelectedAlert(alert); }}
                             className="px-2.5 py-1.5 rounded-lg bg-brand/20 hover:bg-brand/30 border border-brand/30 text-brand text-xs font-medium transition-all"
                           >
-                            Investiguer
+                            Investigate
                           </button>
                         </div>
                       </div>
@@ -385,7 +385,7 @@ export default function DetectionPage() {
       {ruleAlert && (
         <RuleModal alert={ruleAlert} onClose={() => setRuleAlert(null)} />
       )}
-      <HelpPanel title="Aide — Détection" sections={DETECTION_HELP} />
+      <HelpPanel title="Help — Detection" sections={DETECTION_HELP} />
     </DashboardLayout>
   );
 }
