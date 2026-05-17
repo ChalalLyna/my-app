@@ -1,5 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { verifyToken, COOKIE_NAME } from "@/lib/auth";
+
+function requireAdmin(req: NextRequest) {
+  const token = req.cookies.get(COOKIE_NAME)?.value;
+  if (!token) return null;
+  const payload = verifyToken(token);
+  return payload?.role === "admin" ? payload : null;
+}
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: rawId } = await params;
@@ -30,7 +38,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   }
 }
 
-export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (!requireAdmin(req)) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
   const { id: rawId } = await params;
   const id = Number(rawId);
   if (isNaN(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
@@ -52,7 +61,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (!requireAdmin(req)) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
   const { id: rawId } = await params;
   const id = Number(rawId);
   if (isNaN(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
