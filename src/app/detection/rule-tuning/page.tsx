@@ -12,6 +12,7 @@ import {
   CheckCircle, XCircle, Edit2, Trash2,
   Save, X, AlertTriangle,
   Code2, Info, Hash, Shield, BookOpen, Loader2, RefreshCw, RotateCcw,
+  Send,
 } from "lucide-react";
  
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -392,6 +393,98 @@ function CtiModal({ onClose }: { onClose: () => void }) {
  
 // ─── Main page ────────────────────────────────────────────────────────────────
  
+// ─── Submit for review modal ──────────────────────────────────────────────────
+
+interface PendingReview {
+  ruleName: string;
+  xml: string;
+  filename: string;
+  action: "create" | "modify";
+}
+
+interface SubmitReviewModalProps {
+  pending: PendingReview;
+  onSend: () => void;
+  onSkip: () => void;
+  sending: boolean;
+  sent: boolean;
+  error: string | null;
+}
+
+function SubmitReviewModal({ pending, onSend, onSkip, sending, sent, error }: SubmitReviewModalProps) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="relative bg-gray-950 border border-gray-800 rounded-2xl p-6 max-w-md mx-4 shadow-2xl">
+        {sent ? (
+          <div className="flex flex-col items-center gap-4 py-2 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-600/15 flex items-center justify-center">
+              <CheckCircle size={22} className="text-emerald-400" />
+            </div>
+            <div>
+              <h3 className="text-white font-bold">Sent for review!</h3>
+              <p className="text-gray-500 text-sm mt-1">
+                Your rule has been submitted to all consultants for validation.
+              </p>
+            </div>
+            <button
+              onClick={onSkip}
+              className="w-full px-4 py-2.5 rounded-xl bg-gray-800 border border-gray-700 text-sm text-gray-300 hover:text-white transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-brand/15 flex items-center justify-center shrink-0">
+                <Send size={16} className="text-brand" />
+              </div>
+              <div>
+                <h3 className="text-white font-bold">Submit for consultant review?</h3>
+                <p className="text-gray-500 text-xs mt-0.5 font-mono truncate max-w-xs">{pending.ruleName}</p>
+              </div>
+            </div>
+
+            <p className="text-gray-400 text-sm leading-relaxed mb-1">
+              Your rule <span className="text-white font-semibold">{pending.action === "create" ? "has been created" : "has been modified"}</span>.
+              Send it to all consultants so they can review and validate it.
+            </p>
+            <p className="text-gray-600 text-xs mb-5">
+              You can skip this step and submit later if needed.
+            </p>
+
+            {error && (
+              <div className="flex items-start gap-2 p-2.5 bg-red-900/20 border border-red-800/40 rounded-xl mb-4">
+                <AlertTriangle size={12} className="text-red-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-red-400">{error}</p>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={onSkip}
+                disabled={sending}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-700 text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition-colors disabled:opacity-40"
+              >
+                Skip
+              </button>
+              <button
+                onClick={onSend}
+                disabled={sending}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white text-sm font-semibold shadow-md shadow-brand/20 transition-all disabled:opacity-40"
+              >
+                {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                {sending ? "Sending..." : "Send to consultants"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function RuleTuningPageInner() {
   const { user } = useAuth();
   const router       = useRouter();
@@ -412,6 +505,10 @@ function RuleTuningPageInner() {
   const [pendingRestart, setPendingRestart] = useState<PendingAction | null>(null);
   const [restarting,     setRestarting]     = useState(false);
   const [restartError,   setRestartError]   = useState<string | null>(null);
+  const [pendingReview,  setPendingReview]  = useState<PendingReview | null>(null);
+  const [sendingReview,  setSendingReview]  = useState(false);
+  const [reviewSent,     setReviewSent]     = useState(false);
+  const [reviewError,    setReviewError]    = useState<string | null>(null);
  
   const fetchRules = useCallback(async (q: string) => {
     setLoading(true);
@@ -560,6 +657,16 @@ function RuleTuningPageInner() {
       setEditorTarget(undefined);
       fetchRules(search);
       setPendingRestart({ type: isNew ? "create" : "modify", filename, originalXml });
+      if (isApprenant) {
+        setPendingReview({
+          ruleName: isNew ? filename : (editorTarget?.name ?? filename),
+          xml,
+          filename,
+          action: isNew ? "create" : "modify",
+        });
+        setReviewSent(false);
+        setReviewError(null);
+      }
     } catch (err: any) {
       setSaveError(err.message);
     } finally {
@@ -605,6 +712,26 @@ function RuleTuningPageInner() {
     fetchRules(search);
   };
  
+  const handleSendReview = async () => {
+    if (!pendingReview) return;
+    setSendingReview(true);
+    setReviewError(null);
+    try {
+      const res = await fetch("/api/rule-reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pendingReview),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setReviewSent(true);
+    } catch (err: any) {
+      setReviewError(err.message);
+    } finally {
+      setSendingReview(false);
+    }
+  };
+
   const activeCount   = rules.filter(r => r.status === "active").length;
   const inactiveCount = rules.filter(r => r.status === "inactive").length;
   const isEditorOpen  = editorTarget !== undefined;
@@ -775,6 +902,17 @@ function RuleTuningPageInner() {
           error={restartError}
           onConfirm={handleConfirmRestart}
           onCancel={handleCancelRestart}
+        />
+      )}
+
+      {!pendingRestart && pendingReview && (
+        <SubmitReviewModal
+          pending={pendingReview}
+          onSend={handleSendReview}
+          onSkip={() => setPendingReview(null)}
+          sending={sendingReview}
+          sent={reviewSent}
+          error={reviewError}
         />
       )}
     </DashboardLayout>

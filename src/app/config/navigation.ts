@@ -17,6 +17,7 @@ import {
   UserCog,
   Database,
   Terminal,
+  ClipboardCheck,
 } from "lucide-react";
 import { UserRole } from "@/app/context/AuthContext";
 
@@ -46,6 +47,7 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: "Dashboard",               icon: LayoutDashboard, href: "/dashboard/consultant" },
     { label: "Attack Simulation",       icon: Crosshair,       href: "/attack-simulation"},
     { label: "Detection",               icon: Eye,             href: "/detection" },
+    { label: "Rule Review",             icon: ClipboardCheck,  href: "/rule-review" },
     { label: "Mission",                 icon: Flag,            href: "/mission" },
     { label: "CTI",                     icon: Shield,          href: "/cti" },
     { label: "Manual Pentest",          icon: Terminal,        href: "/manual-pentest" },
