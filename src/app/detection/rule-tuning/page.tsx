@@ -707,11 +707,12 @@ function RuleTuningPageInner() {
         });
       }
     } catch { /* best effort */ }
- 
+
     setPendingRestart(null);
+    setPendingReview(null);
     fetchRules(search);
   };
- 
+
   const handleSendReview = async () => {
     if (!pendingReview) return;
     setSendingReview(true);

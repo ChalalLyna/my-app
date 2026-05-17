@@ -10,8 +10,15 @@ function getUser(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  if (!getUser(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  return NextResponse.json(reviews);
+  const payload = getUser(req);
+  if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const mine = req.nextUrl.searchParams.get("mine") === "true";
+  const result = mine
+    ? reviews.filter(r => r.submittedById === String(payload.idUtilisateur))
+    : reviews;
+
+  return NextResponse.json(result);
 }
 
 export async function POST(req: NextRequest) {

@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import { useAuth } from "@/app/context/AuthContext";
 import {
   Crosshair, Brain, X, FileText, ChevronDown, ChevronUp,
   Shield, Clock, Monitor, Filter, Calendar, Search, TrendingUp,
+  ClipboardCheck, CheckCircle, XCircle, AlertTriangle, MessageSquare,
 } from "lucide-react";
+import { RuleReview } from "@/app/data/ruleReviews";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
   Tooltip, Cell, CartesianGrid,
@@ -326,6 +328,107 @@ function FiltersBar({
   );
 }
 
+// ─── My Submissions ───────────────────────────────────────────────────────────
+
+const REVIEW_STATUS_STYLES = {
+  pending:  { text: "text-amber-400",   bg: "bg-amber-500/10",   border: "border-amber-500/20",   label: "Pending"  },
+  approved: { text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", label: "Approved" },
+  rejected: { text: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/20",     label: "Rejected" },
+};
+
+function SubmissionRow({ review }: { review: RuleReview }) {
+  const [expanded, setExpanded] = useState(false);
+  const s = REVIEW_STATUS_STYLES[review.status];
+
+  return (
+    <div className="border-b border-gray-800/50 last:border-0">
+      <div
+        className="flex items-center gap-3 px-4 py-3 hover:bg-gray-900/40 transition-colors cursor-pointer"
+        onClick={() => setExpanded(v => !v)}
+      >
+        <button className="text-gray-600 hover:text-gray-400 transition-colors shrink-0">
+          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-semibold text-white truncate">{review.ruleName}</span>
+            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
+              review.action === "create"
+                ? "text-brand bg-brand/10 border-brand/30"
+                : "text-indigo-400 bg-indigo-500/10 border-indigo-500/20"
+            }`}>
+              {review.action === "create" ? "New" : "Modified"}
+            </span>
+          </div>
+          <div className="flex items-center gap-3 mt-0.5">
+            <span className="text-[10px] text-gray-600 font-mono">{review.filename}</span>
+            <span className="text-[10px] text-gray-600 flex items-center gap-1">
+              <Clock size={9} />
+              {new Date(review.submittedAt).toLocaleString("en-US")}
+            </span>
+          </div>
+        </div>
+
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${s.text} ${s.bg} ${s.border}`}>
+          {s.label}
+        </span>
+
+        {review.status === "pending" && (
+          <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0" title="Awaiting review">
+            <AlertTriangle size={10} className="text-amber-400" />
+          </div>
+        )}
+        {review.status === "approved" && (
+          <CheckCircle size={16} className="text-emerald-400 shrink-0" />
+        )}
+        {review.status === "rejected" && (
+          <XCircle size={16} className="text-red-400 shrink-0" />
+        )}
+      </div>
+
+      {expanded && (
+        <div className="px-4 pb-4 pl-11 flex flex-col gap-3">
+          {review.status !== "pending" && review.reviewedBy && (
+            <div className={`flex items-start gap-2.5 p-3 rounded-xl border ${
+              review.status === "approved"
+                ? "bg-emerald-500/5 border-emerald-500/20"
+                : "bg-red-500/5 border-red-500/20"
+            }`}>
+              <MessageSquare size={12} className={`shrink-0 mt-0.5 ${review.status === "approved" ? "text-emerald-400" : "text-red-400"}`} />
+              <div>
+                <p className={`text-xs font-semibold ${review.status === "approved" ? "text-emerald-400" : "text-red-400"}`}>
+                  {review.status === "approved" ? "Approved" : "Rejected"} by {review.reviewedBy}
+                  {review.reviewedAt && (
+                    <span className="text-gray-600 font-normal ml-2 text-[10px]">
+                      {new Date(review.reviewedAt).toLocaleString("en-US")}
+                    </span>
+                  )}
+                </p>
+                {review.comment ? (
+                  <p className="text-xs text-gray-400 mt-1 leading-relaxed">{review.comment}</p>
+                ) : (
+                  <p className="text-[10px] text-gray-600 mt-0.5 italic">No comment left.</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {review.status === "pending" && (
+            <p className="text-xs text-gray-600 italic">
+              Waiting for a consultant to review your rule.
+            </p>
+          )}
+
+          <div className="bg-gray-950 rounded-xl border border-gray-800/60 p-3 overflow-auto max-h-48">
+            <pre className="text-[10px] text-gray-400 font-mono leading-relaxed whitespace-pre-wrap">{review.xml}</pre>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ApprenantDashboard() {
@@ -339,6 +442,19 @@ export default function ApprenantDashboard() {
   const [filters, setFilters] = useState<Filters>({
     search: "", actif: "", tactique: "", dateFrom: "", dateTo: "",
   });
+  const [activeTab,    setActiveTab]    = useState<"attacks" | "rules">("attacks");
+  const [submissions,  setSubmissions]  = useState<RuleReview[]>([]);
+  const [loadingRules, setLoadingRules] = useState(false);
+
+  const fetchSubmissions = useCallback(async () => {
+    setLoadingRules(true);
+    try {
+      const res  = await fetch("/api/rule-reviews?mine=true", { cache: "no-store" });
+      const data = await res.json();
+      if (res.ok) setSubmissions(Array.isArray(data) ? data : []);
+    } catch { /* silently ignore */ }
+    finally { setLoadingRules(false); }
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -352,6 +468,10 @@ export default function ApprenantDashboard() {
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "rules") fetchSubmissions();
+  }, [activeTab, fetchSubmissions]);
 
   // ── Top 5 techniques ─────────────────────────────────────────────────────
   const topTechniques = useMemo(() => {
@@ -579,55 +699,133 @@ export default function ApprenantDashboard() {
           )}
         </div>
 
-        {/* ── Attack history ── */}
+        {/* ── Attack history / My rule submissions ── */}
         <div className="bg-gray-900 border border-gray-800/60 rounded-2xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-800/60 space-y-4">
-            <div className="flex items-center gap-2">
-              <Clock size={15} className="text-indigo-400" />
-              <p className="text-sm font-semibold text-white">Historique des attaques</p>
+
+          {/* Tab bar */}
+          <div className="flex items-center gap-1 px-4 py-3 border-b border-gray-800/60">
+            <button
+              onClick={() => setActiveTab("attacks")}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeTab === "attacks"
+                  ? "bg-indigo-500/15 text-indigo-400 border border-indigo-500/30"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              <Clock size={13} />
+              Attack History
               {!loading && (
-                <span className="ml-auto text-xs text-gray-600">
-                  {filtered.length}/{attacks.length} entrée{attacks.length > 1 ? "s" : ""}
+                <span className="text-[10px] bg-gray-800 px-1.5 py-0.5 rounded-md font-normal text-gray-400">
+                  {attacks.length}
                 </span>
               )}
-            </div>
-
-            {/* Filters */}
-            {!loading && attacks.length > 0 && (
-              <FiltersBar attacks={attacks} filters={filters} onChange={setFilters} />
-            )}
+            </button>
+            <button
+              onClick={() => setActiveTab("rules")}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeTab === "rules"
+                  ? "bg-brand/15 text-brand border border-brand/30"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              <ClipboardCheck size={13} />
+              My Rule Submissions
+              {submissions.length > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-normal ${
+                  submissions.some(s => s.status === "pending")
+                    ? "bg-amber-500/20 text-amber-400"
+                    : "bg-gray-800 text-gray-400"
+                }`}>
+                  {submissions.length}
+                </span>
+              )}
+            </button>
           </div>
 
-          {loading ? (
-            <div className="flex items-center justify-center py-16 text-gray-600 text-sm">Chargement…</div>
-          ) : filtered.length === 0 ? (
-            <div className="flex items-center justify-center py-16 text-gray-600 text-sm">
-              {attacks.length === 0 ? "Aucune attaque enregistrée." : "Aucun résultat pour ces filtres."}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-800/60">
-                    <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Date</th>
-                    <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Technique</th>
-                    <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">Tactique</th>
-                    <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">Actif ciblé</th>
-                    <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Statut</th>
-                    <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((attack) => (
-                    <AttackRow
-                      key={attack.id}
-                      attack={attack}
-                      onReport={() => setReportAttack(attack)}
-                    />
+          {/* Attack History tab */}
+          {activeTab === "attacks" && (
+            <>
+              {attacks.length > 0 && (
+                <div className="px-6 py-3 border-b border-gray-800/60">
+                  <FiltersBar attacks={attacks} filters={filters} onChange={setFilters} />
+                </div>
+              )}
+              {loading ? (
+                <div className="flex items-center justify-center py-16 text-gray-600 text-sm">Chargement…</div>
+              ) : filtered.length === 0 ? (
+                <div className="flex items-center justify-center py-16 text-gray-600 text-sm">
+                  {attacks.length === 0 ? "Aucune attaque enregistrée." : "Aucun résultat pour ces filtres."}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-800/60">
+                        <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Date</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Technique</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">Tactique</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">Actif ciblé</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Statut</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((attack) => (
+                        <AttackRow
+                          key={attack.id}
+                          attack={attack}
+                          onReport={() => setReportAttack(attack)}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* My Rule Submissions tab */}
+          {activeTab === "rules" && (
+            <>
+              {loadingRules ? (
+                <div className="flex items-center justify-center py-16 text-gray-600 text-sm gap-2">
+                  <ClipboardCheck size={16} className="animate-pulse" />
+                  Loading submissions...
+                </div>
+              ) : submissions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3 text-gray-600">
+                  <ClipboardCheck size={28} className="text-gray-700" />
+                  <p className="text-sm">No rule submissions yet.</p>
+                  <p className="text-xs text-gray-700 text-center max-w-xs">
+                    After saving a rule in Rule Tuning, you can send it to consultants for review.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  {/* Summary bar */}
+                  <div className="flex items-center gap-4 px-4 py-2.5 border-b border-gray-800/40 bg-gray-900/60">
+                    {(["pending", "approved", "rejected"] as const).map(status => {
+                      const count = submissions.filter(s => s.status === status).length;
+                      const sty = REVIEW_STATUS_STYLES[status];
+                      return count > 0 ? (
+                        <span key={status} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${sty.text} ${sty.bg} ${sty.border}`}>
+                          {count} {sty.label}
+                        </span>
+                      ) : null;
+                    })}
+                    <button
+                      onClick={fetchSubmissions}
+                      className="ml-auto text-[10px] text-gray-600 hover:text-gray-400 transition-colors underline"
+                    >
+                      Refresh
+                    </button>
+                  </div>
+                  {submissions.map(review => (
+                    <SubmissionRow key={review.id} review={review} />
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
