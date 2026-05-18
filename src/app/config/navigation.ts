@@ -18,6 +18,7 @@ import {
   Database,
   Terminal,
   ClipboardCheck,
+  History,
 } from "lucide-react";
 import { UserRole } from "@/app/context/AuthContext";
 
@@ -38,8 +39,8 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: "Mission",                 icon: Flag,            href: "/mission" },
     { label: "Scenarios",               icon: Layers,          href: "/scenarios" },
     { label: "CTI",                     icon: Shield,          href: "/cti" },
-    { label: "Guides",                   icon: BookOpen,        href: "/cours" },
-  
+    { label: "Guides",                  icon: BookOpen,        href: "/cours" },
+    { label: "Activity",               icon: History,         href: "/admin/activity" },
   ],
 
   // ─── CONSULTANT ──────────────────────────────────────────────
