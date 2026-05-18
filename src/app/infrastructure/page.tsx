@@ -59,7 +59,7 @@ function formatUptime(s: number): string {
   const d = Math.floor(s / 86400);
   const h = Math.floor((s % 86400) / 3600);
   const m = Math.floor((s % 3600) / 60);
-  if (d > 0) return `${d}j ${h}h ${m}m`;
+  if (d > 0) return `${d}d ${h}h ${m}m`;
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
 }
@@ -230,7 +230,7 @@ export default function InfrastructurePage() {
         if (d.error) { setNetError(d.error); setNetworkData(null); }
         else setNetworkData(d.interfaces ?? []);
       })
-      .catch(() => setNetError("Erreur réseau"))
+      .catch(() => setNetError("Network error"))
       .finally(() => setLoadingNet(false));
   }, [selectedAsset, liveMap]);
 
@@ -245,16 +245,16 @@ export default function InfrastructurePage() {
       const res = await fetch(`/api/proxmox/${endpoint}?vmid=${vmid}`, { method });
       const data = await res.json();
       if (!res.ok) {
-        setActionMsg(`Erreur: ${data.error ?? "inconnue"}`);
+        setActionMsg(`Error: ${data.error ?? "unknown"}`);
       } else {
         setActionMsg(
-          action === "start" ? "Démarrage en cours…" :
-          action === "stop"  ? "Arrêt en cours…"    : "Redémarrage en cours…"
+          action === "start" ? "Starting…" :
+          action === "stop"  ? "Stopping…" : "Rebooting…"
         );
         setTimeout(() => fetchLive(), 1500);
       }
     } catch {
-      setActionMsg("Erreur de connexion");
+      setActionMsg("Connection error");
     } finally {
       setActionLoading(null);
       setTimeout(() => setActionMsg(""), 3000);
@@ -278,7 +278,7 @@ export default function InfrastructurePage() {
 
   async function handleSave() {
     if (!form.nom || !form.categorie || !form.typeActif || !form.nomMachine || !form.vmidProxmox) {
-      setFormError("Nom, catégorie, machine, VMID sont requis.");
+      setFormError("Name, category, machine name and VMID are required.");
       return;
     }
     setSaving(true);
@@ -290,7 +290,7 @@ export default function InfrastructurePage() {
         body: JSON.stringify({ ...form, vmidProxmox: Number(form.vmidProxmox) }),
       });
       const data = await res.json();
-      if (!res.ok) { setFormError(data.error ?? "Erreur inconnue."); return; }
+      if (!res.ok) { setFormError(data.error ?? "Unknown error."); return; }
       setModal(null);
       fetchAssets();
     } finally {
@@ -304,7 +304,7 @@ export default function InfrastructurePage() {
     try {
       const res  = await fetch(`/api/assets/${deleteTarget.id}`, { method: "DELETE" });
       const data = await res.json();
-      if (!res.ok) { alert(data.error ?? "Erreur lors de la suppression."); return; }
+      if (!res.ok) { alert(data.error ?? "Delete failed."); return; }
       if (selectedAsset?.id === deleteTarget.id) setSelectedAsset(null);
       setDeleteTarget(null);
       fetchAssets();
@@ -368,7 +368,7 @@ export default function InfrastructurePage() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <Network size={15} className="text-brand" />
-                <span className="text-xs font-semibold uppercase tracking-widest text-brand">Administrateur</span>
+                <span className="text-xs font-semibold uppercase tracking-widest text-brand">Administrator</span>
               </div>
               <h1 className="text-2xl font-bold text-white">Infrastructure & Assets</h1>
               <p className="text-gray-500 text-sm mt-0.5">
@@ -378,7 +378,7 @@ export default function InfrastructurePage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => { fetchLive(); fetchAssets(); fetchCritical(); }}
-                title="Rafraîchir"
+                title="Refresh"
                 className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
               >
                 <RefreshCw size={15} className={refreshingLive ? "animate-spin" : ""} />
@@ -387,7 +387,7 @@ export default function InfrastructurePage() {
                 onClick={() => setShowAddTodo(true)}
                 className="flex items-center gap-2 bg-brand/10 hover:bg-brand/20 border border-brand/30 text-brand px-4 py-2 rounded-xl text-sm font-medium transition-colors"
               >
-                <Plus size={14} /> Ajouter un asset
+                <Plus size={14} /> Add asset
               </button>
             </div>
           </div>
@@ -395,7 +395,7 @@ export default function InfrastructurePage() {
           {/* ── Critical VMs ───────────────────────────────────────────────── */}
           {criticalVms.length > 0 && (
             <section className="mb-6">
-              <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">VMs critiques</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Platform VMs</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {criticalVms.map((cv) => {
                   const live = liveMap.get(cv.vmid);
@@ -441,7 +441,7 @@ export default function InfrastructurePage() {
                           {asset && (
                             <button
                               onClick={(e) => { e.stopPropagation(); openEdit(displayAsset); }}
-                              title="Modifier"
+                              title="Edit"
                               className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-gray-700/50 transition-colors"
                             >
                               <Pencil size={12} />
@@ -473,11 +473,11 @@ export default function InfrastructurePage() {
                           <span className="text-gray-300 text-right">{formatUptime(live.uptime)}</span>
                           {running && (
                             <>
-                              <span className="text-gray-500">RAM utilisée</span>
+                              <span className="text-gray-500">RAM used</span>
                               <span className="text-gray-300 text-right">{toGB(live.mem)} / {toGB(live.maxmem)}</span>
                             </>
                           )}
-                          <span className="text-gray-500">Nœud</span>
+                          <span className="text-gray-500">Node</span>
                           <span className="text-gray-300 text-right font-mono">{live.node}</span>
                         </div>
                       )}
@@ -513,7 +513,7 @@ export default function InfrastructurePage() {
                     onClick={() => setFilterStatus(s)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize
                       ${filterStatus === s ? "bg-gray-800 text-white" : "text-gray-500 hover:text-gray-300"}`}>
-                    {s === "all" ? "Tous" : s === "running" ? "Running" : "Stopped"}
+                    {s === "all" ? "All" : s === "running" ? "Running" : "Stopped"}
                   </button>
                 ))}
               </div>
@@ -527,7 +527,7 @@ export default function InfrastructurePage() {
                   className="bg-transparent text-xs text-gray-300 outline-none"
                 >
                   {categories.map((c) => (
-                    <option key={c} value={c}>{c === "all" ? "Toutes catégories" : c}</option>
+                    <option key={c} value={c}>{c === "all" ? "All categories" : c}</option>
                   ))}
                 </select>
               </div>
@@ -538,7 +538,7 @@ export default function InfrastructurePage() {
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Nom, machine, IP…"
+                  placeholder="Name, machine, IP…"
                   className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-brand/40"
                 />
               </div>
@@ -547,17 +547,17 @@ export default function InfrastructurePage() {
             <div className="bg-gray-900 border border-gray-800/60 rounded-2xl overflow-hidden">
               {loadingAssets ? (
                 <div className="flex items-center justify-center py-14 text-gray-500">
-                  <Loader2 size={18} className="animate-spin mr-2" /> Chargement…
+                  <Loader2 size={18} className="animate-spin mr-2" /> Loading…
                 </div>
               ) : filtered.length === 0 ? (
                 <div className="flex items-center justify-center py-14 text-gray-600 text-sm">
-                  Aucun asset trouvé.
+                  No assets found.
                 </div>
               ) : (
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-800/60">
-                      {["Asset", "Machine / OS", "Catégorie", "IP / VMID", "Statut", "CPU", "RAM", ""].map((h) => (
+                      {["Asset", "Machine / OS", "Category", "IP / VMID", "Status", "CPU", "RAM", ""].map((h) => (
                         <th key={h} className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-5 py-3 first:pl-6 last:pr-6 last:text-right">
                           {h}
                         </th>
@@ -678,17 +678,17 @@ export default function InfrastructurePage() {
               {/* Live metrics */}
               {selectedLive?.status === "running" && (
                 <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-4">Utilisation en direct</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-4">Live usage</p>
                   <div className="flex justify-around mb-4">
                     <CircularGauge pct={cpuPct(selectedLive.cpu)} size={88} label="CPU" />
                     <CircularGauge pct={memPct(selectedLive.mem, selectedLive.maxmem)} size={88} label="RAM" />
                   </div>
                   <div className="grid grid-cols-2 gap-y-2 text-xs border-t border-gray-800/60 pt-3">
-                    <span className="text-gray-500">RAM utilisée</span>
+                    <span className="text-gray-500">RAM used</span>
                     <span className="text-right text-gray-300">{toGB(selectedLive.mem)} / {toGB(selectedLive.maxmem)}</span>
                     <span className="text-gray-500">Uptime</span>
                     <span className="text-right text-gray-300">{formatUptime(selectedLive.uptime)}</span>
-                    <span className="text-gray-500">Nœud Proxmox</span>
+                    <span className="text-gray-500">Proxmox node</span>
                     <span className="text-right text-gray-300 font-mono">{selectedLive.node}</span>
                   </div>
                 </div>
@@ -702,11 +702,11 @@ export default function InfrastructurePage() {
                   <span className="text-right text-gray-300">{selectedAsset.cpu || "—"}</span>
                   <span className="text-gray-500 flex items-center gap-1.5"><HardDrive size={11} /> RAM max</span>
                   <span className="text-right text-gray-300">{selectedAsset.ram || "—"}</span>
-                  <span className="text-gray-500 flex items-center gap-1.5"><HardDrive size={11} /> Disque</span>
+                  <span className="text-gray-500 flex items-center gap-1.5"><HardDrive size={11} /> Disk</span>
                   <span className="text-right text-gray-300">{selectedAsset.disk || "—"}</span>
                   <span className="text-gray-500">OS</span>
                   <span className="text-right text-gray-300">{selectedAsset.os || "—"}</span>
-                  <span className="text-gray-500">Catégorie</span>
+                  <span className="text-gray-500">Category</span>
                   <span className="text-right text-gray-300">{selectedAsset.category || "—"}</span>
                   {selectedAsset.vmidProxmox != null && (
                     <>
@@ -721,19 +721,19 @@ export default function InfrastructurePage() {
               <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Wifi size={12} className="text-gray-500" />
-                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Interfaces réseau</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Network interfaces</p>
                 </div>
 
                 {selectedLive?.status !== "running" ? (
-                  <p className="text-xs text-gray-600">VM arrêtée — interfaces non disponibles.</p>
+                  <p className="text-xs text-gray-600">VM stopped — interfaces unavailable.</p>
                 ) : loadingNet ? (
                   <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <Loader2 size={12} className="animate-spin" /> Chargement…
+                    <Loader2 size={12} className="animate-spin" /> Loading…
                   </div>
                 ) : netError ? (
                   <p className="text-xs text-red-400/80">{netError}</p>
                 ) : !networkData || networkData.length === 0 ? (
-                  <p className="text-xs text-gray-600">Aucune interface détectée.</p>
+                  <p className="text-xs text-gray-600">No interfaces detected.</p>
                 ) : (
                   <div className="flex flex-col gap-3">
                     {networkData.map((iface, i) => (
@@ -745,7 +745,7 @@ export default function InfrastructurePage() {
                           )}
                         </div>
                         {iface.addresses.length === 0 ? (
-                          <p className="text-xs text-gray-600">Pas d'adresse</p>
+                          <p className="text-xs text-gray-600">No address</p>
                         ) : (
                           <div className="flex flex-col gap-1">
                             {iface.addresses.map((addr, j) => (
@@ -785,20 +785,20 @@ export default function InfrastructurePage() {
                 <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
                   <Construction size={16} className="text-amber-400" />
                 </div>
-                <h2 className="text-sm font-bold text-white">Fonctionnalité à venir</h2>
+                <h2 className="text-sm font-bold text-white">Coming soon</h2>
               </div>
               <button onClick={() => setShowAddTodo(false)} className="text-gray-500 hover:text-white transition-colors">
                 <X size={16} />
               </button>
             </div>
             <p className="text-sm text-gray-400 mb-5">
-              La création d'un asset depuis l'interface n'est pas encore implémentée.
+              Asset creation from the interface is not yet implemented.
             </p>
             <button
               onClick={() => setShowAddTodo(false)}
               className="w-full py-2 rounded-xl text-sm font-medium bg-gray-800 hover:bg-gray-700 text-gray-300 transition-colors"
             >
-              Fermer
+              Close
             </button>
           </div>
         </div>
@@ -809,7 +809,7 @@ export default function InfrastructurePage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-bold text-white">Modifier l'asset</h2>
+              <h2 className="text-base font-bold text-white">Edit asset</h2>
               <button onClick={() => setModal(null)} className="text-gray-500 hover:text-white transition-colors">
                 <X size={17} />
               </button>
@@ -818,16 +818,16 @@ export default function InfrastructurePage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-1.5">
-                  <Server size={11} /> Informations asset
+                  <Server size={11} /> Asset information
                 </p>
               </div>
-              <Field label="Nom de l'asset *" value={form.nom}
-                onChange={(v) => setForm((f) => ({ ...f, nom: v }))} placeholder="Serveur Web" />
-              <Field label="Catégorie *" value={form.categorie}
+              <Field label="Asset name *" value={form.nom}
+                onChange={(v) => setForm((f) => ({ ...f, nom: v }))} placeholder="Web server" />
+              <Field label="Category *" value={form.categorie}
                 onChange={(v) => setForm((f) => ({ ...f, categorie: v }))} placeholder="server" />
               <div className="col-span-2">
                 <Field label="Description" value={form.description}
-                  onChange={(v) => setForm((f) => ({ ...f, description: v }))} placeholder="Description optionnelle" />
+                  onChange={(v) => setForm((f) => ({ ...f, description: v }))} placeholder="Optional description" />
               </div>
               <div>
                 <label className="block text-xs text-gray-400 mb-1.5 font-medium">Type *</label>
@@ -840,10 +840,10 @@ export default function InfrastructurePage() {
 
               <div className="col-span-2 mt-2">
                 <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-1.5">
-                  <Network size={11} /> Machine virtuelle (Proxmox)
+                  <Network size={11} /> Virtual machine (Proxmox)
                 </p>
               </div>
-              <Field label="Nom machine *" value={form.nomMachine}
+              <Field label="Machine name *" value={form.nomMachine}
                 onChange={(v) => setForm((f) => ({ ...f, nomMachine: v }))} placeholder="ubuntu-web-01" />
               <Field label="VMID Proxmox *" value={form.vmidProxmox} type="number"
                 onChange={(v) => setForm((f) => ({ ...f, vmidProxmox: v }))} placeholder="101" />
@@ -857,7 +857,7 @@ export default function InfrastructurePage() {
                 onChange={(v) => setForm((f) => ({ ...f, cpu: v }))} placeholder="4 vCPU" />
               <Field label="RAM max" value={form.ram}
                 onChange={(v) => setForm((f) => ({ ...f, ram: v }))} placeholder="8 GB" />
-              <Field label="Disque" value={form.disk}
+              <Field label="Disk" value={form.disk}
                 onChange={(v) => setForm((f) => ({ ...f, disk: v }))} placeholder="50 GB" />
             </div>
 
@@ -870,12 +870,12 @@ export default function InfrastructurePage() {
             <div className="flex gap-3 mt-5">
               <button onClick={() => setModal(null)}
                 className="flex-1 py-2 rounded-xl text-sm font-medium text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 transition-colors">
-                Annuler
+                Cancel
               </button>
               <button onClick={handleSave} disabled={saving}
                 className="flex-1 py-2 rounded-xl text-sm font-medium bg-brand/20 hover:bg-brand/30 border border-brand/30 text-brand transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                 {saving && <Loader2 size={13} className="animate-spin" />}
-                Enregistrer
+                Save
               </button>
             </div>
           </div>
@@ -891,22 +891,22 @@ export default function InfrastructurePage() {
                 <Trash2 size={17} className="text-red-400" />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-white">Supprimer l'asset</h2>
+                <h2 className="text-sm font-bold text-white">Delete asset</h2>
                 <p className="text-xs text-gray-400">{deleteTarget.name}</p>
               </div>
             </div>
             <p className="text-sm text-gray-400 mb-5">
-              Cette action est irréversible. L'entrée en base de données sera supprimée (la VM Proxmox reste intacte).
+              This action is irreversible. The database entry will be deleted (the Proxmox VM remains intact).
             </p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteTarget(null)}
                 className="flex-1 py-2 rounded-xl text-sm font-medium text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 transition-colors">
-                Annuler
+                Cancel
               </button>
               <button onClick={handleDelete} disabled={deleting}
                 className="flex-1 py-2 rounded-xl text-sm font-medium bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                 {deleting && <Loader2 size={13} className="animate-spin" />}
-                Supprimer
+                Delete
               </button>
             </div>
           </div>
