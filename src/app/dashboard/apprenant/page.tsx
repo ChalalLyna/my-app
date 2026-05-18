@@ -519,6 +519,10 @@ export default function ApprenantDashboard() {
               Apprenant
             </span>
           </div>
+
+
+
+          
           <p className="text-gray-500 text-sm mt-1">Votre tableau de bord d'apprentissage en cybersécurité</p>
         </div>
 

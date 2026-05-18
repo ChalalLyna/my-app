@@ -5,7 +5,7 @@ import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import { useAuth } from "@/app/context/AuthContext";
 import {
   Users, Server, Crosshair, Activity,
-  TrendingUp, Shield, User,
+  TrendingUp, Shield, User, Cpu, HardDrive, Database,
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell,
@@ -40,12 +40,17 @@ interface PlatformVm {
 }
 
 interface LiveVm {
-  vmid:   number;
-  status: string;
-  cpu:    number;
-  mem:    number;
-  maxmem: number;
+  vmid:    number;
+  status:  string;
+  cpu:     number;
+  mem:     number;
+  maxmem:  number;
+  maxdisk: number;
 }
+
+// Physical host limits
+const LAB_RAM_GB   = 32;
+const LAB_DISK_GB  = 1000; // 1 TB
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -114,6 +119,40 @@ function Panel({
         <p className="text-sm font-semibold text-white">{title}</p>
       </div>
       {children}
+    </div>
+  );
+}
+
+function ResourceBar({
+  label, icon: Icon, usedLabel, maxLabel, pct, color,
+}: {
+  label: string;
+  icon: React.ComponentType<{ size: number; className?: string }>;
+  usedLabel: string; maxLabel: string; pct: number; color: string;
+}) {
+  const barColor = pct > 90 ? "bg-red-500" : pct > 70 ? "bg-amber-500" : color;
+  const textColor = pct > 90 ? "text-red-400" : pct > 70 ? "text-amber-400" : "text-emerald-400";
+  const clampedPct = Math.min(pct, 100);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <Icon size={13} className="text-gray-500" />
+          <span className="text-xs font-semibold text-gray-400">{label}</span>
+        </div>
+        <span className={`text-xs font-bold ${textColor}`}>{pct.toFixed(1)}%</span>
+      </div>
+      <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+        <div
+          className={`h-full ${barColor} rounded-full transition-all duration-700`}
+          style={{ width: `${clampedPct}%` }}
+        />
+      </div>
+      <div className="flex items-center justify-between text-[10px] text-gray-600">
+        <span>{usedLabel} used</span>
+        <span>max {maxLabel}</span>
+      </div>
     </div>
   );
 }
@@ -265,7 +304,7 @@ export default function AdminDashboard() {
 
   const statusData = useMemo(() => [
     { name: "Success", value: attackStats.success, color: "#10b981" },
-    { name: "Failed",  value: attackStats.failed,  color: "#ef4444" },
+    { name: "Stopped", value: attackStats.failed,  color: "#ef4444" },
     { name: "Running", value: attackStats.running,  color: "#f59e0b" },
   ].filter(d => d.value > 0), [attackStats]);
 
@@ -309,6 +348,20 @@ export default function AdminDashboard() {
 
   const liveMap = useMemo(() => new Map(liveVms.map(lv => [lv.vmid, lv])), [liveVms]);
 
+  const labResources = useMemo(() => {
+    const running = liveVms.filter(v => v.status === "running");
+    const cpuPct   = running.reduce((s, v) => s + v.cpu, 0) * 100;
+    const ramUsed  = running.reduce((s, v) => s + v.mem, 0) / (1024 ** 3);
+    const diskAlloc = liveVms.reduce((s, v) => s + v.maxdisk, 0) / (1024 ** 3);
+    return {
+      cpuPct,
+      ramUsedGb:   ramUsed,
+      ramPct:      (ramUsed / LAB_RAM_GB) * 100,
+      diskAllocGb: diskAlloc,
+      diskPct:     (diskAlloc / LAB_DISK_GB) * 100,
+    };
+  }, [liveVms]);
+
   const vmOnlineCount = useMemo(() =>
     platformVms.filter(pv => liveMap.get(pv.vmid)?.status === "running").length,
     [platformVms, liveMap]
@@ -319,6 +372,51 @@ export default function AdminDashboard() {
   return (
     <DashboardLayout>
       <div className="p-6 space-y-5">
+
+        {/* Lab Resources */}
+        <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Cpu size={14} className="text-indigo-400" />
+              <p className="text-sm font-semibold text-white">Lab Resources</p>
+            </div>
+            <span className="text-[10px] text-gray-600 font-mono">
+              Intel Core i5-1135G7 · 32 GB DDR4 · 1 TB NVMe
+            </span>
+          </div>
+          {ldInfra ? (
+            <div className="text-xs text-gray-600 text-center py-2">Loading…</div>
+          ) : liveVms.length === 0 ? (
+            <div className="text-xs text-gray-600 text-center py-2">Proxmox unavailable</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <ResourceBar
+                label="CPU"
+                icon={Cpu}
+                usedLabel={`${labResources.cpuPct.toFixed(1)}%`}
+                maxLabel="100%"
+                pct={labResources.cpuPct}
+                color="bg-indigo-500"
+              />
+              <ResourceBar
+                label="RAM"
+                icon={Database}
+                usedLabel={`${labResources.ramUsedGb.toFixed(1)} GB`}
+                maxLabel={`${LAB_RAM_GB} GB`}
+                pct={labResources.ramPct}
+                color="bg-indigo-500"
+              />
+              <ResourceBar
+                label="Disk (allocated)"
+                icon={HardDrive}
+                usedLabel={`${labResources.diskAllocGb.toFixed(0)} GB`}
+                maxLabel="1 TB"
+                pct={labResources.diskPct}
+                color="bg-indigo-500"
+              />
+            </div>
+          )}
+        </div>
 
         {/* Header */}
         <div>
@@ -356,6 +454,23 @@ export default function AdminDashboard() {
             bg={!ldInfra && vmOnlineCount < platformVms.length ? "bg-amber-500/10" : "bg-emerald-500/10"}
           />
         </div>
+
+        {/* Row 1b — Most targeted assets */}
+        {!ldAttacks && topAssets.length > 0 && (
+          <Panel title="Most targeted assets" icon={Server}>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {topAssets.map(({ name, count }, i) => (
+                <div key={name} className="bg-gray-950/60 border border-gray-800/40 rounded-xl p-3 flex items-center gap-3">
+                  <span className="text-lg font-bold text-gray-700 shrink-0">#{i + 1}</span>
+                  <div className="min-w-0">
+                    <p className="text-xs text-white font-medium truncate">{name}</p>
+                    <p className="text-[10px] text-gray-500">{count} attack{count !== 1 ? "s" : ""}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Panel>
+        )}
 
         {/* Row 2 — Tactic bar + Status donut */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -505,22 +620,6 @@ export default function AdminDashboard() {
           </Panel>
         </div>
 
-        {/* Row 5 — Most targeted assets */}
-        {!ldAttacks && topAssets.length > 0 && (
-          <Panel title="Most targeted assets" icon={Server}>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-              {topAssets.map(({ name, count }, i) => (
-                <div key={name} className="bg-gray-950/60 border border-gray-800/40 rounded-xl p-3 flex items-center gap-3">
-                  <span className="text-lg font-bold text-gray-700 shrink-0">#{i + 1}</span>
-                  <div className="min-w-0">
-                    <p className="text-xs text-white font-medium truncate">{name}</p>
-                    <p className="text-[10px] text-gray-500">{count} attack{count !== 1 ? "s" : ""}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Panel>
-        )}
 
       </div>
     </DashboardLayout>
