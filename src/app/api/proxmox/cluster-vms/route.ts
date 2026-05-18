@@ -31,7 +31,7 @@ export async function GET() {
       cpu:     vm.cpu     ?? 0,   // fraction of host CPU capacity
       mem:     vm.mem     ?? 0,   // bytes used
       maxmem:  vm.maxmem  ?? 0,   // bytes allocated
-      maxdisk: vm.maxdisk ?? 0,   // bytes allocated
+      disk:    vm.disk    ?? 0,   // bytes actually written on storage
       uptime:  vm.uptime  ?? 0,   // seconds
     }));
 

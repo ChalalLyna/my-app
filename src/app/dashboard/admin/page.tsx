@@ -40,12 +40,12 @@ interface PlatformVm {
 }
 
 interface LiveVm {
-  vmid:    number;
-  status:  string;
-  cpu:     number;
-  mem:     number;
-  maxmem:  number;
-  maxdisk: number;
+  vmid:   number;
+  status: string;
+  cpu:    number;
+  mem:    number;
+  maxmem: number;
+  disk:   number;
 }
 
 // Physical host limits
@@ -352,13 +352,13 @@ export default function AdminDashboard() {
     const running = liveVms.filter(v => v.status === "running");
     const cpuPct   = running.reduce((s, v) => s + v.cpu, 0) * 100;
     const ramUsed  = running.reduce((s, v) => s + v.mem, 0) / (1024 ** 3);
-    const diskAlloc = liveVms.reduce((s, v) => s + v.maxdisk, 0) / (1024 ** 3);
+    const diskUsed = liveVms.reduce((s, v) => s + v.disk, 0) / (1024 ** 3);
     return {
       cpuPct,
-      ramUsedGb:   ramUsed,
-      ramPct:      (ramUsed / LAB_RAM_GB) * 100,
-      diskAllocGb: diskAlloc,
-      diskPct:     (diskAlloc / LAB_DISK_GB) * 100,
+      ramUsedGb:  ramUsed,
+      ramPct:     (ramUsed / LAB_RAM_GB) * 100,
+      diskUsedGb: diskUsed,
+      diskPct:    (diskUsed / LAB_DISK_GB) * 100,
     };
   }, [liveVms]);
 
@@ -407,9 +407,9 @@ export default function AdminDashboard() {
                 color="bg-indigo-500"
               />
               <ResourceBar
-                label="Disk (allocated)"
+                label="Disk"
                 icon={HardDrive}
-                usedLabel={`${labResources.diskAllocGb.toFixed(0)} GB`}
+                usedLabel={`${labResources.diskUsedGb.toFixed(0)} GB`}
                 maxLabel="1 TB"
                 pct={labResources.diskPct}
                 color="bg-indigo-500"
