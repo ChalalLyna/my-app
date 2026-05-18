@@ -12,7 +12,7 @@ import pool from "@/lib/db";
 export async function GET() {
   try {
     const [rows] = await pool.query(`
-      SELECT nomMachine, VmIdProxmox
+      SELECT nomMachine, VmIdProxmox, OS, IP, Vlan, CPUmax, RAMmax, Disk
       FROM MachineVirtuelle
       WHERE
         nomMachine LIKE '%wazuh%'   OR
@@ -27,6 +27,12 @@ export async function GET() {
       .map((r) => ({
         name:  r.nomMachine as string,
         vmid:  Number(r.VmIdProxmox),
+        os:    r.OS   ?? "",
+        ip:    r.IP   ?? "",
+        vlan:  r.Vlan ?? "",
+        cpu:   r.CPUmax ?? "",
+        ram:   r.RAMmax ?? "",
+        disk:  r.Disk   ?? "",
       }));
 
     return NextResponse.json(vms);

@@ -148,7 +148,7 @@ export default function InfrastructurePage() {
   // ─── State ──────────────────────────────────────────────────────────────────
   const [assets, setAssets] = useState<Asset[]>([]);
   const [liveMap, setLiveMap] = useState<Map<number, VmLive>>(new Map());
-  const [criticalVms, setCriticalVms] = useState<{ name: string; vmid: number }[]>([]);
+  const [criticalVms, setCriticalVms] = useState<{ name: string; vmid: number; os: string; ip: string; vlan: string; cpu: string; ram: string; disk: string }[]>([]);
   const [loadingAssets, setLoadingAssets] = useState(true);
   const [refreshingLive, setRefreshingLive] = useState(false);
 
@@ -264,10 +264,11 @@ export default function InfrastructurePage() {
   // ─── CRUD ────────────────────────────────────────────────────────────────────
 
   function openEdit(a: Asset) {
+    const cv = a.id.startsWith("__cv_") ? criticalVms.find((c) => c.vmid === a.vmidProxmox) : null;
     setForm({
       nom: a.name, categorie: a.category, description: a.description,
       typeActif: "lab",
-      nomMachine: a.nomMachine, os: a.os, ip: a.ip, vlan: "",
+      nomMachine: a.nomMachine, os: a.os, ip: a.ip, vlan: cv?.vlan ?? "",
       vmidProxmox: a.vmidProxmox != null ? String(a.vmidProxmox) : "",
       cpu: a.cpu, ram: a.ram, disk: a.disk,
     });
@@ -421,12 +422,12 @@ export default function InfrastructurePage() {
                     description: "",
                     category: "infrastructure",
                     nomMachine: cv.name,
-                    os: "",
-                    ip: "",
+                    os:   cv.os,
+                    ip:   cv.ip,
                     vmidProxmox: cv.vmid,
-                    cpu: "",
-                    ram: "",
-                    disk: "",
+                    cpu:  cv.cpu,
+                    ram:  cv.ram,
+                    disk: cv.disk,
                   };
                   const isSelected = selectedAsset?.id === displayAsset.id;
                   return (
