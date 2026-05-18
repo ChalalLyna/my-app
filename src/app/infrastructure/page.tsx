@@ -78,6 +78,24 @@ function memPct(used: number, total: number): number {
   return Math.min(100, Math.round((used / total) * 100));
 }
 
+function fmtCores(val: string): string {
+  const n = parseInt(val);
+  if (isNaN(n)) return val || "—";
+  return `${n} core${n !== 1 ? "s" : ""}`;
+}
+
+function fmtRamMb(val: string): string {
+  const mb = parseInt(val);
+  if (isNaN(mb)) return val || "—";
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1).replace(/\.0$/, "")} GB` : `${mb} MB`;
+}
+
+function fmtDiskGb(val: string): string {
+  const gb = parseInt(val);
+  if (isNaN(gb)) return val || "—";
+  return `${gb} GB`;
+}
+
 function barColor(pct: number): string {
   if (pct > 85) return "#ef4444";
   if (pct > 60) return "#f59e0b";
@@ -293,16 +311,37 @@ export default function InfrastructurePage() {
     setSaving(true);
     setFormError("");
     try {
+      const vmid = Number(form.vmidProxmox);
+
+      // 1. Update database
       const url = isSynthetic
         ? `/api/machines/${editTarget!.vmidProxmox}`
         : `/api/assets/${editTarget!.id}`;
       const res = await fetch(url, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, vmidProxmox: Number(form.vmidProxmox) }),
+        body: JSON.stringify({ ...form, vmidProxmox: vmid }),
       });
       const data = await res.json();
       if (!res.ok) { setFormError(data.error ?? "Unknown error."); return; }
+
+      // 2. Push relevant changes to Proxmox
+      const proxmoxPayload: Record<string, string | number> = {};
+      if (form.nomMachine && form.nomMachine !== editTarget!.nomMachine)
+        proxmoxPayload.name = form.nomMachine;
+      const cores = parseInt(form.cpu);
+      if (!isNaN(cores) && cores > 0) proxmoxPayload.cores = cores;
+      const memory = parseInt(form.ram);
+      if (!isNaN(memory) && memory > 0) proxmoxPayload.memory = memory;
+
+      if (Object.keys(proxmoxPayload).length > 0) {
+        await fetch(`/api/proxmox/vm-config?vmid=${vmid}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(proxmoxPayload),
+        });
+      }
+
       setModal(null);
       fetchAssets();
       fetchCritical();
@@ -705,12 +744,12 @@ export default function InfrastructurePage() {
               <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-4">
                 <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">Configuration (DB)</p>
                 <div className="grid grid-cols-2 gap-y-2 text-xs">
-                  <span className="text-gray-500 flex items-center gap-1.5"><HardDrive size={11} /> CPU max</span>
-                  <span className="text-right text-gray-300">{selectedAsset.cpu || "—"}</span>
-                  <span className="text-gray-500 flex items-center gap-1.5"><HardDrive size={11} /> RAM max</span>
-                  <span className="text-right text-gray-300">{selectedAsset.ram || "—"}</span>
+                  <span className="text-gray-500 flex items-center gap-1.5"><HardDrive size={11} /> CPU</span>
+                  <span className="text-right text-gray-300">{fmtCores(selectedAsset.cpu)}</span>
+                  <span className="text-gray-500 flex items-center gap-1.5"><HardDrive size={11} /> RAM</span>
+                  <span className="text-right text-gray-300">{fmtRamMb(selectedAsset.ram)}</span>
                   <span className="text-gray-500 flex items-center gap-1.5"><HardDrive size={11} /> Disk</span>
-                  <span className="text-right text-gray-300">{selectedAsset.disk || "—"}</span>
+                  <span className="text-right text-gray-300">{fmtDiskGb(selectedAsset.disk)}</span>
                   <span className="text-gray-500">OS</span>
                   <span className="text-right text-gray-300">{selectedAsset.os || "—"}</span>
                   <span className="text-gray-500">Category</span>
@@ -852,20 +891,16 @@ export default function InfrastructurePage() {
               </div>
               <Field label="Machine name *" value={form.nomMachine}
                 onChange={(v) => setForm((f) => ({ ...f, nomMachine: v }))} placeholder="ubuntu-web-01" />
-              <Field label="VMID Proxmox *" value={form.vmidProxmox} type="number"
-                onChange={(v) => setForm((f) => ({ ...f, vmidProxmox: v }))} placeholder="101" />
-              <Field label="OS" value={form.os}
-                onChange={(v) => setForm((f) => ({ ...f, os: v }))} placeholder="Ubuntu 22.04" />
-              <Field label="IP" value={form.ip}
-                onChange={(v) => setForm((f) => ({ ...f, ip: v }))} placeholder="10.0.0.5" />
-              <Field label="VLAN" value={form.vlan}
-                onChange={(v) => setForm((f) => ({ ...f, vlan: v }))} placeholder="100" />
-              <Field label="CPU max" value={form.cpu}
-                onChange={(v) => setForm((f) => ({ ...f, cpu: v }))} placeholder="4 vCPU" />
-              <Field label="RAM max" value={form.ram}
-                onChange={(v) => setForm((f) => ({ ...f, ram: v }))} placeholder="8 GB" />
-              <Field label="Disk" value={form.disk}
-                onChange={(v) => setForm((f) => ({ ...f, disk: v }))} placeholder="50 GB" />
+              <ReadOnly label="VMID Proxmox" value={form.vmidProxmox} />
+              <ReadOnly label="OS"   value={form.os} />
+              <ReadOnly label="IP"   value={form.ip} />
+              <ReadOnly label="VLAN" value={form.vlan} />
+              <Field label="CPU (cores)" value={form.cpu} type="number"
+                onChange={(v) => setForm((f) => ({ ...f, cpu: v }))} placeholder="4" />
+              <Field label="RAM (MB)" value={form.ram} type="number"
+                onChange={(v) => setForm((f) => ({ ...f, ram: v }))} placeholder="8192" />
+              <Field label="Disk (GB)" value={form.disk} type="number"
+                onChange={(v) => setForm((f) => ({ ...f, disk: v }))} placeholder="50" />
             </div>
 
             {formError && (
@@ -911,6 +946,17 @@ function Field({
         placeholder={placeholder}
         className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-brand/50"
       />
+    </div>
+  );
+}
+
+function ReadOnly({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <label className="block text-xs text-gray-400 mb-1.5 font-medium">{label}</label>
+      <div className="w-full bg-gray-800/40 border border-gray-700/40 rounded-xl px-3 py-2 text-sm text-gray-500 select-none">
+        {value || "—"}
+      </div>
     </div>
   );
 }
