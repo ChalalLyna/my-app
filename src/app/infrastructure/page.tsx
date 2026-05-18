@@ -377,7 +377,7 @@ export default function InfrastructurePage() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => fetchLive()}
+                onClick={() => { fetchLive(); fetchAssets(); fetchCritical(); }}
                 title="Rafraîchir"
                 className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
               >
