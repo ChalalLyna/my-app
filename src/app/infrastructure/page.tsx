@@ -20,6 +20,7 @@ interface Asset {
   nomMachine: string;
   os: string;
   ip: string;
+  vlan: string;
   vmidProxmox?: number;
   cpu: string;
   ram: string;
@@ -282,11 +283,10 @@ export default function InfrastructurePage() {
   // ─── CRUD ────────────────────────────────────────────────────────────────────
 
   function openEdit(a: Asset) {
-    const cv = a.id.startsWith("__cv_") ? criticalVms.find((c) => c.vmid === a.vmidProxmox) : null;
     setForm({
       nom: a.name, categorie: a.category, description: a.description,
       typeActif: "lab",
-      nomMachine: a.nomMachine, os: a.os, ip: a.ip, vlan: cv?.vlan ?? "",
+      nomMachine: a.nomMachine, os: a.os, ip: a.ip, vlan: a.vlan ?? "",
       vmidProxmox: a.vmidProxmox != null ? String(a.vmidProxmox) : "",
       cpu: a.cpu, ram: a.ram, disk: a.disk,
     });
@@ -463,6 +463,7 @@ export default function InfrastructurePage() {
                     nomMachine: cv.name,
                     os:   cv.os,
                     ip:   cv.ip,
+                    vlan: cv.vlan,
                     vmidProxmox: cv.vmid,
                     cpu:  cv.cpu,
                     ram:  cv.ram,
@@ -875,14 +876,16 @@ export default function InfrastructurePage() {
                 <Field label="Description" value={form.description}
                   onChange={(v) => setForm((f) => ({ ...f, description: v }))} placeholder="Optional description" />
               </div>
-              <div>
-                <label className="block text-xs text-gray-400 mb-1.5 font-medium">Type *</label>
-                <select value={form.typeActif} onChange={(e) => setForm((f) => ({ ...f, typeActif: e.target.value as "lab" | "client" }))}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand/50">
-                  <option value="lab">Lab</option>
-                  <option value="client">Client</option>
-                </select>
-              </div>
+              {!editTarget?.id.startsWith("__cv_") && (
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5 font-medium">Type *</label>
+                  <select value={form.typeActif} onChange={(e) => setForm((f) => ({ ...f, typeActif: e.target.value as "lab" | "client" }))}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand/50">
+                    <option value="lab">Lab</option>
+                    <option value="client">Client</option>
+                  </select>
+                </div>
+              )}
 
               <div className="col-span-2 mt-2">
                 <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-1.5">
