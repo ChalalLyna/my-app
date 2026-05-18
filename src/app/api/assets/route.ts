@@ -5,24 +5,25 @@ export async function GET() {
   try {
     const [rows] = await pool.query(`
       SELECT
-        a.IdActif        AS id,
-        a.nom            AS name,
-        a.description,
-        a.\`catégorie\`  AS category,
+        a.IdActif                          AS id,
+        COALESCE(a.nom, mv.nomMachine)     AS name,
+        COALESCE(a.description, '')        AS description,
+        COALESCE(a.\`catégorie\`, '')      AS category,
         mv.nomMachine,
-        mv.OS            AS os,
-        mv.IP            AS ip,
-        mv.VmIdProxmox   AS vmidProxmox,
-        mv.CPUmax        AS cpu,
-        mv.RAMmax        AS ram,
-        mv.Disk          AS disk
-      FROM Actif a
-      JOIN MachineVirtuelle mv ON a.IdVM = mv.IdVM
-      ORDER BY a.nom
+        mv.OS                              AS os,
+        mv.IP                             AS ip,
+        mv.VmIdProxmox                     AS vmidProxmox,
+        mv.CPUmax                          AS cpu,
+        mv.RAMmax                          AS ram,
+        mv.Disk                            AS disk
+      FROM MachineVirtuelle mv
+      LEFT JOIN Actif a ON a.IdVM = mv.IdVM
+      WHERE mv.VmIdProxmox IS NOT NULL
+      ORDER BY name
     `);
 
     const assets = (rows as any[]).map((row) => ({
-      id:           String(row.id),
+      id:           row.id != null ? String(row.id) : `mv_${row.vmidProxmox}`,
       name:         row.name,
       description:  row.description ?? "",
       category:     row.category ?? "",

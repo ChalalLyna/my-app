@@ -403,12 +403,24 @@ export default function InfrastructurePage() {
                   const cPct = live ? cpuPct(live.cpu) : 0;
                   const mPct = live ? memPct(live.mem, live.maxmem) : 0;
                   const asset = assets.find((a) => a.vmidProxmox === cv.vmid);
-                  const isSelected = asset && selectedAsset?.id === asset.id;
+                  const displayAsset: Asset = asset ?? {
+                    id: `__cv_${cv.vmid}`,
+                    name: cv.name,
+                    description: "",
+                    category: "infrastructure",
+                    nomMachine: cv.name,
+                    os: "",
+                    ip: "",
+                    vmidProxmox: cv.vmid,
+                    cpu: "",
+                    ram: "",
+                    disk: "",
+                  };
+                  const isSelected = selectedAsset?.id === displayAsset.id;
                   return (
                     <div key={cv.vmid}
-                      onClick={() => asset && setSelectedAsset(isSelected ? null : asset)}
-                      className={`bg-gray-900 border rounded-2xl p-5 flex flex-col gap-4 transition-colors
-                        ${asset ? "cursor-pointer" : ""}
+                      onClick={() => setSelectedAsset(isSelected ? null : displayAsset)}
+                      className={`bg-gray-900 border rounded-2xl p-5 flex flex-col gap-4 transition-colors cursor-pointer
                         ${isSelected
                           ? "border-brand/40 bg-brand/5"
                           : "border-gray-800/60 hover:border-gray-700/60"}`}>
@@ -428,7 +440,7 @@ export default function InfrastructurePage() {
                           <StatusBadge status={live?.status ?? "unknown"} />
                           {asset && (
                             <button
-                              onClick={(e) => { e.stopPropagation(); openEdit(asset); }}
+                              onClick={(e) => { e.stopPropagation(); openEdit(displayAsset); }}
                               title="Modifier"
                               className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-gray-700/50 transition-colors"
                             >
