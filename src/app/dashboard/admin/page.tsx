@@ -5,7 +5,7 @@ import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import { useAuth } from "@/app/context/AuthContext";
 import {
   Users, Server, Crosshair, Activity,
-  TrendingUp, Shield, User, Cpu, HardDrive, Database,
+  TrendingUp, Shield, User, Cpu, Database,
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell,
@@ -45,12 +45,9 @@ interface LiveVm {
   cpu:    number;
   mem:    number;
   maxmem: number;
-  disk:   number;
 }
 
-// Physical host limits
-const LAB_RAM_GB   = 32;
-const LAB_DISK_GB  = 1000; // 1 TB
+const LAB_RAM_GB = 32;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -352,13 +349,10 @@ export default function AdminDashboard() {
     const running = liveVms.filter(v => v.status === "running");
     const cpuPct   = running.reduce((s, v) => s + v.cpu, 0) * 100;
     const ramUsed  = running.reduce((s, v) => s + v.mem, 0) / (1024 ** 3);
-    const diskUsed = liveVms.reduce((s, v) => s + v.disk, 0) / (1024 ** 3);
     return {
       cpuPct,
-      ramUsedGb:  ramUsed,
-      ramPct:     (ramUsed / LAB_RAM_GB) * 100,
-      diskUsedGb: diskUsed,
-      diskPct:    (diskUsed / LAB_DISK_GB) * 100,
+      ramUsedGb: ramUsed,
+      ramPct:    (ramUsed / LAB_RAM_GB) * 100,
     };
   }, [liveVms]);
 
@@ -372,6 +366,15 @@ export default function AdminDashboard() {
   return (
     <DashboardLayout>
       <div className="p-6 space-y-5">
+
+        {/* Header */}
+        <div>
+          <span className="text-xs font-semibold uppercase tracking-widest text-red-400 bg-red-500/10 px-2.5 py-0.5 rounded-full">
+            Administrator
+          </span>
+
+          <p className="text-gray-500 text-sm mt-0.5">CyberLab platform overview</p>
+        </div>
 
         {/* Lab Resources */}
         <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5">
@@ -389,7 +392,7 @@ export default function AdminDashboard() {
           ) : liveVms.length === 0 ? (
             <div className="text-xs text-gray-600 text-center py-2">Proxmox unavailable</div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
               <ResourceBar
                 label="CPU"
                 icon={Cpu}
@@ -406,24 +409,8 @@ export default function AdminDashboard() {
                 pct={labResources.ramPct}
                 color="bg-indigo-500"
               />
-              <ResourceBar
-                label="Disk"
-                icon={HardDrive}
-                usedLabel={`${labResources.diskUsedGb.toFixed(0)} GB`}
-                maxLabel="1 TB"
-                pct={labResources.diskPct}
-                color="bg-indigo-500"
-              />
             </div>
           )}
-        </div>
-
-        {/* Header */}
-        <div>
-          <span className="text-xs font-semibold uppercase tracking-widest text-red-400 bg-red-500/10 px-2.5 py-0.5 rounded-full">
-            Administrator
-          </span>
-          <p className="text-gray-500 text-sm mt-0.5">CyberLab platform overview</p>
         </div>
 
         {/* Row 1 — KPI cards */}
