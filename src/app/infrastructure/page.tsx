@@ -277,14 +277,25 @@ export default function InfrastructurePage() {
   }
 
   async function handleSave() {
-    if (!form.nom || !form.categorie || !form.typeActif || !form.nomMachine || !form.vmidProxmox) {
-      setFormError("Name, category, machine name and VMID are required.");
-      return;
+    const isSynthetic = editTarget?.id.startsWith("__cv_");
+    if (isSynthetic) {
+      if (!form.nomMachine || !form.vmidProxmox) {
+        setFormError("Machine name and VMID are required.");
+        return;
+      }
+    } else {
+      if (!form.nom || !form.categorie || !form.typeActif || !form.nomMachine || !form.vmidProxmox) {
+        setFormError("Name, category, machine name and VMID are required.");
+        return;
+      }
     }
     setSaving(true);
     setFormError("");
     try {
-      const res = await fetch(`/api/assets/${editTarget!.id}`, {
+      const url = isSynthetic
+        ? `/api/machines/${editTarget!.vmidProxmox}`
+        : `/api/assets/${editTarget!.id}`;
+      const res = await fetch(url, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, vmidProxmox: Number(form.vmidProxmox) }),
@@ -293,6 +304,7 @@ export default function InfrastructurePage() {
       if (!res.ok) { setFormError(data.error ?? "Unknown error."); return; }
       setModal(null);
       fetchAssets();
+      fetchCritical();
     } finally {
       setSaving(false);
     }
@@ -438,15 +450,13 @@ export default function InfrastructurePage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <StatusBadge status={live?.status ?? "unknown"} />
-                          {asset && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); openEdit(displayAsset); }}
-                              title="Edit"
-                              className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-gray-700/50 transition-colors"
-                            >
-                              <Pencil size={12} />
-                            </button>
-                          )}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openEdit(displayAsset); }}
+                            title="Edit"
+                            className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-gray-700/50 transition-colors"
+                          >
+                            <Pencil size={12} />
+                          </button>
                         </div>
                       </div>
 
@@ -626,10 +636,6 @@ export default function InfrastructurePage() {
                               <button onClick={() => openEdit(a)}
                                 className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-gray-700/50 transition-colors">
                                 <Pencil size={12} />
-                              </button>
-                              <button onClick={() => setDeleteTarget(a)}
-                                className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors">
-                                <Trash2 size={12} />
                               </button>
                             </div>
                           </td>
@@ -882,36 +888,6 @@ export default function InfrastructurePage() {
         </div>
       )}
 
-      {/* ── Delete confirmation ──────────────────────────────────────────────── */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
-                <Trash2 size={17} className="text-red-400" />
-              </div>
-              <div>
-                <h2 className="text-sm font-bold text-white">Delete asset</h2>
-                <p className="text-xs text-gray-400">{deleteTarget.name}</p>
-              </div>
-            </div>
-            <p className="text-sm text-gray-400 mb-5">
-              This action is irreversible. The database entry will be deleted (the Proxmox VM remains intact).
-            </p>
-            <div className="flex gap-3">
-              <button onClick={() => setDeleteTarget(null)}
-                className="flex-1 py-2 rounded-xl text-sm font-medium text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 transition-colors">
-                Cancel
-              </button>
-              <button onClick={handleDelete} disabled={deleting}
-                className="flex-1 py-2 rounded-xl text-sm font-medium bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                {deleting && <Loader2 size={13} className="animate-spin" />}
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </DashboardLayout>
   );
 }
