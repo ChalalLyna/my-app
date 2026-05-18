@@ -402,9 +402,16 @@ export default function InfrastructurePage() {
                   const running = live?.status === "running";
                   const cPct = live ? cpuPct(live.cpu) : 0;
                   const mPct = live ? memPct(live.mem, live.maxmem) : 0;
+                  const asset = assets.find((a) => a.vmidProxmox === cv.vmid);
+                  const isSelected = asset && selectedAsset?.id === asset.id;
                   return (
                     <div key={cv.vmid}
-                      className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5 flex flex-col gap-4">
+                      onClick={() => asset && setSelectedAsset(isSelected ? null : asset)}
+                      className={`bg-gray-900 border rounded-2xl p-5 flex flex-col gap-4 transition-colors
+                        ${asset ? "cursor-pointer" : ""}
+                        ${isSelected
+                          ? "border-brand/40 bg-brand/5"
+                          : "border-gray-800/60 hover:border-gray-700/60"}`}>
                       {/* Card header */}
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
@@ -417,7 +424,18 @@ export default function InfrastructurePage() {
                             <p className="text-xs text-gray-500">VMID {cv.vmid}</p>
                           </div>
                         </div>
-                        <StatusBadge status={live?.status ?? "unknown"} />
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={live?.status ?? "unknown"} />
+                          {asset && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openEdit(asset); }}
+                              title="Modifier"
+                              className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-gray-700/50 transition-colors"
+                            >
+                              <Pencil size={12} />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {/* Gauges */}
