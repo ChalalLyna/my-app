@@ -17,7 +17,8 @@ export async function GET() {
       WHERE
         nomMachine LIKE '%wazuh%'   OR
         nomMachine LIKE '%caldera%' OR
-        nomMachine LIKE '%router%'
+        nomMachine LIKE '%router%'  OR
+        nomMachine LIKE '%kali%'
       ORDER BY nomMachine
     `);
 
