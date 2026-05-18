@@ -1,7 +1,6 @@
 "use client";
  
 import { useState, FormEvent, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
 import { Shield, Eye, EyeOff, Loader2, Terminal } from "lucide-react";
  
@@ -14,8 +13,6 @@ const DEMO_ACCOUNTS = [
  
 function LoginForm() {
   const { login } = useAuth();
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? undefined;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -26,7 +23,7 @@ function LoginForm() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const result = await login(email, password, callbackUrl);
+    const result = await login(email, password);
     if (!result.success) {
       setError(result.error ?? "Unknown error.");
       setLoading(false);

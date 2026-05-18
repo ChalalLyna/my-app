@@ -325,7 +325,6 @@ export default function AdminDashboard() {
           <span className="text-xs font-semibold uppercase tracking-widest text-red-400 bg-red-500/10 px-2.5 py-0.5 rounded-full">
             Administrator
           </span>
-          <h1 className="text-2xl font-bold text-white mt-2">Hello, {user?.name} 👋</h1>
           <p className="text-gray-500 text-sm mt-0.5">CyberLab platform overview</p>
         </div>
 

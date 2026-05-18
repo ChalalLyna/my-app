@@ -519,7 +519,6 @@ export default function ApprenantDashboard() {
               Apprenant
             </span>
           </div>
-          <h1 className="text-2xl font-bold text-white">Bonjour, {user?.name}</h1>
           <p className="text-gray-500 text-sm mt-1">Votre tableau de bord d'apprentissage en cybersécurité</p>
         </div>
 
