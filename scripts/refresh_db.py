@@ -3,7 +3,7 @@ import os
 import sys
 
 def refresh_cti_database(category="windows"):
-    print(f"🔄 Rafraîchissement CTI : [{category}]")
+    print(f"Rafraîchissement CTI : [{category}]")
 
     try:
         # 1. Git Pull
@@ -16,7 +16,7 @@ def refresh_cti_database(category="windows"):
         try:
             import universal_importer
         except ImportError:
-            print("❌ Erreur : Renommez 'cti_universal_importer.py' en 'universal_importer.py'")
+            print("Erreur : Renommez 'cti_universal_importer.py' en 'universal_importer.py'")
             return False
         
         # Injection des paramètres
@@ -27,13 +27,23 @@ def refresh_cti_database(category="windows"):
         # Exécution
         universal_importer.process_rules()
 
-        print(f"✨ Base {category} mise à jour avec succès.")
+        print(f"Base {category} mise à jour avec succès.")
         return True
 
     except Exception as e:
-        print(f"❌ Erreur : {e}")
+        print(f"Erreur : {e}")
         return False
 
 if __name__ == "__main__":
     cat = sys.argv[1] if len(sys.argv) > 1 else "windows"
     refresh_cti_database(cat)
+
+
+
+
+
+
+
+
+
+    

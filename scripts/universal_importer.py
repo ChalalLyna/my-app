@@ -2,12 +2,8 @@ import json
 import yaml
 import os
 import re
-
-# ==========================================
-# CONFIGURATION UNIVERSELLE
-# ==========================================
+# CONFIGURATION 
 TARGET_CATEGORY = "windows" 
-
 MAPPING_CONFIG = {
     "windows":   {"sid": "61603", "field": "win.eventdata.commandLine"},
     "linux":     {"sid": "5400",  "field": "full_log"},
@@ -17,21 +13,16 @@ MAPPING_CONFIG = {
     "web":       {"sid": "31100", "field": "full_log"},
     "default":   {"sid": "10000", "field": "full_log"}
 }
-
 SIGMA_BASE_PATH = f"sigma_repo/rules/{TARGET_CATEGORY}"
 OUTPUT_FILE = f"{TARGET_CATEGORY}_cti_db.json"
-
 def map_severity(level):
     mapping = {"low": "5", "medium": "8", "high": "12", "critical": "15"}
     return mapping.get(str(level).lower(), "10")
-
 def get_wazuh_info(logsource):
-    # Try product first, then logsource category, then the folder category, then default
     for key in [logsource.get('product', ''), logsource.get('category', ''), TARGET_CATEGORY, 'default']:
         if key and key in MAPPING_CONFIG:
             return MAPPING_CONFIG[key]
     return MAPPING_CONFIG["default"]
-
 def extract_logic(detection):
     keywords = []
     if not isinstance(detection, dict): return ""
@@ -44,12 +35,10 @@ def extract_logic(detection):
             elif isinstance(value, list):
                 keywords.extend([str(i) for i in value])
     return "|".join([re.escape(k) for k in keywords if k])
-
 def process_rules():
     if not os.path.exists(SIGMA_BASE_PATH):
-        print(f"❌ Dossier introuvable : {SIGMA_BASE_PATH}")
+        print(f" Dossier introuvable : {SIGMA_BASE_PATH}")
         return
-
     database = []
     for root, _, files in os.walk(SIGMA_BASE_PATH):
         for file in files:
@@ -61,19 +50,15 @@ def process_rules():
                         f.seek(0)
                         content = yaml.safe_load(f)
                         if not content: continue
-
                         logsource = content.get('logsource', {})
                         tags = content.get('tags', [])
-                        mitre_ids = [t.replace('attack.t', 'T').upper() for t in tags if t.startswith('attack.t')]
-                        
+                        mitre_ids = [t.replace('attack.t', 'T').upper() for t in tags if t.startswith('attack.t')]    
                         wazuh_cfg = get_wazuh_info(logsource)
                         wazuh_lvl = map_severity(content.get('level', 'medium'))
                         regex = extract_logic(content.get('detection', {}))
-
-                        # --- CORRECTION ICI : Conversion systématique en string ---
+                        # Conversion systématique en string 
                         date_val = content.get('date', 'N/A')
                         mod_val = content.get('modified', 'N/A')
-
                         entry = {
                             "metadata": {
                                 "sigma_id": content.get('id', 'N/A'),
@@ -100,10 +85,8 @@ def process_rules():
                         }
                         database.append(entry)
                 except Exception: continue
-
     with open(OUTPUT_FILE, "w", encoding='utf-8') as f:
         json.dump(database, f, indent=4, ensure_ascii=False)
-    print(f"✅ Importation terminée pour {TARGET_CATEGORY}.")
-
+    print(f" Importation terminée pour {TARGET_CATEGORY}.")
 if __name__ == "__main__":
     process_rules()

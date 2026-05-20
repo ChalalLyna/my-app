@@ -7,6 +7,7 @@ import { Step2Selection } from "./StepSelectAdversary";
 import {
   CheckCircle, Monitor, Shield, Zap, AlertTriangle,
   Terminal, FileText, Loader2, Power, Square, ChevronDown, ExternalLink,
+  Volume2,
 } from "lucide-react";
 
 const LINE_COLORS: Record<string, string> = {
@@ -278,6 +279,13 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
   const [generating, setGenerating] = useState(false);
   const [lines, setLines]           = useState<LogEntry[]>([]);
   const [expanded, setExpanded]     = useState<Set<string>>(new Set());
+
+  // Noise simulation state
+  const [noiseEnabled, setNoiseEnabled]   = useState(false);
+  // Set of asset IDs that have noise activated (subset of selected assets)
+  const [noiseAssetIds, setNoiseAssetIds] = useState<Set<string>>(new Set());
+  // IPs of machines where noise was actually launched (for the terminal badge)
+  const [noiseActive, setNoiseActive]     = useState<string[]>([]);
   const opIdsRef            = useRef<string[]>([]);
   const opToAssetRef        = useRef<Record<string, { name: string; ip: string }>>({});
   const abilityResultsRef   = useRef<AbilityResult[]>([]);
@@ -555,6 +563,26 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
       opIdsRef.current = opIds;
       localStorage.setItem("cyberlab_attack_launch",   new Date().toISOString());
       localStorage.setItem("cyberlab_operation_ids",   JSON.stringify(opIds));
+
+      // ═══════════════════════════════════════════════════
+      // NOISE — fire-and-forget SSH execution (parallel)
+      // ═══════════════════════════════════════════════════
+      if (noiseEnabled && noiseAssetIds.size > 0) {
+        const noiseTargets = assets.filter((a) => noiseAssetIds.has(a.id) && a.ip);
+        if (noiseTargets.length > 0) {
+          const noiseIps   = noiseTargets.map((a) => a.ip!);
+          const noiseNames = noiseTargets.map((a) => a.name).join(", ");
+          log("system", "──────────────────────────────────────────────────");
+          log("info",   `[🔊] Noise actif sur : ${noiseNames}`);
+          setNoiseActive(noiseNames.split(", "));
+          // Don't await — script runs ~1 min, we continue immediately
+          fetch("/api/noise/run", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ ips: noiseIps }),
+          }).catch(() => {});
+        }
+      }
 
       // ═══════════════════════════════════════════════════
       // PHASE 4 — Poll operations
@@ -843,6 +871,85 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
             </div>
           </div>
 
+          {/* Noise simulation toggle */}
+          <div className="p-4 bg-gray-800/30 border border-violet-800/30 rounded-xl shrink-0">
+            {/* Header row */}
+            <div className="flex items-center justify-between mb-0">
+              <div className="flex items-center gap-2">
+                <Volume2 size={14} className="text-violet-400" />
+                <p className="text-xs font-semibold uppercase tracking-widest text-violet-400">
+                  Simulation de bruit
+                </p>
+                <span className="text-[10px] text-gray-600 normal-case tracking-normal font-normal">
+                  — activité normale dans les actifs (aide à différencier vrais / faux positifs)
+                </span>
+              </div>
+              {/* Toggle switch */}
+              <button
+                onClick={() => {
+                  const next = !noiseEnabled;
+                  setNoiseEnabled(next);
+                  if (next) {
+                    // Enable all selected assets by default
+                    setNoiseAssetIds(new Set(assets.map((a) => a.id)));
+                  } else {
+                    setNoiseAssetIds(new Set());
+                  }
+                }}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 focus:outline-none ${
+                  noiseEnabled ? "bg-violet-600 border-violet-500" : "bg-gray-700 border-gray-600"
+                }`}
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transform transition-transform duration-200 mt-px ${
+                    noiseEnabled ? "translate-x-4" : "translate-x-0.5"
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Per-asset checkboxes — only when enabled */}
+            {noiseEnabled && assets.length > 0 && (
+              <div className="mt-3 flex flex-col gap-1.5">
+                {assets.map((a) => {
+                  const checked = noiseAssetIds.has(a.id);
+                  return (
+                    <label
+                      key={a.id}
+                      className="flex items-center gap-2.5 cursor-pointer group"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          setNoiseAssetIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(a.id)) {
+                              next.delete(a.id);
+                              // If nothing left checked, disable the toggle
+                              if (next.size === 0) setNoiseEnabled(false);
+                            } else {
+                              next.add(a.id);
+                            }
+                            return next;
+                          });
+                        }}
+                        className="accent-violet-500 w-3.5 h-3.5 rounded"
+                      />
+                      <span className={`text-xs ${checked ? "text-gray-300" : "text-gray-600"}`}>
+                        {a.name}
+                        {a.ip && <span className="text-gray-600 ml-1.5">· {a.ip}</span>}
+                      </span>
+                    </label>
+                  );
+                })}
+                <p className="text-[10px] text-gray-600 mt-1 ml-5">
+                  noise_ad.ps1 sera exécuté via SSH (~1 min) sur les machines cochées
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* Pre-launch checklist */}
           <div className="flex flex-col gap-2.5 shrink-0">
             <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">Pre-launch Checklist</p>
@@ -904,6 +1011,12 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
                 <span className="flex items-center gap-1.5 text-xs text-emerald-400">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                   Completed
+                </span>
+              )}
+              {noiseActive.length > 0 && (
+                <span className="flex items-center gap-1 text-xs text-violet-400 bg-violet-900/30 border border-violet-700/40 px-2 py-0.5 rounded-full">
+                  <Volume2 size={10} />
+                  Noise
                 </span>
               )}
             </div>
