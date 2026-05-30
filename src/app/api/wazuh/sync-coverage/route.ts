@@ -11,17 +11,30 @@ export async function GET(req: NextRequest) {
 
   try {
     const { token, baseUrl } = await getWazuhManagerToken();
-    const res = await fetch(`${baseUrl}/rules?limit=10&offset=0`, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache:   "no-store",
-      signal:  AbortSignal.timeout(15000),
-    });
-    const data = await res.json();
-    const items = data?.data?.affected_items ?? [];
+
+    // Cherche les premières règles avec mitre non vide en paginant
+    let offset = 0;
+    let firstWithMitre: any = null;
+
+    while (offset < 2000 && !firstWithMitre) {
+      const res = await fetch(`${baseUrl}/rules?limit=500&offset=${offset}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache:   "no-store",
+        signal:  AbortSignal.timeout(20000),
+      });
+      const data  = await res.json();
+      const items = (data?.data?.affected_items ?? []) as any[];
+      firstWithMitre = items.find(
+        (r) => Array.isArray(r.mitre) ? r.mitre.length > 0 : !!r.mitre
+      );
+      if (!firstWithMitre) offset += 500;
+    }
+
     return NextResponse.json({
-      total:   data?.data?.total_affected_items,
-      sample:  items.slice(0, 5),
-      fields:  items[0] ? Object.keys(items[0]) : [],
+      found:        !!firstWithMitre,
+      mitre_field:  firstWithMitre?.mitre,
+      mitre_type:   Array.isArray(firstWithMitre?.mitre) ? "array" : typeof firstWithMitre?.mitre,
+      full_rule:    firstWithMitre,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
