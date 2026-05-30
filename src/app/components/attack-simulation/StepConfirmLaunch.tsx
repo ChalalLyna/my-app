@@ -364,6 +364,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId:             user ? Number(user.id) : null,
+          userRole:           user?.role ?? "apprenant",
           assetIds:           assets.map((a) => a.id),
           ttpMitreIds:        selectedTTPs.map((t) => t.id),
           status,

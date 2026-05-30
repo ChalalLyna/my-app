@@ -4,8 +4,9 @@ import pool from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, assetIds, ttpMitreIds, status, description, calderaOperationId } = await req.json() as {
+    const { userId, userRole, assetIds, ttpMitreIds, status, description, calderaOperationId } = await req.json() as {
       userId:             number;
+      userRole:           string;
       assetIds:           string[];
       ttpMitreIds:        string[];
       status:             string;
@@ -14,7 +15,8 @@ export async function POST(req: NextRequest) {
     };
 
     if (!userId) return NextResponse.json({ error: "userId manquant" }, { status: 400 });
-    const idUtilisateur = userId;
+
+    const isConsultant = userRole === "consultant";
 
     // Resolve MITRE IDs → DB IdTechnique
     let techniqueIds: number[] = [];
@@ -39,28 +41,45 @@ export async function POST(req: NextRequest) {
       const idResultatAttaque = ra.insertId;
 
       // 2. Attaque
+      const attackType = isConsultant ? "amelioration" : "apprentissage";
       const [att] = await db.execute<ResultSetHeader>(
         `INSERT INTO Attaque (DateExecution, statut, type, IdResultatAttaque, calderaOperationId)
-         VALUES (CURDATE(), ?, 'apprentissage', ?, ?)`,
-        [status, idResultatAttaque, calderaOperationId ?? null]
+         VALUES (CURDATE(), ?, ?, ?, ?)`,
+        [status, attackType, idResultatAttaque, calderaOperationId ?? null]
       );
       const idAttaque = att.insertId;
 
-      // 3. LabApprentissage — une ligne par (actif × technique)
+      // 3. LabApprentissage (apprenant) ou LabAmelioration (consultant)
       if (assetIds?.length && techniqueIds.length) {
-        const [[{ nextId }]] = await db.query<RowDataPacket[]>(
-          "SELECT COALESCE(MAX(IdLabApprentissage), 0) + 1 AS nextId FROM LabApprentissage"
-        );
-        const idLab = nextId as number;
-
-        for (const assetId of assetIds) {
-          for (const techId of techniqueIds) {
-            await db.execute(
-              `INSERT INTO LabApprentissage
-                 (IdLabApprentissage, IdUtilisateur, IdActif, IdTechnique, IdAttaque)
-               VALUES (?, ?, ?, ?, ?)`,
-              [idLab, idUtilisateur, Number(assetId), techId, idAttaque]
-            );
+        if (isConsultant) {
+          const [[{ nextId }]] = await db.query<RowDataPacket[]>(
+            "SELECT COALESCE(MAX(IdLabAmelioration), 0) + 1 AS nextId FROM LabAmelioration"
+          );
+          const idLab = nextId as number;
+          for (const assetId of assetIds) {
+            for (const techId of techniqueIds) {
+              await db.execute(
+                `INSERT INTO LabAmelioration
+                   (IdLabAmelioration, IdUtilisateur, IdActif, IdTechnique, IdAttaque)
+                 VALUES (?, ?, ?, ?, ?)`,
+                [idLab, userId, Number(assetId), techId, idAttaque]
+              );
+            }
+          }
+        } else {
+          const [[{ nextId }]] = await db.query<RowDataPacket[]>(
+            "SELECT COALESCE(MAX(IdLabApprentissage), 0) + 1 AS nextId FROM LabApprentissage"
+          );
+          const idLab = nextId as number;
+          for (const assetId of assetIds) {
+            for (const techId of techniqueIds) {
+              await db.execute(
+                `INSERT INTO LabApprentissage
+                   (IdLabApprentissage, IdUtilisateur, IdActif, IdTechnique, IdAttaque)
+                 VALUES (?, ?, ?, ?, ?)`,
+                [idLab, userId, Number(assetId), techId, idAttaque]
+              );
+            }
           }
         }
       }
