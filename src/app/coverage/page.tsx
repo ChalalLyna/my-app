@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
-import { Shield, RefreshCw, CheckCircle2, Circle, MinusCircle, Search } from "lucide-react";
+import { Shield, RefreshCw, CheckCircle2, Circle, MinusCircle, Search, X, Hash } from "lucide-react";
 
 type TechniqueStatus = "tested" | "covered" | "not_covered";
 
@@ -23,6 +23,20 @@ interface CoverageData {
     not_covered: number;
   };
 }
+
+interface RuleDetail {
+  wazuhRuleId: number;
+  titre:       string | null;
+  niveau:      number | null;
+  severite:    string;
+}
+
+const SEVERITY_STYLE: Record<string, string> = {
+  Critical: "text-red-400 bg-red-900/20 border-red-800/40",
+  High:     "text-orange-400 bg-orange-900/20 border-orange-800/40",
+  Medium:   "text-yellow-400 bg-yellow-900/20 border-yellow-800/40",
+  Low:      "text-green-400 bg-green-900/20 border-green-800/40",
+};
 
 // ── Style par statut ──────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -55,15 +69,125 @@ const STATUS_CONFIG = {
   },
 } as const;
 
+// ── Modal règles ──────────────────────────────────────────────────────────────
+function RulesModal({
+  technique, onClose,
+}: {
+  technique: TechniqueCoverage;
+  onClose: () => void;
+}) {
+  const [rules, setRules]     = useState<RuleDetail[]>([]);
+  const [loading, setLoading] = useState(true);
+  const cfg = STATUS_CONFIG[technique.status];
+
+  useEffect(() => {
+    fetch(`/api/coverage/${technique.idTechnique}`)
+      .then((r) => r.json())
+      .then((d) => setRules(d.rules ?? []))
+      .finally(() => setLoading(false));
+  }, [technique.idTechnique]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-gray-900 border border-gray-700/60 rounded-2xl w-full max-w-lg shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between p-5 border-b border-gray-800/60">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="font-mono text-xs text-indigo-400">{technique.mitreID}</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full border ${cfg.bg} ${cfg.border} ${cfg.text}`}>
+                {cfg.label}
+              </span>
+            </div>
+            <h3 className="text-base font-semibold text-white">{technique.nom}</h3>
+            <p className="text-xs text-gray-500 mt-0.5">{technique.tactique}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-gray-800 text-gray-500 hover:text-white transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Rules list */}
+        <div className="p-5">
+          <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">
+            Wazuh Rules Covering This Technique
+          </p>
+
+          {loading && (
+            <div className="flex items-center gap-2 text-gray-500 text-sm py-4">
+              <RefreshCw size={14} className="animate-spin" />
+              Loading rules…
+            </div>
+          )}
+
+          {!loading && rules.length === 0 && (
+            <p className="text-gray-600 text-sm italic py-4">No rules found for this technique.</p>
+          )}
+
+          {!loading && rules.length > 0 && (
+            <div className="flex flex-col gap-2 max-h-72 overflow-y-auto
+                            [&::-webkit-scrollbar]:w-1.5
+                            [&::-webkit-scrollbar-thumb]:bg-gray-700
+                            [&::-webkit-scrollbar-thumb]:rounded-full">
+              {rules.map((r) => (
+                <div
+                  key={r.wazuhRuleId}
+                  className="flex items-start justify-between gap-3 px-3 py-2.5
+                             rounded-lg bg-gray-800/40 border border-gray-700/40"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Hash size={12} className="text-gray-600 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-mono text-xs text-gray-400 shrink-0">Rule {r.wazuhRuleId}</p>
+                      <p className="text-xs text-gray-300 truncate mt-0.5">
+                        {r.titre ?? "—"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {r.niveau !== null && (
+                      <span className="text-[10px] text-gray-600 font-mono">lvl {r.niveau}</span>
+                    )}
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium
+                                     ${SEVERITY_STYLE[r.severite] ?? SEVERITY_STYLE.Low}`}>
+                      {r.severite}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!loading && (
+            <p className="text-[10px] text-gray-600 mt-3">
+              {rules.length} rule{rules.length !== 1 ? "s" : ""} covering this technique
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Carte technique ───────────────────────────────────────────────────────────
-function TechniqueCard({ t }: { t: TechniqueCoverage }) {
+function TechniqueCard({ t, onClick }: { t: TechniqueCoverage; onClick: () => void }) {
   const cfg = STATUS_CONFIG[t.status];
   return (
     <div
+      onClick={onClick}
       title={`${t.mitreID} — ${t.nom}`}
       className={`
-        group relative rounded-lg border px-2.5 py-2 cursor-default
-        transition-all duration-150 hover:scale-[1.03] hover:z-10
+        group relative rounded-lg border px-2.5 py-2 cursor-pointer
+        transition-all duration-150 hover:scale-[1.03] hover:z-10 hover:ring-1 hover:ring-white/10
         ${cfg.bg} ${cfg.border}
       `}
     >
@@ -92,9 +216,10 @@ export default function CoveragePage() {
   const [data, setData]       = useState<CoverageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
-  const [search, setSearch]       = useState("");
-  const [filter, setFilter]       = useState<TechniqueStatus | "all">("all");
-  const [tacticFilter, setTactic] = useState("all");
+  const [search, setSearch]           = useState("");
+  const [filter, setFilter]           = useState<TechniqueStatus | "all">("all");
+  const [tacticFilter, setTactic]     = useState("all");
+  const [selected, setSelected]       = useState<TechniqueCoverage | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -304,7 +429,7 @@ export default function CoveragePage() {
 
                   {/* Techniques grid */}
                   <div className="p-4 grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-2">
-                    {techs.map((t) => <TechniqueCard key={t.idTechnique} t={t} />)}
+                    {techs.map((t) => <TechniqueCard key={t.idTechnique} t={t} onClick={() => setSelected(t)} />)}
                   </div>
                 </div>
               );
@@ -312,6 +437,13 @@ export default function CoveragePage() {
           </div>
         )}
       </div>
+
+      {selected && (
+        <RulesModal
+          technique={selected}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </DashboardLayout>
   );
 }
