@@ -340,9 +340,9 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
     setLines((prev) => [...prev, { type, text }]);
 
   // ── Register attack result in DB ────────────────────────────────────────
-  const registerAttack = async (status: "terminé" | "stoppé") => {
+  const registerAttack = async (status: "completed" | "stopped") => {
     try {
-      const results  = abilityResultsRef.current;
+      const results   = abilityResultsRef.current;
       const successes = results.filter((r) => r.status === "success");
       const failures  = results.filter((r) => r.status === "failed");
       const assetList = [...new Set(
@@ -354,9 +354,9 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
           .map((r) => r.techniqueId ? `${r.techniqueId} — ${r.abilityName}` : r.abilityName)
       )].join(", ");
       const description =
-        `Simulation sur ${assetList} — ${results.length} technique(s) exécutée(s) : ` +
-        `${successes.length} réussie(s), ${failures.length} échouée(s).` +
-        (techList ? ` Techniques réussies : ${techList}.` : "");
+        `Simulation on ${assetList} — ${results.length} technique(s) executed: ` +
+        `${successes.length} succeeded, ${failures.length} failed.` +
+        (techList ? ` Successful techniques: ${techList}.` : "");
 
       const res = await fetch("/api/simulations/lab-attack", {
         method:  "POST",
@@ -371,13 +371,13 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
       });
       const data = await res.json();
       if (!res.ok) {
-        log("error", `[✗] Enregistrement DB échoué : ${data.error ?? res.status}`);
+        log("error", `[✗] DB registration failed: ${data.error ?? res.status}`);
       } else {
         attackIdRef.current = data.idAttaque;
-        log("system", `[DB] Attaque enregistrée (id=${data.idAttaque})`);
+        log("system", `[DB] Attack recorded (id=${data.idAttaque})`);
       }
     } catch (err: any) {
-      log("error", `[✗] Enregistrement DB : ${err.message}`);
+      log("error", `[✗] DB registration: ${err.message}`);
     }
   };
 
@@ -573,7 +573,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
           const noiseIps   = noiseTargets.map((a) => a.ip!);
           const noiseNames = noiseTargets.map((a) => a.name).join(", ");
           log("system", "──────────────────────────────────────────────────");
-          log("info",   `[🔊] Noise actif sur : ${noiseNames}`);
+          log("info",   `[🔊] Noise active on: ${noiseNames}`);
           setNoiseActive(noiseNames.split(", "));
           // Don't await — script runs ~1 min, we continue immediately
           fetch("/api/noise/run", {
@@ -681,7 +681,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
             doneRef.current = true;
             setRunning(false);
             setDone(true);
-            registerAttack("terminé");
+            registerAttack("completed");
           }
         } catch { /* ignore transient poll errors */ }
       }, 3_000);
@@ -694,7 +694,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
           doneRef.current = true;
           setRunning(false);
           setDone(true);
-          registerAttack("stoppé");
+          registerAttack("stopped");
         }
       }, 3_600_000);
 
@@ -725,7 +725,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
     setRunning(false);
     setDone(true);
     log("warn", "[■] Attack stopped by user");
-    registerAttack("stoppé");
+    registerAttack("stopped");
   };
 
   // ── Report generation ───────────────────────────────────────────────────
@@ -762,7 +762,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
             headers: { "Content-Type": "application/json" },
             body:    JSON.stringify({ idAttaque: attackIdRef.current, rapport: data.report }),
           });
-          log("system", "[DB] Rapport sauvegardé en base de données");
+          log("system", "[DB] Report saved to database");
         } catch { /* non-bloquant */ }
       }
     } catch (err: any) {
@@ -777,27 +777,27 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
 
   const checklist = [
     {
-      label: `${assets.length} actif(s) sélectionné(s)`,
+      label: `${assets.length} asset(s) selected`,
       ok: check.assetsSelected,
       checking: false,
     },
     {
-      label: "Au moins un TTP sélectionné",
+      label: "At least one TTP selected",
       ok: check.ttpsSelected,
       checking: false,
     },
     {
-      label: "VM IDs Proxmox configurés",
+      label: "Proxmox VM IDs configured",
       ok: check.vmidsOk,
       checking: false,
     },
     {
-      label: "Agents Caldera vivants sur les cibles",
+      label: "Live Caldera agents on targets",
       ok: check.agentsAlive === true,
       checking: check.agentsAlive === null,
       // ⚠ Info only — does NOT block launch (VMs will be booted automatically)
       info: check.agentsAlive === false
-        ? "Les VMs seront démarrées automatiquement au lancement"
+        ? "VMs will be started automatically on launch"
         : undefined,
     },
   ];
@@ -815,9 +815,9 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
             <div>
               <p className="text-sm font-semibold text-amber-300">Simulation Warning</p>
               <p className="text-xs text-amber-500/80 mt-0.5">
-                Cette simulation génère du trafic d'attaque réel via Caldera.
-                Les VMs nécessaires (Wazuh, Caldera, Router + cibles) seront démarrées
-                automatiquement si elles ne sont pas déjà allumées.
+                This simulation generates real attack traffic via Caldera.
+                Required VMs (Wazuh, Caldera, Router + targets) will be started
+                automatically if they are not already running.
               </p>
             </div>
           </div>
@@ -829,11 +829,11 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
               <div className="flex items-center gap-2">
                 <Monitor size={14} className="text-brand" />
                 <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-                  Cibles ({assets.length})
+                  Targets ({assets.length})
                 </p>
               </div>
               {assets.length === 0 ? (
-                <p className="text-gray-600 text-sm italic">Aucun actif sélectionné</p>
+                <p className="text-gray-600 text-sm italic">No asset selected</p>
               ) : (
                 <div className="flex flex-col gap-1.5 max-h-28 overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-gray-700 [&::-webkit-scrollbar-thumb]:rounded-full">
                   {assets.map((a) => (
@@ -866,7 +866,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-600 text-sm italic">Aucun TTP</p>
+                <p className="text-gray-600 text-sm italic">No TTPs</p>
               )}
             </div>
           </div>
@@ -878,10 +878,10 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
               <div className="flex items-center gap-2">
                 <Volume2 size={14} className="text-violet-400" />
                 <p className="text-xs font-semibold uppercase tracking-widest text-violet-400">
-                  Simulation de bruit
+                  Noise Simulation
                 </p>
                 <span className="text-[10px] text-gray-600 normal-case tracking-normal font-normal">
-                  — activité normale dans les actifs (aide à différencier vrais / faux positifs)
+                  — normal activity on assets (helps distinguish true from false positives)
                 </span>
               </div>
               {/* Toggle switch */}
@@ -944,7 +944,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
                   );
                 })}
                 <p className="text-[10px] text-gray-600 mt-1 ml-5">
-                  noise_ad.ps1 sera exécuté via SSH (~1 min) sur les machines cochées
+                  noise_ad.ps1 will be executed via SSH (~1 min) on the checked machines
                 </p>
               </div>
             )}
@@ -1050,7 +1050,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
               <div className="flex items-center gap-2.5">
                 <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shrink-0" />
                 <p className="text-sm text-cyan-300">
-                  Des alertes ont pu être générées — consultez le tableau de détection.
+                  Alerts may have been generated — check the detection dashboard.
                 </p>
               </div>
               <button
@@ -1058,7 +1058,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-700/40 hover:bg-cyan-600/50 text-cyan-200 text-xs font-semibold transition-all whitespace-nowrap border border-cyan-600/30"
               >
                 <ExternalLink size={12} />
-                Voir la détection
+                View Detection
               </button>
             </div>
           )}

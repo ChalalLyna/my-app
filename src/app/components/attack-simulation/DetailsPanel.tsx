@@ -162,7 +162,7 @@ function AdversaryPanel({ adversary, selectedTTPs }: { adversary: Adversary; sel
         <div className="flex items-center gap-1.5 mb-2">
           <Hash size={11} className="text-gray-600" />
           <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-600">
-            TTPs sélectionnés ({selectedTTPs.length}/{adversary.ttps.length})
+            Selected TTPs ({selectedTTPs.length}/{adversary.ttps.length})
           </p>
         </div>
         <div className="flex flex-col gap-1.5">
@@ -197,18 +197,18 @@ function TTPsOnlyPanel({ selectedTTPs }: { selectedTTPs: TTP[] }) {
     <div className="flex flex-col gap-3 animate-in fade-in duration-200">
       <div className="bg-gray-800/70 rounded-xl p-3">
         <p className="text-white font-bold text-sm">
-          {selectedTTPs.length} TTP{selectedTTPs.length !== 1 ? "s" : ""} sélectionné{selectedTTPs.length !== 1 ? "s" : ""}
+          {selectedTTPs.length} TTP{selectedTTPs.length !== 1 ? "s" : ""} selected
         </p>
-        <p className="text-gray-500 text-[11px] mt-0.5">Sélection manuelle sans profil adversaire</p>
+        <p className="text-gray-500 text-[11px] mt-0.5">Manual selection without adversary profile</p>
       </div>
 
       <div>
         <div className="flex items-center gap-1.5 mb-2">
           <Hash size={11} className="text-gray-600" />
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-600">TTPs actifs</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-600">Active TTPs</p>
         </div>
         {selectedTTPs.length === 0 ? (
-          <p className="text-xs text-gray-600 italic text-center py-4">Aucun TTP sélectionné</p>
+          <p className="text-xs text-gray-600 italic text-center py-4">No TTPs selected</p>
         ) : (
           <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto">
             {selectedTTPs.map((ttp) => {
@@ -246,14 +246,14 @@ export default function DetailsPanel({ currentStep, assets, step2 }: Props) {
           <div className="w-12 h-12 rounded-xl bg-gray-800/60 flex items-center justify-center">
             <Monitor size={20} className="text-gray-700" />
           </div>
-          <p className="text-xs text-gray-600 leading-relaxed">Sélectionnez un actif pour voir ses détails</p>
+          <p className="text-xs text-gray-600 leading-relaxed">Select an asset to view its details</p>
         </div>
       );
     } else if (assets.length === 1) {
       title = "Asset Details";
       content = <AssetPanel asset={assets[0]} />;
     } else {
-      title = `${assets.length} Assets sélectionnés`;
+      title = `${assets.length} Assets Selected`;
       content = (
         <div className="flex flex-col gap-2 animate-in fade-in duration-200">
           {assets.map((a) => (
@@ -280,12 +280,12 @@ export default function DetailsPanel({ currentStep, assets, step2 }: Props) {
       content = <TTPsOnlyPanel selectedTTPs={selectedTTPs} />;
     }
   } else {
-    title = "Résumé";
+    title = "Summary";
     content = (
       <div className="flex flex-col gap-3 animate-in fade-in duration-200">
         <div className="bg-gray-800/50 rounded-xl p-3">
           <p className="text-[10px] text-gray-600 uppercase tracking-widest mb-2">
-            Cible{assets.length > 1 ? "s" : ""} ({assets.length})
+            Target{assets.length > 1 ? "s" : ""} ({assets.length})
           </p>
           <div className="flex flex-col gap-1.5">
             {assets.map((a) => (
@@ -298,7 +298,7 @@ export default function DetailsPanel({ currentStep, assets, step2 }: Props) {
         </div>
         {adversary && (
           <div className="bg-gray-800/50 rounded-xl p-3">
-            <p className="text-[10px] text-gray-600 uppercase tracking-widest mb-1">Adversaire</p>
+            <p className="text-[10px] text-gray-600 uppercase tracking-widest mb-1">Adversary</p>
             <p className="text-white font-bold text-sm">{adversary.name}</p>
           </div>
         )}

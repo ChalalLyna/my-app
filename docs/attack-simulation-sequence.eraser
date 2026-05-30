@@ -1,0 +1,194 @@
+title Simulation d'attaque — Diagramme de séquence complet
+
+Utilisateur enregistré 3 [icon: user, color: blue]
+Interface [icon: monitor, color: gray]
+ÉtapeActif [icon: layout, color: gray]
+Actif [icon: database, color: green]
+ÉtapeTechniqueAttaque [icon: layout, color: gray]
+Lab Offensif [icon: server, color: orange]
+ÉtapeLancement [icon: layout, color: gray]
+MachineVirtuelle [icon: database, color: green]
+Plateforme de virtualisation [icon: server, color: purple]
+Simulateur d'activité normale [icon: zap, color: yellow]
+Attaque [icon: database, color: blue]
+Générateur de rapports [icon: file-text, color: gray]
+
+activate Utilisateur enregistré 3
+
+Utilisateur enregistré 3 > Interface: Accède au module de simulation
+activate Interface
+Interface > ÉtapeActif: Affiche l'étape 1
+activate ÉtapeActif
+
+ÉtapeActif > Actif: Récupérer la liste des actifs disponibles
+activate Actif
+Actif --> ÉtapeActif: Liste des actifs (nom, OS, IP, catégorie)
+deactivate Actif
+ÉtapeActif --> Utilisateur enregistré 3: Affiche grille d'actifs (filtrable par catégorie)
+Utilisateur enregistré 3 > ÉtapeActif: Sélectionne 1 ou plusieurs actifs
+Utilisateur enregistré 3 > Interface: Clique Suivant
+deactivate ÉtapeActif
+Interface > ÉtapeTechniqueAttaque: Affiche l'étape 2
+activate ÉtapeTechniqueAttaque
+
+par [label: Chargement parallèle] {
+  ÉtapeTechniqueAttaque > Lab Offensif: Récupérer les profils d'adversaires
+  activate Lab Offensif
+  Lab Offensif --> ÉtapeTechniqueAttaque: Liste des profils d'adversaires
+} and [label: En parallèle] {
+  ÉtapeTechniqueAttaque > Lab Offensif: Récupérer les techniques d'attaque disponibles
+  Lab Offensif --> ÉtapeTechniqueAttaque: Liste des techniques (TTPs)
+  deactivate Lab Offensif
+}
+
+ÉtapeTechniqueAttaque --> Utilisateur enregistré 3: Affiche grille adversaires + liste TTPs
+
+alt [label: Si mode adversaire] {
+  Utilisateur enregistré 3 > ÉtapeTechniqueAttaque: Sélectionne un profil adversaire
+  ÉtapeTechniqueAttaque --> Utilisateur enregistré 3: Affiche TTPs pré-sélectionnées
+} else [label: Sinon] {
+  Utilisateur enregistré 3 > ÉtapeTechniqueAttaque: Sélectionne TTPs individuellement
+}
+
+Utilisateur enregistré 3 > Interface: Clique Suivant
+deactivate ÉtapeTechniqueAttaque
+Interface > ÉtapeLancement: Affiche l'étape 3
+deactivate Interface
+activate ÉtapeLancement
+ÉtapeLancement --> Utilisateur enregistré 3: Affiche résumé + checklist pré-lancement + interrupteur bruit
+
+opt [label: Si bruit réseau activé] {
+  Utilisateur enregistré 3 > ÉtapeLancement: Active l'interrupteur bruit
+  Utilisateur enregistré 3 > ÉtapeLancement: Sélectionne les actifs cibles du bruit
+}
+
+Utilisateur enregistré 3 > ÉtapeLancement: Clique Lancer la simulation
+
+ÉtapeLancement > MachineVirtuelle: Récupérer la liste des machines d'infrastructure requises
+activate MachineVirtuelle
+MachineVirtuelle --> ÉtapeLancement: Machines requises (SIEM, moteur d'attaque, routeur, poste attaquant)
+deactivate MachineVirtuelle
+
+loop [label: Phase 1 — Pour chaque machine virtuelle cible] {
+  ÉtapeLancement > Plateforme de virtualisation: Démarrer la machine virtuelle
+  activate Plateforme de virtualisation
+  Plateforme de virtualisation --> ÉtapeLancement: Confirmation de démarrage
+
+  opt [label: Si la machine vient de démarrer] {
+    loop [label: Vérification périodique jusqu'au démarrage complet] {
+      ÉtapeLancement > Plateforme de virtualisation: Vérifier l'état de la machine virtuelle
+      Plateforme de virtualisation --> ÉtapeLancement: État de la machine (en cours | arrêtée)
+    }
+  }
+  deactivate Plateforme de virtualisation
+  ÉtapeLancement --> Utilisateur enregistré 3: Affiche log terminal — machine démarrée
+}
+
+alt [label: Phase 2 — Si profil adversaire existant sélectionné] {
+  ÉtapeLancement > ÉtapeLancement: Profil d'adversaire prêt à l'emploi
+} else [label: Sinon] {
+  ÉtapeLancement > Lab Offensif: Créer un profil d'adversaire personnalisé
+  activate Lab Offensif
+  Lab Offensif --> ÉtapeLancement: Profil d'adversaire créé
+  deactivate Lab Offensif
+}
+
+loop [label: Phase 3 — Pour chaque actif sélectionné] {
+  loop [label: Vérification de disponibilité des agents de simulation] {
+    ÉtapeLancement > Lab Offensif: Vérifier la disponibilité des agents de simulation
+    activate Lab Offensif
+    Lab Offensif --> ÉtapeLancement: Liste des agents disponibles et leurs cibles
+
+    alt [label: Si agent trouvé sur la cible] {
+      ÉtapeLancement > ÉtapeLancement: Agent détecté
+    } else [label: Sinon] {
+      ÉtapeLancement --> Utilisateur enregistré 3: Affiche log erreur — actif ignoré (délai dépassé)
+    }
+  }
+
+  ÉtapeLancement > Lab Offensif: Restreindre l'agent de simulation à la machine cible uniquement
+  Lab Offensif --> ÉtapeLancement: Restriction confirmée
+
+  ÉtapeLancement > Lab Offensif: Lancer l'opération d'attaque sur la cible
+  Lab Offensif --> ÉtapeLancement: Opération lancée
+  deactivate Lab Offensif
+  ÉtapeLancement --> Utilisateur enregistré 3: Affiche log terminal — opération lancée sur cet actif
+}
+
+opt [label: Phase 4 — Si bruit réseau activé] {
+  ÉtapeLancement > Simulateur d'activité normale: Déclencher la simulation de bruit réseau
+  activate Simulateur d'activité normale
+  Simulateur d'activité normale > Simulateur d'activité normale: Exécution du script de bruit (asynchrone)
+  Simulateur d'activité normale --> ÉtapeLancement: Requête acceptée, script lancé en arrière-plan
+  deactivate Simulateur d'activité normale
+}
+
+loop [label: Phase 5 — Suivi de l'avancement des opérations] {
+  break [label: Si l'utilisateur stoppe la simulation] {
+    Utilisateur enregistré 3 > ÉtapeLancement: Clique Stopper la simulation
+    ÉtapeLancement > Lab Offensif: Arrêter toutes les opérations en cours
+    activate Lab Offensif
+    Lab Offensif --> ÉtapeLancement: Opérations arrêtées
+    deactivate Lab Offensif
+    ÉtapeLancement --> Utilisateur enregistré 3: Affiche simulation stoppée
+  }
+
+  loop [label: Pour chaque opération en cours] {
+    ÉtapeLancement > Lab Offensif: Vérifier l'avancement de l'opération
+    activate Lab Offensif
+    Lab Offensif --> ÉtapeLancement: État de l'opération + étapes exécutées
+
+    loop [label: Pour chaque étape terminée non encore affichée] {
+      ÉtapeLancement > Lab Offensif: Récupérer le résultat de l'étape
+      Lab Offensif --> ÉtapeLancement: Résultat de l'étape (sortie, statut)
+      ÉtapeLancement --> Utilisateur enregistré 3: Affiche résultat de la technique exécutée
+    }
+    deactivate Lab Offensif
+
+    opt [label: Si opération terminée] {
+      ÉtapeLancement > ÉtapeLancement: Marquer l'opération comme terminée
+    }
+  }
+
+  opt [label: Si toutes les opérations sont terminées] {
+    ÉtapeLancement > ÉtapeLancement: Arrêter la surveillance
+    ÉtapeLancement --> Utilisateur enregistré 3: Affiche simulation terminée
+  }
+}
+
+ÉtapeLancement > Attaque: Enregistrer les résultats de la simulation
+activate Attaque
+Attaque > Attaque: Sauvegarder l'attaque et les résultats
+Attaque --> ÉtapeLancement: Identifiant de l'attaque
+deactivate Attaque
+
+ÉtapeLancement --> Utilisateur enregistré 3: Affiche les actions disponibles
+
+alt [label: Si l'utilisateur choisit de générer un rapport] {
+  Utilisateur enregistré 3 > ÉtapeLancement: Clique Générer le rapport
+
+  loop [label: Pour chaque opération terminée] {
+    ÉtapeLancement > Lab Offensif: Récupérer les données complètes de l'opération
+    activate Lab Offensif
+    Lab Offensif --> ÉtapeLancement: Données de l'opération
+    deactivate Lab Offensif
+  }
+
+  ÉtapeLancement > Générateur de rapports: Générer le rapport d'analyse
+  activate Générateur de rapports
+  Générateur de rapports --> ÉtapeLancement: Rapport généré
+  deactivate Générateur de rapports
+  ÉtapeLancement > ÉtapeLancement: Préparer le rapport pour téléchargement
+  ÉtapeLancement --> Utilisateur enregistré 3: Affiche téléchargement du rapport
+
+  ÉtapeLancement > Attaque: Sauvegarder le rapport de simulation
+  activate Attaque
+  Attaque > Attaque: Associer le rapport à l'attaque
+  Attaque --> ÉtapeLancement: Confirmation
+  deactivate Attaque
+} else [label: Si l'utilisateur choisit de consulter les détections] {
+  Utilisateur enregistré 3 > Interface: Navigue vers la page de détection
+}
+
+deactivate ÉtapeLancement
+deactivate Utilisateur enregistré 3

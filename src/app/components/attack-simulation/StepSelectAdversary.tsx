@@ -115,7 +115,7 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
         ]);
 
         if (!adversariesRes.ok || !abilitiesRes.ok) {
-          throw new Error("Impossible de contacter Caldera. Vérifiez que le serveur est accessible.");
+          throw new Error("Unable to reach Caldera. Make sure the server is accessible.");
         }
 
         const calderaAdversaries: any[] = await adversariesRes.json();
@@ -186,7 +186,7 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
 
         setAdversaries(mapped);
       } catch (err: any) {
-        setError(err.message || "Erreur de chargement");
+        setError(err.message || "Loading error");
       } finally {
         setLoading(false);
       }
@@ -240,7 +240,7 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
     return (
       <div className="flex flex-col items-center justify-center flex-1 gap-3">
         <Loader2 size={28} className="text-brand animate-spin" />
-        <p className="text-sm text-gray-400">Chargement des données Caldera...</p>
+        <p className="text-sm text-gray-400">Loading Caldera data...</p>
       </div>
     );
   }
@@ -255,7 +255,7 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
           onClick={() => { setError(null); setLoading(true); }}
           className="text-xs text-brand hover:underline"
         >
-          Réessayer
+          Retry
         </button>
       </div>
     );
@@ -286,7 +286,7 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
               : "text-gray-500 hover:text-gray-300"
           }`}
         >
-          {selectedAdversary ? `TTPs of ${selectedAdversary.name.split(" ")[0]}` : "TTPs directement"}
+          {selectedAdversary ? `TTPs of ${selectedAdversary.name.split(" ")[0]}` : "Manual TTPs"}
           {selectedTTPs.length > 0 && (
             <span className="ml-1.5 bg-brand/30 text-brand px-1.5 py-0.5 rounded-full text-[10px]">
               {selectedTTPs.length}
@@ -301,7 +301,7 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
           <div className="flex items-center gap-2">
             <Shield size={13} className="text-brand" />
             <span className="text-xs font-semibold text-brand">{selectedAdversary.name}</span>
-            <span className="text-[10px] text-gray-500">— sélectionnez les TTPs à inclure</span>
+            <span className="text-[10px] text-gray-500">— select TTPs to include</span>
           </div>
           <button onClick={handleClearAdversary} className="text-gray-600 hover:text-red-400 transition-colors">
             <X size={13} />
@@ -325,7 +325,7 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
       {mode === "adversary" && (
         <div className="grid grid-cols-2 gap-3 overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-700 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin] [scrollbar-color:#374151_transparent]">
           {filteredAdversaries.length === 0 && (
-            <p className="col-span-2 text-sm text-gray-600 text-center py-8">Aucun adversaire trouvé</p>
+            <p className="col-span-2 text-sm text-gray-600 text-center py-8">No adversaries found</p>
           )}
           {filteredAdversaries.map((adv, i) => {
             const isSelected = selectedAdversary?.id === adv.id;
@@ -366,7 +366,7 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
                 {isSelected && (
                   <div className="flex items-center gap-1.5 mt-1 text-[10px] text-brand font-semibold">
                     <ChevronRight size={11} />
-                    Passer à la sélection des TTPs →
+                    Proceed to TTP selection →
                   </div>
                 )}
               </button>
@@ -386,7 +386,7 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
                 tacticFilter === null ? "bg-brand text-white" : "bg-gray-800 text-gray-500 hover:text-gray-300"
               }`}
             >
-              Tous ({ttpsToShow.length})
+              All ({ttpsToShow.length})
             </button>
             {uniqueTactics.map(tactic => {
               const color = TACTIC_COLORS[tactic] ?? "text-gray-400 bg-gray-800/40";
@@ -406,7 +406,7 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
           </div>
           <div className="flex flex-col gap-2 overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-700 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin] [scrollbar-color:#374151_transparent]">
           {filteredTTPs.length === 0 && (
-            <p className="text-sm text-gray-600 text-center py-8">Aucun TTP trouvé</p>
+            <p className="text-sm text-gray-600 text-center py-8">No TTPs found</p>
           )}
           {filteredTTPs.map((ttp) => {
             const isSelected   = selectedTTPs.some(t => t.id === ttp.id);
@@ -472,7 +472,7 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
                       className="flex items-center gap-1.5 text-[10px] text-gray-600 hover:text-gray-300 transition-colors"
                     >
                       <Terminal size={10} />
-                      {isExpanded ? "Masquer" : "Voir"} détails
+                      {isExpanded ? "Hide" : "Show"} details
                       {(ttp.executors?.length ?? 0) > 0 && (
                         <span className="text-gray-700">
                           · {ttp.executors!.length} executor{ttp.executors!.length > 1 ? "s" : ""}
@@ -488,7 +488,7 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
                         {/* Requirements */}
                         {(ttp.requirements?.length ?? 0) > 0 && (
                           <div className="flex flex-col gap-1">
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-600">Prérequis</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-600">Requirements</p>
                             <div className="flex flex-wrap gap-1">
                               {ttp.requirements!.map((r, i) => (
                                 <span key={i} className="text-[10px] px-2 py-0.5 rounded bg-amber-900/20 border border-amber-800/30 text-amber-400 font-mono">
@@ -502,7 +502,7 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
                         {/* Executors */}
                         {(ttp.executors?.length ?? 0) > 0 && (
                           <div className="flex flex-col gap-1.5">
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-600">Commandes</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-600">Commands</p>
                             {ttp.executors!.map((exec, i) => (
                               <div key={i} className="bg-gray-900/80 border border-gray-700/40 rounded-lg overflow-hidden">
                                 {/* Executor header */}

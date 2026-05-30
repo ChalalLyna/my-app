@@ -1,0 +1,99 @@
+ludus:
+  # VLAN 10 : ACTIVE DIRECTORY (DOMAINE GOAD)
+  - vm_name: "{{ range_id }}-GOAD-DC01"
+    hostname: "{{ range_id }}-DC01"
+    template: win2019-server-x64-template
+    vlan: 10
+    ip_last_octet: 10
+    ram_gb: 4
+    cpus: 2
+    windows:
+      sysprep: true
+    roles:
+      - aleemladha.ludus_wazuh_agent
+      - frack113.ludus_caldera_agent
+    role_vars:
+      wazuh_manager_ip: "10.2.20.80"
+      caldera_server_url: "http://10.2.30.49:8888"
+
+  - vm_name: "{{ range_id }}-GOAD-DC02"
+    hostname: "{{ range_id }}-DC02"
+    template: win2019-server-x64-template
+    vlan: 10
+    ip_last_octet: 11
+    ram_gb: 4
+    cpus: 2
+    windows:
+      sysprep: true
+    roles:
+      - aleemladha.ludus_wazuh_agent
+      - frack113.ludus_caldera_agent
+    role_vars:
+      wazuh_manager_ip: "10.2.20.80"
+      caldera_server_url: "http://10.2.30.49:8888"
+
+  - vm_name: "{{ range_id }}-GOAD-SRV02"
+    hostname: "{{ range_id }}-SRV02"
+    template: win2019-server-x64-template
+    vlan: 10
+    ip_last_octet: 22
+    ram_gb: 4
+    cpus: 2
+    windows:
+      sysprep: true
+    roles:
+      - aleemladha.ludus_wazuh_agent
+      - frack113.ludus_caldera_agent
+    role_vars:
+      wazuh_manager_ip: "10.2.20.80"
+      caldera_server_url: "http://10.2.30.49:8888"
+
+  # VLAN 20 : SECURITY MONITORING (WAZUH)
+  - vm_name: "{{ range_id }}-wazuh-server"
+    hostname: "wazuh"
+    template: kali-x64-desktop-template
+    vlan: 20
+    ip_last_octet: 80
+    ram_gb: 8
+    cpus: 4
+    linux: true
+    roles:
+      - aleemladha.wazuh_server_install
+    role_vars:
+      wazuh_admin_password: "Wazuh-Passw0rd"
+
+  # VLAN 30 : ADVERSARY EMULATION (CALDERA)
+  - vm_name: "{{ range_id }}-caldera-server"
+    hostname: "caldera"
+    template: debian-12-x64-server-template
+    vlan: 30
+    ip_last_octet: 49
+    ram_gb: 4
+    cpus: 2
+    linux: true
+    roles:
+      - frack113.ludus_caldera_server
+
+  - vm_name: "{{ range_id }}-manuel_pentest_kali"
+    hostname: "manuel-pentest-kali"
+    template: kali-x64-desktop-template
+    vlan: 30
+    ip_last_octet: 100
+    ram_gb: 4
+    cpus: 2
+    linux: true
+
+  # VLAN 40 : WEB APPLICATIONS
+  - vm_name: "{{ range_id }}-appli-web-server"
+    hostname: "appli-web"
+    template: debian-12-x64-server-template
+    vlan: 40
+    ip_last_octet: 90
+    ram_gb: 2
+    cpus: 2
+    linux: true
+    roles:
+      - geerlingguy.docker
+    role_vars:
+      docker_users:
+        - debian
