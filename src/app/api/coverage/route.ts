@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { RowDataPacket } from "mysql2";
 import pool from "@/lib/db";
 
-export type TechniqueStatus = "tested" | "covered" | "not_covered";
+export type TechniqueStatus = "detected" | "triggered" | "covered" | "not_covered";
 
 export interface TechniqueCoverage {
   idTechnique: number;
@@ -13,10 +13,11 @@ export interface TechniqueCoverage {
 }
 
 export interface CoverageResponse {
-  techniques:   TechniqueCoverage[];
+  techniques: TechniqueCoverage[];
   stats: {
     total:       number;
-    tested:      number;
+    detected:    number;
+    triggered:   number;
     covered:     number;
     not_covered: number;
   };
@@ -24,21 +25,36 @@ export interface CoverageResponse {
 
 export async function GET() {
   try {
-    // ── Toutes les techniques ─────────────────────────────────────────────
     const [allTechniques] = await pool.query<RowDataPacket[]>(
       `SELECT IdTechnique, mitreID, nom, tactique FROM Technique ORDER BY tactique, mitreID`
     );
 
-    // ── Techniques couvertes (niveau 1) ───────────────────────────────────
+    // Level 1 — rules configured to cover the technique (CouvertureDetection)
     const [covered] = await pool.query<RowDataPacket[]>(
-      `SELECT DISTINCT cd.IdTechnique
-       FROM CouvertureDetection cd`
+      `SELECT DISTINCT cd.IdTechnique FROM CouvertureDetection cd`
     );
     const coveredSet = new Set(covered.map((r) => r.IdTechnique as number));
 
-    // ── Techniques testées (niveau 2) ─────────────────────────────────────
-    // Une technique est "testée" si une simulation l'a ciblée ET a généré une alerte
-    const [tested] = await pool.query<RowDataPacket[]>(
+    // Level 2a — "detected": alert fired by a rule specifically tagged for this technique
+    const [detected] = await pool.query<RowDataPacket[]>(
+      `SELECT DISTINCT la.IdTechnique
+       FROM LabApprentissage la
+       JOIN Alerte al ON al.IdAttaque = la.IdAttaque
+       JOIN RegleSIEM rs ON rs.IdRegle = al.IdRegle
+       JOIN CouvertureDetection cd ON cd.IdRegle = rs.IdRegle AND cd.IdTechnique = la.IdTechnique
+
+       UNION
+
+       SELECT DISTINCT lam.IdTechnique
+       FROM LabAmelioration lam
+       JOIN Alerte al ON al.IdAttaque = lam.IdAttaque
+       JOIN RegleSIEM rs ON rs.IdRegle = al.IdRegle
+       JOIN CouvertureDetection cd ON cd.IdRegle = rs.IdRegle AND cd.IdTechnique = lam.IdTechnique`
+    );
+    const detectedSet = new Set(detected.map((r) => r.IdTechnique as number));
+
+    // Level 2b — "triggered": attack simulated AND any alert fired (rule not tagged for the technique)
+    const [triggered] = await pool.query<RowDataPacket[]>(
       `SELECT DISTINCT la.IdTechnique
        FROM LabApprentissage la
        JOIN Alerte al ON al.IdAttaque = la.IdAttaque
@@ -49,16 +65,16 @@ export async function GET() {
        FROM LabAmelioration lam
        JOIN Alerte al ON al.IdAttaque = lam.IdAttaque`
     );
-    const testedSet = new Set(tested.map((r) => r.IdTechnique as number));
+    const triggeredSet = new Set(triggered.map((r) => r.IdTechnique as number));
 
-    // ── Calculer le statut de chaque technique ────────────────────────────
     const techniques: TechniqueCoverage[] = allTechniques.map((t) => {
       const id = t.IdTechnique as number;
       let status: TechniqueStatus;
 
-      if (testedSet.has(id))       status = "tested";
-      else if (coveredSet.has(id)) status = "covered";
-      else                          status = "not_covered";
+      if      (detectedSet.has(id))  status = "detected";
+      else if (triggeredSet.has(id)) status = "triggered";
+      else if (coveredSet.has(id))   status = "covered";
+      else                            status = "not_covered";
 
       return {
         idTechnique: id,
@@ -71,7 +87,8 @@ export async function GET() {
 
     const stats = {
       total:       techniques.length,
-      tested:      techniques.filter((t) => t.status === "tested").length,
+      detected:    techniques.filter((t) => t.status === "detected").length,
+      triggered:   techniques.filter((t) => t.status === "triggered").length,
       covered:     techniques.filter((t) => t.status === "covered").length,
       not_covered: techniques.filter((t) => t.status === "not_covered").length,
     };

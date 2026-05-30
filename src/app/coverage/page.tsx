@@ -2,9 +2,12 @@
 
 import { useEffect, useState, useMemo } from "react";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
-import { Shield, RefreshCw, CheckCircle2, Circle, MinusCircle, Search, X, Hash } from "lucide-react";
+import {
+  Shield, RefreshCw, CheckCircle2, Circle, MinusCircle,
+  Search, X, Hash, Zap, AlertTriangle,
+} from "lucide-react";
 
-type TechniqueStatus = "tested" | "covered" | "not_covered";
+type TechniqueStatus = "detected" | "triggered" | "covered" | "not_covered";
 
 interface TechniqueCoverage {
   idTechnique: number;
@@ -18,7 +21,8 @@ interface CoverageData {
   techniques: TechniqueCoverage[];
   stats: {
     total:       number;
-    tested:      number;
+    detected:    number;
+    triggered:   number;
     covered:     number;
     not_covered: number;
   };
@@ -31,6 +35,10 @@ interface RuleDetail {
   severite:    string;
 }
 
+interface FiredRule extends RuleDetail {
+  alertCount: number;
+}
+
 const SEVERITY_STYLE: Record<string, string> = {
   Critical: "text-red-400 bg-red-900/20 border-red-800/40",
   High:     "text-orange-400 bg-orange-900/20 border-orange-800/40",
@@ -38,33 +46,41 @@ const SEVERITY_STYLE: Record<string, string> = {
   Low:      "text-green-400 bg-green-900/20 border-green-800/40",
 };
 
-// ── Style par statut ──────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
-  tested: {
-    label:  "Tested",
-    bg:     "bg-emerald-900/40",
-    border: "border-emerald-600/50",
-    text:   "text-emerald-300",
-    dot:    "bg-emerald-400",
-    icon:   CheckCircle2,
+  detected: {
+    label:     "Detected",
+    bg:        "bg-emerald-900/40",
+    border:    "border-emerald-600/50",
+    text:      "text-emerald-300",
+    dot:       "bg-emerald-400",
+    icon:      CheckCircle2,
     iconColor: "text-emerald-400",
   },
+  triggered: {
+    label:     "Triggered",
+    bg:        "bg-orange-900/30",
+    border:    "border-orange-600/40",
+    text:      "text-orange-300",
+    dot:       "bg-orange-400",
+    icon:      Zap,
+    iconColor: "text-orange-400",
+  },
   covered: {
-    label:  "Covered",
-    bg:     "bg-amber-900/30",
-    border: "border-amber-700/40",
-    text:   "text-amber-300",
-    dot:    "bg-amber-400",
-    icon:   Circle,
+    label:     "Covered",
+    bg:        "bg-amber-900/30",
+    border:    "border-amber-700/40",
+    text:      "text-amber-300",
+    dot:       "bg-amber-400",
+    icon:      Circle,
     iconColor: "text-amber-400",
   },
   not_covered: {
-    label:  "Not Covered",
-    bg:     "bg-gray-800/30",
-    border: "border-gray-700/30",
-    text:   "text-gray-500",
-    dot:    "bg-gray-600",
-    icon:   MinusCircle,
+    label:     "Not Covered",
+    bg:        "bg-gray-800/30",
+    border:    "border-gray-700/30",
+    text:      "text-gray-500",
+    dot:       "bg-gray-600",
+    icon:      MinusCircle,
     iconColor: "text-gray-600",
   },
 } as const;
@@ -76,16 +92,24 @@ function RulesModal({
   technique: TechniqueCoverage;
   onClose: () => void;
 }) {
-  const [rules, setRules]     = useState<RuleDetail[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [coveringRules, setCoveringRules] = useState<RuleDetail[]>([]);
+  const [firedRules, setFiredRules]       = useState<FiredRule[]>([]);
+  const [loading, setLoading]             = useState(true);
   const cfg = STATUS_CONFIG[technique.status];
 
   useEffect(() => {
     fetch(`/api/coverage/${technique.idTechnique}`)
       .then((r) => r.json())
-      .then((d) => setRules(d.rules ?? []))
+      .then((d) => {
+        setCoveringRules(d.rules ?? []);
+        setFiredRules(d.firedRules ?? []);
+      })
       .finally(() => setLoading(false));
   }, [technique.idTechnique]);
+
+  const hasFired    = firedRules.length > 0;
+  const hasCovering = coveringRules.length > 0;
+  const isSimulated = technique.status === "detected" || technique.status === "triggered";
 
   return (
     <div
@@ -116,61 +140,123 @@ function RulesModal({
           </button>
         </div>
 
-        {/* Rules list */}
-        <div className="p-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">
-            Wazuh Rules Covering This Technique
-          </p>
+        <div className="p-5 flex flex-col gap-5 max-h-[70vh] overflow-y-auto
+                        [&::-webkit-scrollbar]:w-1.5
+                        [&::-webkit-scrollbar-thumb]:bg-gray-700
+                        [&::-webkit-scrollbar-thumb]:rounded-full">
 
           {loading && (
             <div className="flex items-center gap-2 text-gray-500 text-sm py-4">
               <RefreshCw size={14} className="animate-spin" />
-              Loading rules…
+              Loading…
             </div>
           )}
 
-          {!loading && rules.length === 0 && (
-            <p className="text-gray-600 text-sm italic py-4">No rules found for this technique.</p>
-          )}
+          {/* Section 1 — Rules fired during simulation */}
+          {!loading && isSimulated && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">
+                Rules fired during simulation
+              </p>
 
-          {!loading && rules.length > 0 && (
-            <div className="flex flex-col gap-2 max-h-72 overflow-y-auto
-                            [&::-webkit-scrollbar]:w-1.5
-                            [&::-webkit-scrollbar-thumb]:bg-gray-700
-                            [&::-webkit-scrollbar-thumb]:rounded-full">
-              {rules.map((r) => (
-                <div
-                  key={r.wazuhRuleId}
-                  className="flex items-start justify-between gap-3 px-3 py-2.5
-                             rounded-lg bg-gray-800/40 border border-gray-700/40"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <Hash size={12} className="text-gray-600 shrink-0" />
-                    <div className="min-w-0">
-                      <p className="font-mono text-xs text-gray-400 shrink-0">Rule {r.wazuhRuleId}</p>
-                      <p className="text-xs text-gray-300 truncate mt-0.5">
-                        {r.titre ?? "—"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {r.niveau !== null && (
-                      <span className="text-[10px] text-gray-600 font-mono">lvl {r.niveau}</span>
-                    )}
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium
-                                     ${SEVERITY_STYLE[r.severite] ?? SEVERITY_STYLE.Low}`}>
-                      {r.severite}
-                    </span>
-                  </div>
+              {technique.status === "triggered" && (
+                <div className="flex items-start gap-2 p-2.5 mb-3 rounded-lg
+                                bg-orange-900/20 border border-orange-700/40">
+                  <AlertTriangle size={13} className="text-orange-400 mt-0.5 shrink-0" />
+                  <p className="text-[11px] text-orange-300/80">
+                    These rules fired during the attack but are <strong>not specifically tagged</strong> for
+                    this MITRE technique — the activity was detected indirectly by generic rules.
+                  </p>
                 </div>
-              ))}
+              )}
+
+              {!hasFired && (
+                <p className="text-gray-600 text-sm italic">No alerts were recorded for this simulation.</p>
+              )}
+
+              {hasFired && (
+                <div className="flex flex-col gap-2">
+                  {firedRules.map((r) => (
+                    <div
+                      key={r.wazuhRuleId}
+                      className={`flex items-start justify-between gap-3 px-3 py-2.5
+                                  rounded-lg border
+                                  ${technique.status === "detected"
+                                    ? "bg-emerald-900/20 border-emerald-800/30"
+                                    : "bg-orange-900/15 border-orange-800/25"}`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Hash size={12} className="text-gray-600 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-mono text-xs text-gray-400">Rule {r.wazuhRuleId}</p>
+                          <p className="text-xs text-gray-300 mt-0.5 truncate">{r.titre ?? "—"}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] text-gray-600 font-mono whitespace-nowrap">
+                          {r.alertCount} alert{r.alertCount > 1 ? "s" : ""}
+                        </span>
+                        {r.niveau !== null && (
+                          <span className="text-[10px] text-gray-600 font-mono">lvl {r.niveau}</span>
+                        )}
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium
+                                         ${SEVERITY_STYLE[r.severite] ?? SEVERITY_STYLE.Low}`}>
+                          {r.severite}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
+          {/* Section 2 — Rules configured to cover this technique */}
           {!loading && (
-            <p className="text-[10px] text-gray-600 mt-3">
-              {rules.length} rule{rules.length !== 1 ? "s" : ""} covering this technique
-            </p>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">
+                Wazuh rules configured for this technique
+              </p>
+
+              {!hasCovering && (
+                <p className="text-gray-600 text-sm italic">No rules configured for this technique.</p>
+              )}
+
+              {hasCovering && (
+                <div className="flex flex-col gap-2">
+                  {coveringRules.map((r) => (
+                    <div
+                      key={r.wazuhRuleId}
+                      className="flex items-start justify-between gap-3 px-3 py-2.5
+                                 rounded-lg bg-gray-800/40 border border-gray-700/40"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Hash size={12} className="text-gray-600 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-mono text-xs text-gray-400">Rule {r.wazuhRuleId}</p>
+                          <p className="text-xs text-gray-300 truncate mt-0.5">{r.titre ?? "—"}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {r.niveau !== null && (
+                          <span className="text-[10px] text-gray-600 font-mono">lvl {r.niveau}</span>
+                        )}
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium
+                                         ${SEVERITY_STYLE[r.severite] ?? SEVERITY_STYLE.Low}`}>
+                          {r.severite}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!loading && (
+                <p className="text-[10px] text-gray-600 mt-2">
+                  {coveringRules.length} rule{coveringRules.length !== 1 ? "s" : ""} covering this technique
+                </p>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -216,10 +302,10 @@ export default function CoveragePage() {
   const [data, setData]       = useState<CoverageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
-  const [search, setSearch]           = useState("");
-  const [filter, setFilter]           = useState<TechniqueStatus | "all">("all");
-  const [tacticFilter, setTactic]     = useState("all");
-  const [selected, setSelected]       = useState<TechniqueCoverage | null>(null);
+  const [search, setSearch]       = useState("");
+  const [filter, setFilter]       = useState<TechniqueStatus | "all">("all");
+  const [tacticFilter, setTactic] = useState("all");
+  const [selected, setSelected]   = useState<TechniqueCoverage | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -237,7 +323,6 @@ export default function CoveragePage() {
 
   useEffect(() => { load(); }, []);
 
-  // ── Grouper par tactique ──────────────────────────────────────────────────
   const allTactics = useMemo(
     () => data ? [...new Set(data.techniques.map((t) => t.tactique))].sort() : [],
     [data]
@@ -258,14 +343,10 @@ export default function CoveragePage() {
       acc[tactic].push(t);
       return acc;
     }, {});
-  }, [data, search, filter]);
+  }, [data, search, filter, tacticFilter]);
 
-  const tactics = useMemo(
-    () => Object.keys(grouped).sort(),
-    [grouped]
-  );
+  const tactics = useMemo(() => Object.keys(grouped).sort(), [grouped]);
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <DashboardLayout>
       <div className="flex flex-col gap-6 p-6 min-h-0">
@@ -297,17 +378,18 @@ export default function CoveragePage() {
 
         {/* Stats */}
         {data && (
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-5 gap-3">
             {[
-              { label: "Total Techniques", value: data.stats.total,       color: "text-white",         bg: "bg-gray-800/40",    border: "border-gray-700/50" },
-              { label: "Tested",           value: data.stats.tested,      color: "text-emerald-400",   bg: "bg-emerald-900/20", border: "border-emerald-800/40" },
-              { label: "Covered",          value: data.stats.covered,     color: "text-amber-400",     bg: "bg-amber-900/20",   border: "border-amber-800/40" },
-              { label: "Not Covered",      value: data.stats.not_covered, color: "text-gray-500",      bg: "bg-gray-800/30",    border: "border-gray-700/30" },
+              { label: "Total",       value: data.stats.total,       color: "text-white",         bg: "bg-gray-800/40",      border: "border-gray-700/50"      },
+              { label: "Detected",    value: data.stats.detected,    color: "text-emerald-400",   bg: "bg-emerald-900/20",   border: "border-emerald-800/40"   },
+              { label: "Triggered",   value: data.stats.triggered,   color: "text-orange-400",    bg: "bg-orange-900/20",    border: "border-orange-800/40"    },
+              { label: "Covered",     value: data.stats.covered,     color: "text-amber-400",     bg: "bg-amber-900/20",     border: "border-amber-800/40"     },
+              { label: "Not Covered", value: data.stats.not_covered, color: "text-gray-500",      bg: "bg-gray-800/30",      border: "border-gray-700/30"      },
             ].map((s) => (
               <div key={s.label} className={`rounded-xl border p-4 ${s.bg} ${s.border}`}>
                 <p className="text-xs text-gray-500 mb-1">{s.label}</p>
                 <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                {s.label !== "Total Techniques" && data.stats.total > 0 && (
+                {s.label !== "Total" && data.stats.total > 0 && (
                   <p className="text-[10px] text-gray-600 mt-1">
                     {Math.round((s.value / data.stats.total) * 100)}% of total
                   </p>
@@ -317,56 +399,79 @@ export default function CoveragePage() {
           </div>
         )}
 
-        {/* Legend + Filters */}
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          {/* Legend */}
-          <div className="flex items-center gap-5">
-            {(["tested", "covered", "not_covered"] as TechniqueStatus[]).map((s) => {
-              const cfg = STATUS_CONFIG[s];
-              return (
-                <div key={s} className="flex items-center gap-1.5 text-xs text-gray-400">
-                  <span className={`w-2.5 h-2.5 rounded-sm ${cfg.dot}`} />
-                  {cfg.label}
-                </div>
-              );
-            })}
+        {/* Legend + explanation */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            {/* Legend dots */}
+            <div className="flex items-center gap-5">
+              {(["detected", "triggered", "covered", "not_covered"] as TechniqueStatus[]).map((s) => {
+                const cfg = STATUS_CONFIG[s];
+                return (
+                  <div key={s} className="flex items-center gap-1.5 text-xs text-gray-400">
+                    <span className={`w-2.5 h-2.5 rounded-sm ${cfg.dot}`} />
+                    {cfg.label}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Search + Filters */}
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search technique…"
+                  className="pl-8 pr-3 py-1.5 rounded-lg bg-gray-800/60 border border-gray-700/50
+                             text-xs text-gray-300 placeholder-gray-600 focus:outline-none
+                             focus:border-indigo-600/60 w-44"
+                />
+              </div>
+              <select
+                value={tacticFilter}
+                onChange={(e) => setTactic(e.target.value)}
+                className="px-3 py-1.5 rounded-lg bg-gray-800/60 border border-gray-700/50
+                           text-xs text-gray-300 focus:outline-none focus:border-indigo-600/60"
+              >
+                <option value="all">All tactics</option>
+                {allTactics.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as any)}
+                className="px-3 py-1.5 rounded-lg bg-gray-800/60 border border-gray-700/50
+                           text-xs text-gray-300 focus:outline-none focus:border-indigo-600/60"
+              >
+                <option value="all">All statuses</option>
+                <option value="detected">Detected</option>
+                <option value="triggered">Triggered</option>
+                <option value="covered">Covered</option>
+                <option value="not_covered">Not Covered</option>
+              </select>
+            </div>
           </div>
 
-          {/* Search + Filter */}
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search technique…"
-                className="pl-8 pr-3 py-1.5 rounded-lg bg-gray-800/60 border border-gray-700/50
-                           text-xs text-gray-300 placeholder-gray-600 focus:outline-none
-                           focus:border-indigo-600/60 w-44"
-              />
-            </div>
-            <select
-              value={tacticFilter}
-              onChange={(e) => setTactic(e.target.value)}
-              className="px-3 py-1.5 rounded-lg bg-gray-800/60 border border-gray-700/50
-                         text-xs text-gray-300 focus:outline-none focus:border-indigo-600/60"
-            >
-              <option value="all">All tactics</option>
-              {allTactics.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value as any)}
-              className="px-3 py-1.5 rounded-lg bg-gray-800/60 border border-gray-700/50
-                         text-xs text-gray-300 focus:outline-none focus:border-indigo-600/60"
-            >
-              <option value="all">All statuses</option>
-              <option value="tested">Tested</option>
-              <option value="covered">Covered</option>
-              <option value="not_covered">Not Covered</option>
-            </select>
+          {/* Status explanation panel */}
+          <div className="p-3 rounded-lg bg-gray-800/30 border border-gray-700/30 grid grid-cols-2 gap-x-6 gap-y-1.5">
+            <p className="text-[11px] text-gray-500">
+              <span className="text-emerald-400 font-semibold">Detected</span>
+              {" — "}Attack simulated and an alert was raised by a Wazuh rule <em>specifically tagged</em> for this MITRE technique.
+            </p>
+            <p className="text-[11px] text-gray-500">
+              <span className="text-orange-400 font-semibold">Triggered</span>
+              {" — "}Attack simulated and alerts were raised, but by <em>generic rules</em> not tagged for this technique — indirect detection only.
+            </p>
+            <p className="text-[11px] text-gray-500">
+              <span className="text-amber-400 font-semibold">Covered</span>
+              {" — "}Wazuh rules are configured to detect this technique, but no simulation has been run yet.
+            </p>
+            <p className="text-[11px] text-gray-500">
+              <span className="text-gray-400 font-semibold">Not Covered</span>
+              {" — "}No detection rules configured and no simulation for this technique.
+            </p>
           </div>
         </div>
 
@@ -394,10 +499,13 @@ export default function CoveragePage() {
         {!loading && !error && (
           <div className="flex flex-col gap-6 overflow-y-auto">
             {tactics.map((tactic) => {
-              const techs = grouped[tactic];
-              const testedCount  = techs.filter((t) => t.status === "tested").length;
-              const coveredCount = techs.filter((t) => t.status === "covered").length;
-              const pct = Math.round(((testedCount + coveredCount) / techs.length) * 100);
+              const techs        = grouped[tactic];
+              const detectedCount  = techs.filter((t) => t.status === "detected").length;
+              const triggeredCount = techs.filter((t) => t.status === "triggered").length;
+              const coveredCount   = techs.filter((t) => t.status === "covered").length;
+              const pct = Math.round(
+                ((detectedCount + triggeredCount + coveredCount) / techs.length) * 100
+              );
 
               return (
                 <div key={tactic} className="rounded-xl border border-gray-700/40 bg-gray-800/20 overflow-hidden">
@@ -409,17 +517,28 @@ export default function CoveragePage() {
                       <span className="text-xs text-gray-500">{techs.length} technique{techs.length > 1 ? "s" : ""}</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1.5 text-xs">
-                        <span className="text-emerald-400 font-semibold">{testedCount}</span>
-                        <span className="text-gray-600">tested</span>
-                        <span className="text-gray-700 mx-1">·</span>
+                      <div className="flex items-center gap-1 text-xs">
+                        {detectedCount > 0 && (
+                          <>
+                            <span className="text-emerald-400 font-semibold">{detectedCount}</span>
+                            <span className="text-gray-600">detected</span>
+                            <span className="text-gray-700 mx-1">·</span>
+                          </>
+                        )}
+                        {triggeredCount > 0 && (
+                          <>
+                            <span className="text-orange-400 font-semibold">{triggeredCount}</span>
+                            <span className="text-gray-600">triggered</span>
+                            <span className="text-gray-700 mx-1">·</span>
+                          </>
+                        )}
                         <span className="text-amber-400 font-semibold">{coveredCount}</span>
                         <span className="text-gray-600">covered</span>
                       </div>
                       {/* Progress bar */}
                       <div className="w-24 h-1.5 bg-gray-700/60 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-emerald-500 to-amber-500 rounded-full"
+                          className="h-full bg-linear-to-r from-emerald-500 via-orange-400 to-amber-500 rounded-full"
                           style={{ width: `${pct}%` }}
                         />
                       </div>
@@ -429,7 +548,9 @@ export default function CoveragePage() {
 
                   {/* Techniques grid */}
                   <div className="p-4 grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-2">
-                    {techs.map((t) => <TechniqueCard key={t.idTechnique} t={t} onClick={() => setSelected(t)} />)}
+                    {techs.map((t) => (
+                      <TechniqueCard key={t.idTechnique} t={t} onClick={() => setSelected(t)} />
+                    ))}
                   </div>
                 </div>
               );

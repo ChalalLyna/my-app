@@ -387,6 +387,8 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
   const saveAlerts = async (idAttaque: number, since: string) => {
     if (!since) return;
     try {
+      log("info", "[*] Waiting 5 s for Wazuh to index alerts...");
+      await new Promise((res) => setTimeout(res, 5_000));
       log("info", "[*] Fetching Wazuh alerts generated during the attack...");
       const res = await fetch(`/api/wazuh/alerts?since=${encodeURIComponent(since)}`);
       if (!res.ok) { log("warn", "[!] Could not fetch Wazuh alerts"); return; }
