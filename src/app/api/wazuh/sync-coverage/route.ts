@@ -85,7 +85,7 @@ export async function POST() {
           await db.execute(
             `INSERT INTO RegleSIEM (IdRegle, wazuhRuleId, titre, niveau)
              VALUES (?, ?, ?, ?)`,
-            [idRegle, wazuhRuleId, rule.description ?? null, rule.level ?? null]
+            [idRegle, wazuhRuleId, (rule.description ?? "").slice(0, 250) || null, rule.level ?? null]
           );
           siemMap.set(wazuhRuleId, idRegle);
         }
