@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { RowDataPacket } from "mysql2";
 import pool from "@/lib/db";
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const idTechnique = parseInt(params.id, 10);
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const idTechnique = parseInt(id, 10);
   if (isNaN(idTechnique))
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
 
