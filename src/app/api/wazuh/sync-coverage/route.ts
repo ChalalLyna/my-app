@@ -1,45 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { RowDataPacket, ResultSetHeader } from "mysql2";
 import pool from "@/lib/db";
 import { getWazuhManagerToken } from "../lib";
 
-// GET /api/wazuh/sync-coverage?debug=true
-// Retourne les 10 premières règles brutes pour inspecter la structure
-export async function GET(req: NextRequest) {
-  const debug = req.nextUrl.searchParams.get("debug") === "true";
-  if (!debug) return NextResponse.json({ hint: "Ajoutez ?debug=true" });
-
-  try {
-    const { token, baseUrl } = await getWazuhManagerToken();
-
-    // Cherche les premières règles avec mitre non vide en paginant
-    let offset = 0;
-    let firstWithMitre: any = null;
-
-    while (offset < 2000 && !firstWithMitre) {
-      const res = await fetch(`${baseUrl}/rules?limit=500&offset=${offset}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache:   "no-store",
-        signal:  AbortSignal.timeout(20000),
-      });
-      const data  = await res.json();
-      const items = (data?.data?.affected_items ?? []) as any[];
-      firstWithMitre = items.find(
-        (r) => Array.isArray(r.mitre) ? r.mitre.length > 0 : !!r.mitre
-      );
-      if (!firstWithMitre) offset += 500;
-    }
-
-    return NextResponse.json({
-      found:        !!firstWithMitre,
-      mitre_field:  firstWithMitre?.mitre,
-      mitre_type:   Array.isArray(firstWithMitre?.mitre) ? "array" : typeof firstWithMitre?.mitre,
-      full_rule:    firstWithMitre,
-    });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
-  }
-}
 
 const PAGE_SIZE = 500;
 
@@ -110,7 +73,7 @@ export async function POST() {
 
       for (const rule of rulesWithMitre) {
         const wazuhRuleId          = rule.id as number;
-        const mitreIds: string[]   = rule.mitre?.id ?? [];
+        const mitreIds: string[]   = Array.isArray(rule.mitre) ? rule.mitre : [];
 
         // Upsert RegleSIEM
         let idRegle = siemMap.get(wazuhRuleId);
