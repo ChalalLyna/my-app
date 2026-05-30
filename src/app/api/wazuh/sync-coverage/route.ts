@@ -1,7 +1,32 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { RowDataPacket, ResultSetHeader } from "mysql2";
 import pool from "@/lib/db";
 import { getWazuhManagerToken } from "../lib";
+
+// GET /api/wazuh/sync-coverage?debug=true
+// Retourne les 10 premières règles brutes pour inspecter la structure
+export async function GET(req: NextRequest) {
+  const debug = req.nextUrl.searchParams.get("debug") === "true";
+  if (!debug) return NextResponse.json({ hint: "Ajoutez ?debug=true" });
+
+  try {
+    const { token, baseUrl } = await getWazuhManagerToken();
+    const res = await fetch(`${baseUrl}/rules?limit=10&offset=0`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache:   "no-store",
+      signal:  AbortSignal.timeout(15000),
+    });
+    const data = await res.json();
+    const items = data?.data?.affected_items ?? [];
+    return NextResponse.json({
+      total:   data?.data?.total_affected_items,
+      sample:  items.slice(0, 5),
+      fields:  items[0] ? Object.keys(items[0]) : [],
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
 
 const PAGE_SIZE = 500;
 
