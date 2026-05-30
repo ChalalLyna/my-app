@@ -31,7 +31,7 @@ export async function POST() {
       total        = data?.data?.total_affected_items ?? 0;
 
       for (const rule of items) {
-        const mitreIds: string[] = rule.mitre?.id ?? [];
+        const mitreIds: string[] = Array.isArray(rule.mitre) ? rule.mitre : [];
         if (mitreIds.length > 0) rulesWithMitre.push(rule);
       }
 
