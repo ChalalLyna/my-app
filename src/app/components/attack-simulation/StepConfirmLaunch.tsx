@@ -290,6 +290,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
   const opToAssetRef        = useRef<Record<string, { name: string; ip: string }>>({});
   const abilityResultsRef   = useRef<AbilityResult[]>([]);
   const attackIdRef         = useRef<number | null>(null);
+  const attackStartRef      = useRef<string>("");
 
   // Live checklist
   const [check, setCheck] = useState<CheckState>({
@@ -340,7 +341,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
     setLines((prev) => [...prev, { type, text }]);
 
   // ── Register attack result in DB ────────────────────────────────────────
-  const registerAttack = async (status: "completed" | "stopped") => {
+  const registerAttack = async (status: "completed" | "stopped", calderaOperationIds: string[] = []) => {
     try {
       const results   = abilityResultsRef.current;
       const successes = results.filter((r) => r.status === "success");
@@ -362,11 +363,12 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId:      user ? Number(user.id) : null,
-          assetIds:    assets.map((a) => a.id),
-          ttpMitreIds: selectedTTPs.map((t) => t.id),
+          userId:             user ? Number(user.id) : null,
+          assetIds:           assets.map((a) => a.id),
+          ttpMitreIds:        selectedTTPs.map((t) => t.id),
           status,
           description,
+          calderaOperationId: calderaOperationIds.join(",") || null,
         }),
       });
       const data = await res.json();
@@ -375,9 +377,52 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
       } else {
         attackIdRef.current = data.idAttaque;
         log("system", `[DB] Attack recorded (id=${data.idAttaque})`);
+        await saveAlerts(data.idAttaque, attackStartRef.current);
       }
     } catch (err: any) {
       log("error", `[✗] DB registration: ${err.message}`);
+    }
+  };
+
+  const saveAlerts = async (idAttaque: number, since: string) => {
+    if (!since) return;
+    try {
+      log("info", "[*] Fetching Wazuh alerts generated during the attack...");
+      const res = await fetch(`/api/wazuh/alerts?since=${encodeURIComponent(since)}`);
+      if (!res.ok) { log("warn", "[!] Could not fetch Wazuh alerts"); return; }
+      const wazuhAlerts: any[] = await res.json();
+      if (!wazuhAlerts.length) {
+        log("system", "[DB] No Wazuh alerts detected during this attack");
+        return;
+      }
+      const alerts = wazuhAlerts
+        .map((a) => ({
+          wazuhRuleId:   parseInt((a.ttp ?? "").replace("R:", ""), 10),
+          titre:         a.title ?? "",
+          niveau:        a.ruleLevel ?? 0,
+          severite:      a.severity ?? "Low",
+          message:       a.description ?? "",
+          dateDetection: a.timestamp ?? new Date().toISOString(),
+        }))
+        .filter((a) => a.wazuhRuleId > 0);
+
+      if (!alerts.length) {
+        log("system", "[DB] No mappable alerts found");
+        return;
+      }
+      const saveRes = await fetch("/api/simulations/lab-attack/alerts", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ idAttaque, alerts }),
+      });
+      const saveData = await saveRes.json();
+      if (!saveRes.ok) {
+        log("warn", `[!] Alert save failed: ${saveData.error}`);
+      } else {
+        log("system", `[DB] ${saveData.saved} alert(s) saved to database`);
+      }
+    } catch (err: any) {
+      log("warn", `[!] Alert save error: ${err.message}`);
     }
   };
 
@@ -491,6 +536,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
       log("system", "──────────────────────────────────────────────────");
       log("info",   "[*] Phase 3 — Matching agents & launching operations");
 
+      attackStartRef.current = new Date().toISOString();
       const opIds: string[] = [];
       // VMs that had to boot → agent needs more time to appear
       const bootedVmids = new Set(needBoot.map((v) => v.vmid));
@@ -561,7 +607,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
         throw new Error("No operations were launched — verify agents are reachable");
 
       opIdsRef.current = opIds;
-      localStorage.setItem("cyberlab_attack_launch",   new Date().toISOString());
+      localStorage.setItem("cyberlab_attack_launch",   attackStartRef.current);
       localStorage.setItem("cyberlab_operation_ids",   JSON.stringify(opIds));
 
       // ═══════════════════════════════════════════════════
@@ -681,7 +727,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
             doneRef.current = true;
             setRunning(false);
             setDone(true);
-            registerAttack("completed");
+            registerAttack("completed", opIds);
           }
         } catch { /* ignore transient poll errors */ }
       }, 3_000);
@@ -694,7 +740,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
           doneRef.current = true;
           setRunning(false);
           setDone(true);
-          registerAttack("stopped");
+          registerAttack("stopped", opIdsRef.current);
         }
       }, 3_600_000);
 
@@ -725,7 +771,7 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
     setRunning(false);
     setDone(true);
     log("warn", "[■] Attack stopped by user");
-    registerAttack("stopped");
+    registerAttack("stopped", opIdsRef.current);
   };
 
   // ── Report generation ───────────────────────────────────────────────────

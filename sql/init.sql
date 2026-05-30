@@ -136,6 +136,7 @@ CREATE TABLE Attaque (
     statut              VARCHAR(50),
     type                ENUM('apprentissage','amelioration','mission') NOT NULL,
     IdResultatAttaque   INT NOT NULL,
+    calderaOperationId  VARCHAR(255),
     PRIMARY KEY (IdAttaque),
     CONSTRAINT fk_attaque_resultat FOREIGN KEY (IdResultatAttaque)
         REFERENCES ResultatAttaque(IdResultatAttaque)
@@ -152,6 +153,8 @@ CREATE TABLE Alerte (
     estFauxPositif  BOOLEAN NOT NULL DEFAULT FALSE,
     IdAttaque       INT     NOT NULL,
     IdRegle         INT     NOT NULL,
+    dateDetection   DATETIME DEFAULT CURRENT_TIMESTAMP,
+    statut          ENUM('new','investigating','resolved') DEFAULT 'new',
     PRIMARY KEY (IdAlerte),
     CONSTRAINT fk_alerte_attaque FOREIGN KEY (IdAttaque)
         REFERENCES Attaque(IdAttaque),
@@ -177,8 +180,8 @@ CREATE TABLE CouvertureDetection (
     IdRegle     INT NOT NULL,
     IdTechnique INT NOT NULL,
     PRIMARY KEY (IdRegle, IdTechnique),
-    CONSTRAINT fk_cd_regle     FOREIGN KEY (IdRegle)
-        REFERENCES RegleDeDetection(IdRegle),
+    CONSTRAINT fk_cd_siem      FOREIGN KEY (IdRegle)
+        REFERENCES RegleSIEM(IdRegle),
     CONSTRAINT fk_cd_technique FOREIGN KEY (IdTechnique)
         REFERENCES Technique(IdTechnique)
 );
@@ -242,6 +245,12 @@ CREATE TABLE RegleAjouteParConsultant (
     IdRegle         INT NOT NULL,
     IdConsultant    INT NOT NULL,
     IdMission       INT,            -- NULL si hors mission
+    nom             VARCHAR(255),
+    description     TEXT,
+    wazuhRuleId     INT,
+    severite        VARCHAR(50),
+    dateCreation    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    XmlWazuh        LONGTEXT,
     PRIMARY KEY (IdRegle),
     CONSTRAINT fk_rapc_regle      FOREIGN KEY (IdRegle)
         REFERENCES RegleDeDetection(IdRegle),
@@ -280,6 +289,16 @@ CREATE TABLE RegleClient (
         REFERENCES RegleDeDetection(IdRegle),
     CONSTRAINT fk_rc_mission FOREIGN KEY (IdMission)
         REFERENCES Mission(IdMission)
+);
+
+CREATE TABLE RegleSIEM (
+    IdRegle         INT          NOT NULL,
+    wazuhRuleId     INT          NOT NULL UNIQUE,
+    titre           VARCHAR(255),
+    niveau          INT,
+    PRIMARY KEY (IdRegle),
+    CONSTRAINT fk_siem_regle FOREIGN KEY (IdRegle)
+        REFERENCES RegleDeDetection(IdRegle)
 );
 
 -- ------------------------------------------------------------
