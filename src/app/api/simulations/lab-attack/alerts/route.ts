@@ -11,6 +11,10 @@ interface WazuhAlertPayload {
   dateDetection: string;
 }
 
+function toMysqlDatetime(iso: string): string {
+  return new Date(iso).toISOString().replace("T", " ").replace("Z", "").slice(0, 19);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { idAttaque, alerts } = await req.json() as {
@@ -60,7 +64,7 @@ export async function POST(req: NextRequest) {
             idRegle,
             alert.severite ?? null,
             alert.message ?? null,
-            alert.dateDetection ?? new Date().toISOString(),
+            toMysqlDatetime(alert.dateDetection ?? new Date().toISOString()),
           ]
         );
       }
