@@ -92,8 +92,9 @@ export default function CoveragePage() {
   const [data, setData]       = useState<CoverageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
-  const [search, setSearch]   = useState("");
-  const [filter, setFilter]   = useState<TechniqueStatus | "all">("all");
+  const [search, setSearch]       = useState("");
+  const [filter, setFilter]       = useState<TechniqueStatus | "all">("all");
+  const [tacticFilter, setTactic] = useState("all");
 
   const load = async () => {
     setLoading(true);
@@ -112,13 +113,19 @@ export default function CoveragePage() {
   useEffect(() => { load(); }, []);
 
   // ── Grouper par tactique ──────────────────────────────────────────────────
+  const allTactics = useMemo(
+    () => data ? [...new Set(data.techniques.map((t) => t.tactique))].sort() : [],
+    [data]
+  );
+
   const grouped = useMemo(() => {
     if (!data) return {};
     const q = search.toLowerCase();
     const filtered = data.techniques.filter((t) => {
       const matchSearch = !q || t.mitreID.toLowerCase().includes(q) || t.nom.toLowerCase().includes(q);
       const matchFilter = filter === "all" || t.status === filter;
-      return matchSearch && matchFilter;
+      const matchTactic = tacticFilter === "all" || t.tactique === tacticFilter;
+      return matchSearch && matchFilter && matchTactic;
     });
     return filtered.reduce<Record<string, TechniqueCoverage[]>>((acc, t) => {
       const tactic = t.tactique || "Unknown";
@@ -213,6 +220,17 @@ export default function CoveragePage() {
                            focus:border-indigo-600/60 w-44"
               />
             </div>
+            <select
+              value={tacticFilter}
+              onChange={(e) => setTactic(e.target.value)}
+              className="px-3 py-1.5 rounded-lg bg-gray-800/60 border border-gray-700/50
+                         text-xs text-gray-300 focus:outline-none focus:border-indigo-600/60"
+            >
+              <option value="all">All tactics</option>
+              {allTactics.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value as any)}
