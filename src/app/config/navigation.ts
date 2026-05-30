@@ -19,6 +19,7 @@ import {
   Terminal,
   ClipboardCheck,
   History,
+  Map,
 } from "lucide-react";
 import { UserRole } from "@/app/context/AuthContext";
 
@@ -40,6 +41,7 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: "Scenarios",               icon: Layers,          href: "/scenarios" },
     { label: "CTI",                     icon: Shield,          href: "/cti" },
     { label: "Guides",                  icon: BookOpen,        href: "/cours" },
+    { label: "Detection Coverage",        icon: Map,             href: "/coverage" },
     { label: "Activity",               icon: History,         href: "/admin/activity" },
   ],
 
@@ -51,6 +53,7 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: "Rule Review",             icon: ClipboardCheck,  href: "/rule-review" },
     { label: "Mission",                 icon: Flag,            href: "/mission" },
     { label: "CTI",                     icon: Shield,          href: "/cti" },
+    { label: "Detection Coverage",       icon: Map,             href: "/coverage" },
     { label: "Manual Pentest",          icon: Terminal,        href: "/manual-pentest" },
   ],
 
@@ -62,6 +65,7 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: "CTI",               icon: Shield,          href: "/cti" },
     { label: "Guides",            icon: GraduationCap,   href: "/cours" },
     { label: "Scenarios",         icon: Layers,          href: "/scenarios" },
+    { label: "Detection Coverage", icon: Map,             href: "/coverage" },
     { label: "Manual Pentest",    icon: Terminal,        href: "/manual-pentest" },
   ],
 };
