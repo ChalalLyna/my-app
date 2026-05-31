@@ -206,11 +206,12 @@ CREATE TABLE LabApprentissage (
 );
 
 CREATE TABLE LabAmelioration (
+    IdLabAmelioration INT NOT NULL,
     IdUtilisateur   INT NOT NULL,
     IdActif         INT NOT NULL,
     IdTechnique     INT NOT NULL,
     IdAttaque       INT NOT NULL,
-    PRIMARY KEY (IdUtilisateur, IdActif, IdTechnique, IdAttaque),
+    PRIMARY KEY (IdLabAmelioration, IdUtilisateur, IdActif, IdTechnique, IdAttaque),
     CONSTRAINT fk_lam_utilisateur FOREIGN KEY (IdUtilisateur)
         REFERENCES Utilisateur(IdUtilisateur),
     CONSTRAINT fk_lam_actif       FOREIGN KEY (IdActif)
@@ -258,6 +259,30 @@ CREATE TABLE RegleAjouteParConsultant (
         REFERENCES Utilisateur(IdUtilisateur),
     CONSTRAINT fk_rapc_mission    FOREIGN KEY (IdMission)
         REFERENCES Mission(IdMission)
+);
+
+CREATE TABLE RegleAjouteeParApprenant (
+    IdRegle         INT NOT NULL,
+    IdApprenant     INT NOT NULL,
+    IdConsultant    INT,
+    nom             VARCHAR(255),
+    description     TEXT,
+    wazuhRuleId     INT,
+    severite        VARCHAR(50),
+    action          ENUM('create','modify') NOT NULL DEFAULT 'create',
+    statut          ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+    dateCreation    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    dateRevision    DATETIME,
+    commentaire     TEXT,
+    XmlWazuh        LONGTEXT,
+    filename        VARCHAR(255),
+    PRIMARY KEY (IdRegle),
+    CONSTRAINT fk_rapa_regle      FOREIGN KEY (IdRegle)
+        REFERENCES RegleDeDetection(IdRegle),
+    CONSTRAINT fk_rapa_apprenant  FOREIGN KEY (IdApprenant)
+        REFERENCES Utilisateur(IdUtilisateur),
+    CONSTRAINT fk_rapa_consultant FOREIGN KEY (IdConsultant)
+        REFERENCES Utilisateur(IdUtilisateur)
 );
 
 CREATE TABLE RegleCTI (

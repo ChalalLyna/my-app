@@ -7,8 +7,9 @@ import {
   Shield, Search, X, ChevronLeft, ChevronRight,
   RefreshCw, Plus, Loader2, AlertCircle, CheckCircle2,
   FileCode2, FileText, Tag, Calendar, User, Layers,
-  Download, FolderOpen,
+  Download, FolderOpen, Users, GraduationCap, CheckCircle,
 } from "lucide-react";
+import { RuleReview } from "@/app/data/ruleReviews";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,27 @@ interface CategoriesData {
   subcategories: SubCategoryInfo[];
 }
 
+interface ConsultantRule {
+  id:             string;
+  nom:            string;
+  description:    string | null;
+  wazuhRuleId:    number | null;
+  severite:       string | null;
+  dateCreation:   string;
+  consultantName: string;
+  xml:            string;
+}
+
+interface XmlPreviewState {
+  title:    string;
+  xml:      string;
+  severite?: string | null;
+  rows:     { label: string; value: string }[];
+}
+
+type Tab = "cti" | "consultants" | "apprenants";
+
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 50;
@@ -64,6 +86,14 @@ const CATEGORY_META: Record<string, { color: string; bg: string }> = {
   cloud:   { color: "text-orange-400", bg: "bg-orange-500/10" },
   web:     { color: "text-pink-400",   bg: "bg-pink-500/10"   },
 };
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function extractMitre(xml: string): string[] {
+  const m = xml.match(/<group[^>]*>([^<]+)<\/group>/);
+  if (!m) return [];
+  return m[1].split(",").map((s) => s.trim()).filter((s) => /^T\d{4}/.test(s));
+}
 
 // ─── Helper components ────────────────────────────────────────────────────────
 
@@ -118,6 +148,18 @@ function MitreBadges({ raw }: { raw: string | null }) {
   );
 }
 
+function MitreBadgesFromXml({ xml }: { xml: string }) {
+  const techniques = extractMitre(xml);
+  if (!techniques.length) return <span className="text-gray-600 text-xs">—</span>;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {techniques.map((t) => (
+        <span key={t} className="text-xs px-1.5 py-0.5 rounded bg-brand/10 text-brand font-mono">{t}</span>
+      ))}
+    </div>
+  );
+}
+
 function CodeBlock({ content }: { content: string | null }) {
   return (
     <pre className="bg-gray-950 border border-gray-800 rounded-xl p-4 text-xs text-gray-300 font-mono overflow-auto max-h-80 whitespace-pre-wrap break-all">
@@ -132,7 +174,9 @@ export default function CTIPage() {
   const { user, loading: authLoading } = useAuth();
   const isAdmin = user?.role === "admin";
 
-  // Table state
+  const [activeTab, setActiveTab] = useState<Tab>("cti");
+
+  // ── CTI state ────────────────────────────────────────────────────
   const [rules, setRules]         = useState<CTIRule[]>([]);
   const [total, setTotal]         = useState(0);
   const [loading, setLoading]     = useState(true);
@@ -142,26 +186,35 @@ export default function CTIPage() {
   const [subcategory, setSubcategory] = useState("");
   const [severity, setSeverity]   = useState("");
 
-  // Categories + subcategories
   const [catData, setCatData]       = useState<CategoriesData>({
     imported: [], available: [], all: [], subcategories: [],
   });
   const [catLoading, setCatLoading] = useState(true);
 
-  // Detail modal
   const [detail, setDetail]               = useState<CTIRuleDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailTab, setDetailTab]         = useState<"yaml" | "xml">("yaml");
 
-  // Manage modal (admin)
   const [showManage, setShowManage] = useState(false);
   const [importing, setImporting]   = useState<string | null>(null);
   const [importMsg, setImportMsg]   = useState<{ ok: boolean; text: string } | null>(null);
 
-  // Debounce search
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Fetch categories + subcategories ────────────────────────────
+  // ── Consultant rules ─────────────────────────────────────────────
+  const [consultantRules, setConsultantRules]     = useState<ConsultantRule[]>([]);
+  const [consultantLoading, setConsultantLoading] = useState(false);
+  const [consultantFetched, setConsultantFetched] = useState(false);
+
+  // ── Apprenant approved rules ─────────────────────────────────────
+  const [approvedRules, setApprovedRules]   = useState<RuleReview[]>([]);
+  const [approvedLoading, setApprovedLoading] = useState(false);
+  const [approvedFetched, setApprovedFetched] = useState(false);
+
+  // ── XML preview modal (consultants + apprenants) ─────────────────
+  const [xmlPreview, setXmlPreview] = useState<XmlPreviewState | null>(null);
+
+  // ── Fetch categories ─────────────────────────────────────────────
   const fetchCategories = useCallback((cat: string = "") => {
     setCatLoading(true);
     const url = cat ? `/api/cti/categories?category=${encodeURIComponent(cat)}` : "/api/cti/categories";
@@ -171,7 +224,7 @@ export default function CTIPage() {
       .catch(() => setCatLoading(false));
   }, []);
 
-  // ── Fetch rules ──────────────────────────────────────────────────
+  // ── Fetch CTI rules ──────────────────────────────────────────────
   const fetchRules = useCallback((
     pg: number, q: string, cat: string, sub: string, sev: string
   ) => {
@@ -191,6 +244,36 @@ export default function CTIPage() {
       .catch(() => setLoading(false));
   }, []);
 
+  // ── Fetch consultant rules when tab opens ────────────────────────
+  useEffect(() => {
+    if (activeTab === "consultants" && !consultantFetched) {
+      setConsultantLoading(true);
+      fetch("/api/consultant-rules")
+        .then((r) => r.json())
+        .then((d) => {
+          setConsultantRules(Array.isArray(d) ? d : []);
+          setConsultantLoading(false);
+          setConsultantFetched(true);
+        })
+        .catch(() => setConsultantLoading(false));
+    }
+  }, [activeTab, consultantFetched]);
+
+  // ── Fetch approved rules when apprenant tab opens ────────────────
+  useEffect(() => {
+    if (activeTab === "apprenants" && !approvedFetched) {
+      setApprovedLoading(true);
+      fetch("/api/rule-reviews?status=approved")
+        .then((r) => r.json())
+        .then((d) => {
+          setApprovedRules(Array.isArray(d) ? d : []);
+          setApprovedLoading(false);
+          setApprovedFetched(true);
+        })
+        .catch(() => setApprovedLoading(false));
+    }
+  }, [activeTab, approvedFetched]);
+
   // Initial load
   useEffect(() => { fetchCategories(); }, [fetchCategories]);
 
@@ -209,7 +292,6 @@ export default function CTIPage() {
     fetchRules(page, search, category, subcategory, severity);
   }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // When category changes → reset subcategory + reload subcategory list
   function handleCategoryChange(val: string) {
     setCategory(val);
     setSubcategory("");
@@ -217,7 +299,7 @@ export default function CTIPage() {
     fetchCategories(val);
   }
 
-  // ── Open detail ──────────────────────────────────────────────────
+  // ── Open CTI detail ──────────────────────────────────────────────
   function openDetail(rule: CTIRule) {
     setDetail(null);
     setDetailTab("yaml");
@@ -228,7 +310,7 @@ export default function CTIPage() {
       .catch(() => setDetailLoading(false));
   }
 
-  // ── Import / Refresh ─────────────────────────────────────────────
+  // ── Import categories ────────────────────────────────────────────
   async function handleImport(cat: string) {
     setImporting(cat);
     setImportMsg(null);
@@ -254,14 +336,14 @@ export default function CTIPage() {
     }
   }
 
-  // ── Helpers ──────────────────────────────────────────────────────
+  // ── Misc helpers ─────────────────────────────────────────────────
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const pageStart  = page * PAGE_SIZE + 1;
   const pageEnd    = Math.min((page + 1) * PAGE_SIZE, total);
 
   function fmtDate(d: string | null) {
     if (!d) return "—";
-    try { return new Date(d).toLocaleDateString("en-US"); } catch { return d; }
+    try { return new Date(d).toLocaleDateString("fr-FR"); } catch { return d; }
   }
 
   function parseMitre(raw: string | null): string[] {
@@ -270,6 +352,12 @@ export default function CTIPage() {
   }
 
   if (authLoading) return null;
+
+  const TABS: { key: Tab; label: string; Icon: React.ElementType; count?: number }[] = [
+    { key: "cti",         label: "Base CTI",            Icon: Shield,        count: total > 0 ? total : undefined },
+    { key: "consultants", label: "Règles Consultants",   Icon: Users,         count: consultantFetched ? consultantRules.length : undefined },
+    { key: "apprenants",  label: "Règles Apprenants",    Icon: GraduationCap, count: approvedFetched ? approvedRules.length : undefined },
+  ];
 
   return (
     <DashboardLayout>
@@ -281,221 +369,417 @@ export default function CTIPage() {
             <div className="flex items-center gap-2 mb-1">
               <Shield size={16} className="text-brand" />
               <span className="text-xs font-semibold uppercase tracking-widest text-brand">
-                Cyber Threat Intelligence
+                Base de Règles
               </span>
             </div>
-            <h1 className="text-2xl font-bold text-white">Base CTI</h1>
+            <h1 className="text-2xl font-bold text-white">Règles de détection</h1>
             <p className="text-gray-500 text-sm mt-0.5">
-              {total > 0
-                ? `${total} rule${total !== 1 ? "s" : ""} · ${catData.imported.length} categor${catData.imported.length !== 1 ? "ies" : "y"} imported`
-                : "No rules imported"}
+              {activeTab === "cti" && (
+                total > 0
+                  ? `${total} règle${total !== 1 ? "s" : ""} · ${catData.imported.length} catégorie${catData.imported.length !== 1 ? "s" : ""} importées`
+                  : "Aucune règle CTI importée"
+              )}
+              {activeTab === "consultants" && (consultantFetched ? `${consultantRules.length} règle${consultantRules.length !== 1 ? "s" : ""} publiées par les consultants` : "Règles publiées par les consultants")}
+              {activeTab === "apprenants" && (
+                approvedFetched
+                  ? `${approvedRules.length} règle${approvedRules.length !== 1 ? "s" : ""} d'apprenants approuvées`
+                  : "Règles soumises par les apprenants et approuvées"
+              )}
             </p>
           </div>
 
-          {isAdmin && (
+          {isAdmin && activeTab === "cti" && (
             <button
               onClick={() => { setShowManage(true); setImportMsg(null); }}
               className="flex items-center gap-2 bg-brand/10 hover:bg-brand/20 border border-brand/30 text-brand px-4 py-2 rounded-xl text-sm font-medium transition-colors"
             >
               <FolderOpen size={15} />
-              Manage categories
+              Gérer les catégories
             </button>
           )}
         </div>
 
-        {/* ── Category chips ──────────────────────────────────────── */}
-        {catData.imported.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-5">
-            {catData.imported.map((c) => {
-              const meta = CATEGORY_META[c.name] ?? { color: "text-gray-400", bg: "bg-gray-500/10" };
-              const active = category === c.name;
-              return (
-                <button
-                  key={c.name}
-                  onClick={() => handleCategoryChange(active ? "" : c.name)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors
-                    ${active
-                      ? `${meta.color} ${meta.bg} border-current/30`
-                      : "text-gray-400 bg-gray-800/50 border-gray-700/50 hover:border-gray-600"
-                    }`}
-                >
-                  <Layers size={11} />
-                  <span className="capitalize">{c.name}</span>
-                  <span className={`px-1.5 py-0.5 rounded-full text-xs ${active ? meta.bg : "bg-gray-700"}`}>
-                    {c.count}
-                  </span>
-                </button>
-              );
-            })}
+        {/* ── Tab navigation ──────────────────────────────────────── */}
+        <div className="flex gap-1 mb-6 bg-gray-900 border border-gray-800/60 rounded-2xl p-1 w-fit">
+          {TABS.map(({ key, label, Icon, count }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors
+                ${activeTab === key
+                  ? "bg-brand/15 text-brand border border-brand/25"
+                  : "text-gray-400 hover:text-white"
+                }`}
+            >
+              <Icon size={14} />
+              {label}
+              {count !== undefined && (
+                <span className={`px-1.5 py-0.5 rounded-full text-xs
+                  ${activeTab === key ? "bg-brand/20 text-brand" : "bg-gray-800 text-gray-500"}`}>
+                  {count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* ══════════════════════════════════════════════════════════ */}
+        {/* CTI TAB                                                    */}
+        {/* ══════════════════════════════════════════════════════════ */}
+        {activeTab === "cti" && (
+          <>
+            {/* Category chips */}
+            {catData.imported.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-5">
+                {catData.imported.map((c) => {
+                  const meta   = CATEGORY_META[c.name] ?? { color: "text-gray-400", bg: "bg-gray-500/10" };
+                  const active = category === c.name;
+                  return (
+                    <button
+                      key={c.name}
+                      onClick={() => handleCategoryChange(active ? "" : c.name)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors
+                        ${active
+                          ? `${meta.color} ${meta.bg} border-current/30`
+                          : "text-gray-400 bg-gray-800/50 border-gray-700/50 hover:border-gray-600"
+                        }`}
+                    >
+                      <Layers size={11} />
+                      <span className="capitalize">{c.name}</span>
+                      <span className={`px-1.5 py-0.5 rounded-full text-xs ${active ? meta.bg : "bg-gray-700"}`}>
+                        {c.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Toolbar */}
+            <div className="flex gap-3 mb-5 flex-wrap">
+              <div className="relative flex-1 min-w-55">
+                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Rechercher par titre, auteur, technique…"
+                  className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50"
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+
+              <select
+                value={category}
+                onChange={(e) => handleCategoryChange(e.target.value)}
+                className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand/50 min-w-35"
+              >
+                <option value="">Toutes catégories</option>
+                {catData.imported.map((c) => (
+                  <option key={c.name} value={c.name} className="capitalize">{c.name}</option>
+                ))}
+              </select>
+
+              <select
+                value={subcategory}
+                onChange={(e) => { setSubcategory(e.target.value); setPage(0); }}
+                disabled={catData.subcategories.length === 0}
+                className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand/50 min-w-35 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <option value="">Toutes sous-catégories</option>
+                {catData.subcategories.map((s) => (
+                  <option key={s.name} value={s.name}>{s.name}</option>
+                ))}
+              </select>
+
+              <select
+                value={severity}
+                onChange={(e) => { setSeverity(e.target.value); setPage(0); }}
+                className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand/50 min-w-35"
+              >
+                <option value="">Toutes sévérités</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+
+            {/* Table */}
+            <div className="bg-gray-900 border border-gray-800/60 rounded-2xl overflow-hidden">
+              {loading ? (
+                <div className="flex items-center justify-center py-20 text-gray-500">
+                  <Loader2 size={20} className="animate-spin mr-2" /> Chargement…
+                </div>
+              ) : rules.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-gray-500 gap-3">
+                  <Shield size={32} className="opacity-20" />
+                  <p className="text-sm">
+                    {catData.imported.length === 0
+                      ? "Aucune règle CTI — importez une catégorie via \"Gérer les catégories\"."
+                      : "Aucune règle ne correspond aux filtres."}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-800/60">
+                          <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-5 py-3">Titre</th>
+                          <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Catégorie</th>
+                          <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Sous-catégorie</th>
+                          <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Sévérité</th>
+                          <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Techniques MITRE</th>
+                          <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Auteur</th>
+                          <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Modifié</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rules.map((rule) => (
+                          <tr
+                            key={rule.IdRegle}
+                            onClick={() => openDetail(rule)}
+                            className="border-b border-gray-800/30 last:border-0 hover:bg-gray-800/30 cursor-pointer transition-colors"
+                          >
+                            <td className="px-5 py-3.5 max-w-xs">
+                              <p className="text-white font-medium truncate">{rule.Titre ?? "—"}</p>
+                              {rule.IdSigma && (
+                                <p className="text-gray-600 text-xs font-mono truncate mt-0.5">{rule.IdSigma}</p>
+                              )}
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <CategoryBadge cat={rule.Categorie} />
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <SubCategoryBadge sub={rule.SousCategorie} />
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <SeverityBadge level={rule.Severite} />
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <MitreBadges raw={rule.TechniquesMitre} />
+                            </td>
+                            <td className="px-4 py-3.5 text-gray-400 text-xs max-w-35 truncate">
+                              {rule.Auteur ?? "—"}
+                            </td>
+                            <td className="px-4 py-3.5 text-gray-500 text-xs whitespace-nowrap">
+                              {fmtDate(rule.DerniereModification ?? rule.DateAjout)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between px-5 py-3 border-t border-gray-800/60">
+                      <p className="text-xs text-gray-500">
+                        {pageStart}–{pageEnd} sur {total} règles
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <button
+                          disabled={page === 0}
+                          onClick={() => setPage(page - 1)}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <ChevronLeft size={15} />
+                        </button>
+                        <span className="px-2 text-xs text-gray-400">
+                          {page + 1} / {totalPages}
+                        </span>
+                        <button
+                          disabled={page >= totalPages - 1}
+                          onClick={() => setPage(page + 1)}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <ChevronRight size={15} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════ */}
+        {/* CONSULTANTS TAB                                            */}
+        {/* ══════════════════════════════════════════════════════════ */}
+        {activeTab === "consultants" && (
+          <div className="bg-gray-900 border border-gray-800/60 rounded-2xl overflow-hidden">
+            {consultantLoading ? (
+              <div className="flex items-center justify-center py-20 text-gray-500">
+                <Loader2 size={20} className="animate-spin mr-2" /> Chargement…
+              </div>
+            ) : consultantRules.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-gray-500 gap-3">
+                <Users size={32} className="opacity-20" />
+                <p className="text-sm">Aucune règle consultant pour l&apos;instant.</p>
+              </div>
+            ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-800/60">
+                    <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-5 py-3">Nom</th>
+                    <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Sévérité</th>
+                    <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Techniques MITRE</th>
+                    <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Consultant</th>
+                    <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Wazuh ID</th>
+                    <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Date création</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {consultantRules.map((rule: ConsultantRule) => (
+                    <tr
+                      key={rule.id}
+                      onClick={() => setXmlPreview({
+                        title:    rule.nom,
+                        xml:      rule.xml,
+                        severite: rule.severite,
+                        rows: [
+                          ...(rule.description ? [{ label: "Description", value: rule.description }] : []),
+                          { label: "Consultant",  value: rule.consultantName },
+                          { label: "Wazuh ID",    value: rule.wazuhRuleId ? `#${rule.wazuhRuleId}` : "—" },
+                          { label: "Date création", value: fmtDate(rule.dateCreation) },
+                        ],
+                      })}
+                      className="border-b border-gray-800/30 last:border-0 hover:bg-gray-800/30 cursor-pointer transition-colors"
+                    >
+                      <td className="px-5 py-3.5 max-w-xs">
+                        <p className="text-white font-medium">{rule.nom}</p>
+                        {rule.description && (
+                          <p className="text-gray-500 text-xs mt-0.5 truncate max-w-xs">{rule.description}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <SeverityBadge level={rule.severite} />
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <MitreBadgesFromXml xml={rule.xml} />
+                      </td>
+                      <td className="px-4 py-3.5 text-gray-400 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <User size={11} className="text-gray-600" />
+                          {rule.consultantName}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 text-gray-500 text-xs font-mono">
+                        {rule.wazuhRuleId ? `#${rule.wazuhRuleId}` : "—"}
+                      </td>
+                      <td className="px-4 py-3.5 text-gray-500 text-xs whitespace-nowrap">
+                        {fmtDate(rule.dateCreation)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            )}
           </div>
         )}
 
-        {/* ── Toolbar ─────────────────────────────────────────────── */}
-        <div className="flex gap-3 mb-5 flex-wrap">
-          {/* Search */}
-          <div className="relative flex-1 min-w-55">
-            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by title, author, technique…"
-              className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
-              >
-                <X size={13} />
-              </button>
-            )}
-          </div>
-
-          {/* Category filter */}
-          <select
-            value={category}
-            onChange={(e) => handleCategoryChange(e.target.value)}
-            className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand/50 min-w-35"
-          >
-            <option value="">All categories</option>
-            {catData.imported.map((c) => (
-              <option key={c.name} value={c.name} className="capitalize">{c.name}</option>
-            ))}
-          </select>
-
-          {/* Subcategory filter */}
-          <select
-            value={subcategory}
-            onChange={(e) => { setSubcategory(e.target.value); setPage(0); }}
-            disabled={catData.subcategories.length === 0}
-            className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand/50 min-w-35 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <option value="">All subcategories</option>
-            {catData.subcategories.map((s) => (
-              <option key={s.name} value={s.name}>{s.name}</option>
-            ))}
-          </select>
-
-          {/* Severity filter */}
-          <select
-            value={severity}
-            onChange={(e) => { setSeverity(e.target.value); setPage(0); }}
-            className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand/50 min-w-35"
-          >
-            <option value="">All severities</option>
-            <option value="critical">Critical</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-          </select>
-        </div>
-
-        {/* ── Table ───────────────────────────────────────────────── */}
-        <div className="bg-gray-900 border border-gray-800/60 rounded-2xl overflow-hidden">
-          {loading ? (
-            <div className="flex items-center justify-center py-20 text-gray-500">
-              <Loader2 size={20} className="animate-spin mr-2" /> Loading…
-            </div>
-          ) : rules.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-gray-500 gap-3">
-              <Shield size={32} className="opacity-20" />
-              <p className="text-sm">
-                {catData.imported.length === 0
-                  ? "No CTI rules — import a category via \"Manage categories\"."
-                  : "No rules match these filters."}
-              </p>
-            </div>
-          ) : (
-            <>
+        {/* ══════════════════════════════════════════════════════════ */}
+        {/* APPRENANTS TAB                                             */}
+        {/* ══════════════════════════════════════════════════════════ */}
+        {activeTab === "apprenants" && (
+          <div className="bg-gray-900 border border-gray-800/60 rounded-2xl overflow-hidden">
+            {approvedLoading ? (
+              <div className="flex items-center justify-center py-20 text-gray-500">
+                <Loader2 size={20} className="animate-spin mr-2" /> Chargement…
+              </div>
+            ) : approvedRules.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-gray-500 gap-3">
+                <GraduationCap size={32} className="opacity-20" />
+                <p className="text-sm">Aucune règle approuvée pour l&apos;instant.</p>
+              </div>
+            ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-800/60">
-                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-5 py-3">Title</th>
-                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Category</th>
-                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Subcategory</th>
-                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Severity</th>
-                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">MITRE Techniques</th>
-                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Author</th>
-                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Modified</th>
+                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-5 py-3">Nom</th>
+                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Action</th>
+                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Techniques MITRE</th>
+                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Apprenant</th>
+                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Approuvé par</th>
+                      <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Date approbation</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rules.map((rule) => (
+                    {approvedRules.map((rule) => (
                       <tr
-                        key={rule.IdRegle}
-                        onClick={() => openDetail(rule)}
+                        key={rule.id}
+                        onClick={() => setXmlPreview({
+                          title: rule.ruleName,
+                          xml:   rule.xml,
+                          rows: [
+                            { label: "Fichier",      value: rule.filename },
+                            { label: "Apprenant",    value: rule.submittedBy },
+                            { label: "Soumis le",    value: fmtDate(rule.submittedAt) },
+                            { label: "Approuvé par", value: rule.reviewedBy ?? "—" },
+                            ...(rule.comment ? [{ label: "Commentaire", value: rule.comment }] : []),
+                          ],
+                        })}
                         className="border-b border-gray-800/30 last:border-0 hover:bg-gray-800/30 cursor-pointer transition-colors"
                       >
                         <td className="px-5 py-3.5 max-w-xs">
-                          <p className="text-white font-medium truncate">{rule.Titre ?? "—"}</p>
-                          {rule.IdSigma && (
-                            <p className="text-gray-600 text-xs font-mono truncate mt-0.5">{rule.IdSigma}</p>
-                          )}
+                          <p className="text-white font-medium">{rule.ruleName}</p>
+                          <p className="text-gray-600 text-xs font-mono mt-0.5">{rule.filename}</p>
                         </td>
                         <td className="px-4 py-3.5">
-                          <CategoryBadge cat={rule.Categorie} />
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                            ${rule.action === "create"
+                              ? "bg-green-500/10 text-green-400"
+                              : "bg-blue-500/10 text-blue-400"
+                            }`}
+                          >
+                            {rule.action === "create" ? "Création" : "Modification"}
+                          </span>
                         </td>
                         <td className="px-4 py-3.5">
-                          <SubCategoryBadge sub={rule.SousCategorie} />
+                          <MitreBadgesFromXml xml={rule.xml} />
                         </td>
-                        <td className="px-4 py-3.5">
-                          <SeverityBadge level={rule.Severite} />
+                        <td className="px-4 py-3.5 text-gray-400 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <GraduationCap size={11} className="text-gray-600" />
+                            {rule.submittedBy}
+                          </div>
                         </td>
-                        <td className="px-4 py-3.5">
-                          <MitreBadges raw={rule.TechniquesMitre} />
-                        </td>
-                        <td className="px-4 py-3.5 text-gray-400 text-xs max-w-35 truncate">
-                          {rule.Auteur ?? "—"}
+                        <td className="px-4 py-3.5 text-gray-400 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <CheckCircle size={11} className="text-green-600" />
+                            {rule.reviewedBy ?? "—"}
+                          </div>
                         </td>
                         <td className="px-4 py-3.5 text-gray-500 text-xs whitespace-nowrap">
-                          {fmtDate(rule.DerniereModification ?? rule.DateAjout)}
+                          {fmtDate(rule.reviewedAt ?? null)}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between px-5 py-3 border-t border-gray-800/60">
-                  <p className="text-xs text-gray-500">
-                    {pageStart}–{pageEnd} of {total} rules
-                  </p>
-                  <div className="flex items-center gap-1">
-                    <button
-                      disabled={page === 0}
-                      onClick={() => setPage(page - 1)}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <ChevronLeft size={15} />
-                    </button>
-                    <span className="px-2 text-xs text-gray-400">
-                      {page + 1} / {totalPages}
-                    </span>
-                    <button
-                      disabled={page >= totalPages - 1}
-                      onClick={() => setPage(page + 1)}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <ChevronRight size={15} />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* ── Detail modal ────────────────────────────────────────────── */}
+      {/* ── CTI detail modal ────────────────────────────────────────── */}
       {(detailLoading || detail) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-gray-900 border border-gray-800/60 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
             {detailLoading ? (
               <div className="flex items-center justify-center py-20 text-gray-500">
-                <Loader2 size={20} className="animate-spin mr-2" /> Loading…
+                <Loader2 size={20} className="animate-spin mr-2" /> Chargement…
               </div>
             ) : detail && (
               <>
@@ -512,7 +796,7 @@ export default function CTIPage() {
                       )}
                     </div>
                     <h2 className="text-base font-bold text-white leading-snug">
-                      {detail.Titre ?? "Untitled"}
+                      {detail.Titre ?? "Sans titre"}
                     </h2>
                     {detail.IdSigma && (
                       <p className="text-xs text-gray-600 font-mono mt-0.5">{detail.IdSigma}</p>
@@ -566,9 +850,9 @@ export default function CTIPage() {
                           <Calendar size={11} /> Dates
                         </p>
                         <p className="text-xs text-gray-400">
-                          Added: {fmtDate(detail.DateAjout)}
+                          Ajouté : {fmtDate(detail.DateAjout)}
                           {detail.DerniereModification && (
-                            <> · Modified: {fmtDate(detail.DerniereModification)}</>
+                            <> · Modifié : {fmtDate(detail.DerniereModification)}</>
                           )}
                         </p>
                       </div>
@@ -578,7 +862,7 @@ export default function CTIPage() {
                   {(detail.YamlSigmaOriginal || detail.XmlWazuh) && (
                     <div>
                       <p className="text-xs text-yellow-500/80 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2 mb-3">
-                        ⚠️ The automatic translation to Wazuh XML may not be fully faithful to the original Sigma rule. Verify before any deployment.
+                        ⚠️ La traduction automatique en XML Wazuh peut ne pas être totalement fidèle à la règle Sigma originale. Vérifiez avant tout déploiement.
                       </p>
                       <div className="flex gap-1 mb-2">
                         {detail.YamlSigmaOriginal && (
@@ -617,6 +901,47 @@ export default function CTIPage() {
         </div>
       )}
 
+      {/* ── XML preview modal (consultants + apprenants) ─────────────── */}
+      {xmlPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-gray-900 border border-gray-800/60 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+            <div className="flex items-start justify-between p-5 border-b border-gray-800/60">
+              <div className="flex-1 pr-4">
+                {xmlPreview.severite && (
+                  <div className="mb-1.5">
+                    <SeverityBadge level={xmlPreview.severite} />
+                  </div>
+                )}
+                <h2 className="text-base font-bold text-white leading-snug">{xmlPreview.title}</h2>
+              </div>
+              <button
+                onClick={() => setXmlPreview(null)}
+                className="text-gray-500 hover:text-white transition-colors shrink-0"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 p-5 space-y-4">
+              {xmlPreview.rows.map((row) => (
+                <div key={row.label}>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">
+                    {row.label}
+                  </p>
+                  <p className="text-sm text-gray-300">{row.value}</p>
+                </div>
+              ))}
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
+                  <Download size={11} /> XML Wazuh
+                </p>
+                <CodeBlock content={xmlPreview.xml} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Manage categories modal (admin) ─────────────────────────── */}
       {isAdmin && showManage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -624,7 +949,7 @@ export default function CTIPage() {
             <div className="flex items-center justify-between p-5 border-b border-gray-800/60">
               <div className="flex items-center gap-2">
                 <FolderOpen size={16} className="text-brand" />
-                <h2 className="text-base font-bold text-white">CTI category management</h2>
+                <h2 className="text-base font-bold text-white">Gestion des catégories CTI</h2>
               </div>
               <button
                 onClick={() => { setShowManage(false); setImportMsg(null); }}
@@ -654,7 +979,7 @@ export default function CTIPage() {
               {importing && (
                 <div className="flex items-center gap-2 p-3 rounded-xl text-xs text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 mb-2">
                   <Loader2 size={13} className="animate-spin shrink-0" />
-                  Importing "{importing}" — may take a few minutes (Git clone + YAML parsing)…
+                  Import de &quot;{importing}&quot; en cours — peut prendre quelques minutes…
                 </div>
               )}
 
@@ -682,7 +1007,7 @@ export default function CTIPage() {
                             {imported.count} règle{imported.count !== 1 ? "s" : ""}
                           </span>
                         ) : (
-                          <span className="text-xs text-gray-600">Not imported</span>
+                          <span className="text-xs text-gray-600">Non importé</span>
                         )}
                       </div>
 
@@ -702,7 +1027,7 @@ export default function CTIPage() {
                         ) : (
                           <Plus size={12} />
                         )}
-                        {isImporting ? "Importing…" : imported ? "Refresh" : "Import"}
+                        {isImporting ? "Import…" : imported ? "Rafraîchir" : "Importer"}
                       </button>
                     </div>
                   );

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, COOKIE_NAME } from "@/lib/auth";
-import { reviews } from "../_store";
+import pool from "@/lib/db";
+import { RowDataPacket, ResultSetHeader } from "mysql2";
 
 function getUser(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
@@ -19,22 +20,55 @@ export async function PATCH(
     return NextResponse.json({ error: "Forbidden — consultants only." }, { status: 403 });
   }
 
-  const { id } = await params;
+  const { id }           = await params;
   const { status, comment } = await req.json();
+
   if (status !== "approved" && status !== "rejected") {
     return NextResponse.json({ error: "Status must be 'approved' or 'rejected'." }, { status: 400 });
   }
 
-  const idx = reviews.findIndex(r => r.id === id);
-  if (idx === -1) return NextResponse.json({ error: "Review not found." }, { status: 404 });
+  // UPDATE only if still pending — the WHERE clause acts as the concurrency guard
+  const [result] = await pool.execute<ResultSetHeader>(
+    `UPDATE RegleAjouteeParApprenant
+     SET statut = ?, IdConsultant = ?, dateRevision = NOW(), commentaire = ?
+     WHERE IdRegle = ? AND statut = 'pending'`,
+    [status, payload.idUtilisateur, comment ?? null, id]
+  );
 
-  reviews[idx] = {
-    ...reviews[idx],
-    status,
-    reviewedBy: `${payload.prenom} ${payload.nom}`,
-    reviewedAt: new Date().toISOString(),
-    comment: comment ?? undefined,
-  };
+  if (result.affectedRows === 0) {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      "SELECT IdRegle FROM RegleAjouteeParApprenant WHERE IdRegle = ?",
+      [id]
+    );
+    if (!rows.length) {
+      return NextResponse.json({ error: "Review not found." }, { status: 404 });
+    }
+    return NextResponse.json(
+      { error: "Cette soumission a déjà été traitée et ne peut plus être modifiée." },
+      { status: 409 }
+    );
+  }
 
-  return NextResponse.json(reviews[idx]);
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT
+       rapa.IdRegle                    AS id,
+       rapa.nom                        AS ruleName,
+       rapa.XmlWazuh                   AS xml,
+       rapa.filename,
+       rapa.action,
+       rapa.statut                     AS status,
+       rapa.dateCreation               AS submittedAt,
+       rapa.dateRevision               AS reviewedAt,
+       rapa.commentaire                AS comment,
+       rapa.IdApprenant                AS submittedById,
+       CONCAT(ua.prenom, ' ', ua.nom)  AS submittedBy,
+       CONCAT(uc.prenom, ' ', uc.nom)  AS reviewedBy
+     FROM RegleAjouteeParApprenant rapa
+     JOIN  Utilisateur ua ON rapa.IdApprenant  = ua.IdUtilisateur
+     LEFT JOIN Utilisateur uc ON rapa.IdConsultant = uc.IdUtilisateur
+     WHERE rapa.IdRegle = ?`,
+    [id]
+  );
+
+  return NextResponse.json(rows[0]);
 }
