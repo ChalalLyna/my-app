@@ -80,27 +80,57 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ rules: all, total: all.length });
     }
 
+    // For non-admins: also fetch custom rules from etc/rules separately,
+    // because the paginated fetch above only returns low-ID built-in rules
+    // and custom rules (e.g. id=901001) are never in the first N results.
+    let etcRules: ReturnType<typeof mapRule>[] = [];
+    try {
+      const etcRes = await fetch(
+        `${baseUrl}/rules?relative_dirname=etc%2Frules&limit=500`,
+        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store", signal: AbortSignal.timeout(8000) }
+      );
+      if (etcRes.ok) {
+        const etcData = await etcRes.json();
+        etcRules = (etcData?.data?.affected_items ?? []).map(mapRule);
+      }
+    } catch { /* best-effort */ }
+
+    // Merge and deduplicate by wazuhId
+    const merged = [...all, ...etcRules].filter(
+      (r, i, arr) => arr.findIndex(x => x.wazuhId === r.wazuhId) === i
+    );
+
     // Other users: default rules (not in etc/) + their own range
     const range = await getUserRange(user.idUtilisateur);
 
-    const rules = all.filter((r: ReturnType<typeof mapRule>) => {
+    const rules = merged.filter((r: ReturnType<typeof mapRule>) => {
       const isDefault = !r.relativeDirname.includes("etc");
       const inRange   = range != null && r.wazuhId >= range.rangeStart && r.wazuhId <= range.rangeEnd;
       return isDefault || inRange;
     });
 
-    // For apprenants: mark approved rules so the frontend can lock them
+    // For apprenants: enrich with review details (status, comment, reviewer)
     if (user.role === "apprenant") {
-      const [approvedRows] = await pool.query<RowDataPacket[]>(
-        "SELECT filename FROM RegleAjouteeParApprenant WHERE IdApprenant = ? AND statut = 'approved'",
+      const [reviewRows] = await pool.query<RowDataPacket[]>(
+        `SELECT rapa.filename, rapa.statut, rapa.commentaire,
+                CONCAT(uc.prenom, ' ', uc.nom) AS reviewedBy
+         FROM RegleAjouteeParApprenant rapa
+         LEFT JOIN Utilisateur uc ON rapa.IdConsultant = uc.IdUtilisateur
+         WHERE rapa.IdApprenant = ?`,
         [user.idUtilisateur]
       );
-      const approvedFilenames = new Set(approvedRows.map((r: RowDataPacket) => r.filename as string));
+      const reviewMap = new Map(reviewRows.map((r: RowDataPacket) => [r.filename as string, r]));
 
-      const enriched = rules.map((r: ReturnType<typeof mapRule>) => ({
-        ...r,
-        approved: approvedFilenames.has(r.filename),
-      }));
+      const enriched = rules.map((r: ReturnType<typeof mapRule>) => {
+        const rev = reviewMap.get(r.filename);
+        return {
+          ...r,
+          approved:      rev?.statut === "approved",
+          reviewStatus:  rev?.statut  ?? null,
+          reviewComment: rev?.commentaire ?? null,
+          reviewedBy:    rev?.reviewedBy  ?? null,
+        };
+      });
       return NextResponse.json({ rules: enriched, total: enriched.length });
     }
 

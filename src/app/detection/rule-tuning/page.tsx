@@ -346,20 +346,146 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError, userRange }: E
  
 // ─── Rule card ────────────────────────────────────────────────────────────────
  
+// ─── Rule detail modal ────────────────────────────────────────────────────────
+
+function RuleDetailModal({ rule, isOwned, onClose }: {
+  rule: WazuhRule;
+  isOwned: boolean;
+  onClose: () => void;
+}) {
+  const [xml, setXml]             = useState<string | null>(rule.xml ?? null);
+  const [loadingXml, setLoadingXml] = useState(!rule.xml);
+  const sev = SEVERITY_STYLES[rule.severity];
+
+  useEffect(() => {
+    if (rule.xml) { setLoadingXml(false); return; }
+    fetch(`/api/wazuh/rules/${encodeURIComponent(rule.id)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.xml) setXml(d.xml); })
+      .catch(() => {})
+      .finally(() => setLoadingXml(false));
+  }, [rule.id]); // eslint-disable-line
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-gray-950 border border-gray-800 rounded-2xl w-full max-w-2xl mx-4 shadow-2xl max-h-[85vh] flex flex-col">
+        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-800/60 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-brand/15 flex items-center justify-center shrink-0">
+              <Shield size={18} className="text-brand" />
+            </div>
+            <div>
+              <h3 className="text-white font-bold leading-tight">{rule.name}</h3>
+              <p className="text-gray-600 text-xs mt-0.5 font-mono">{rule.filename}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${sev.text} ${sev.bg} ${sev.border}`}>
+              {rule.severity}
+            </span>
+            <button onClick={onClose} className="p-1.5 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-colors">
+              <X size={15} />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <div className="grid grid-cols-3 gap-2">
+            {([["Rule ID", String(rule.wazuhId)], ["Level", String(rule.level)], ["Status", rule.status]] as [string,string][]).map(([label, value]) => (
+              <div key={label} className="bg-gray-900 border border-gray-800/60 rounded-xl p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1">{label}</p>
+                <p className="text-sm text-white font-mono">{value}</p>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {([["Groups", rule.groups.join(", ") || "—"], ["Directory", rule.relativeDirname || "—"]] as [string,string][]).map(([label, value]) => (
+              <div key={label} className="bg-gray-900 border border-gray-800/60 rounded-xl p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1">{label}</p>
+                <p className="text-sm text-gray-300 font-mono truncate">{value}</p>
+              </div>
+            ))}
+          </div>
+
+          {rule.description && (
+            <div className="bg-gray-900 border border-gray-800/60 rounded-xl p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1">Description</p>
+              <p className="text-sm text-gray-300">{rule.description}</p>
+            </div>
+          )}
+
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-2">XML</p>
+            <div className="bg-gray-950 border border-gray-800/60 rounded-xl p-4 overflow-auto max-h-52 font-mono text-xs leading-relaxed">
+              {loadingXml
+                ? <div className="flex items-center gap-2 text-gray-600"><Loader2 size={12} className="animate-spin" />Chargement...</div>
+                : xml ? renderXml(xml) : <span className="text-gray-600">XML non disponible</span>
+              }
+            </div>
+          </div>
+
+          {isOwned && rule.reviewStatus && (
+            <div className={`rounded-xl p-4 border ${
+              rule.reviewStatus === "approved" ? "bg-emerald-900/10 border-emerald-800/30" :
+              rule.reviewStatus === "rejected" ? "bg-red-900/10 border-red-800/30" :
+              "bg-amber-900/10 border-amber-800/30"
+            }`}>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Révision</p>
+                <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full border ${
+                  rule.reviewStatus === "approved" ? "text-emerald-400 bg-emerald-900/30 border-emerald-700/40" :
+                  rule.reviewStatus === "rejected" ? "text-red-400 bg-red-900/30 border-red-700/40" :
+                  "text-amber-400 bg-amber-900/30 border-amber-700/40"
+                }`}>
+                  {rule.reviewStatus === "approved" ? "Approuvée" : rule.reviewStatus === "rejected" ? "Rejetée" : "En attente"}
+                </span>
+              </div>
+              {rule.reviewedBy && (
+                <p className="text-xs text-gray-400 mb-2">
+                  <span className="text-gray-600">Révisée par </span>
+                  <span className="text-white font-medium">{rule.reviewedBy}</span>
+                </p>
+              )}
+              {rule.reviewComment ? (
+                <div className="p-3 bg-gray-900/60 rounded-lg border border-gray-800/40">
+                  <p className="text-xs text-gray-400 leading-relaxed italic">"{rule.reviewComment}"</p>
+                </div>
+              ) : rule.reviewStatus === "pending" ? (
+                <p className="text-xs text-gray-600 italic">En attente de révision par un consultant.</p>
+              ) : null}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Rule card ────────────────────────────────────────────────────────────────
+
 interface RuleCardProps {
   rule: WazuhRule;
+  onView: () => void;
   onEdit: () => void;
   onToggle: () => void;
   onDelete: () => void;
   loadingEdit: boolean;
   canEdit: boolean;
 }
- 
-function RuleCard({ rule, onEdit, onToggle, onDelete, loadingEdit, canEdit }: RuleCardProps) {
+
+function RuleCard({ rule, onView, onEdit, onToggle, onDelete, loadingEdit, canEdit }: RuleCardProps) {
   const sev = SEVERITY_STYLES[rule.severity];
   return (
-    <div className={`flex items-center gap-4 px-5 py-4 border-b border-gray-800/40 hover:bg-gray-800/20 transition-colors group ${rule.status === "inactive" ? "opacity-50" : ""}`}>
-      <button onClick={onToggle} title={rule.status === "active" ? "Disable" : "Enable"} className="shrink-0">
+    <div
+      className={`flex items-center gap-4 px-5 py-4 border-b border-gray-800/40 hover:bg-gray-800/20 transition-colors group cursor-pointer ${rule.status === "inactive" ? "opacity-50" : ""}`}
+      onClick={onView}
+    >
+      <button
+        onClick={e => { e.stopPropagation(); onToggle(); }}
+        title={rule.status === "active" ? "Disable" : "Enable"}
+        className="shrink-0"
+      >
         {rule.status === "active"
           ? <CheckCircle size={17} className="text-emerald-400 hover:text-emerald-300 transition-colors" />
           : <XCircle    size={17} className="text-gray-600 hover:text-gray-400 transition-colors" />
@@ -378,7 +504,10 @@ function RuleCard({ rule, onEdit, onToggle, onDelete, loadingEdit, canEdit }: Ru
         <span className="text-xs font-mono text-brand">L{rule.level}</span>
       </div>
       <span className="text-xs text-gray-600 shrink-0 w-48 truncate font-mono">{rule.filename || "—"}</span>
-      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+      <div
+        className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+        onClick={e => e.stopPropagation()}
+      >
         {canEdit ? (
           <>
             <button
@@ -556,6 +685,7 @@ function RuleTuningPageInner() {
   const [sendingReview,  setSendingReview]  = useState(false);
   const [reviewSent,     setReviewSent]     = useState(false);
   const [reviewError,    setReviewError]    = useState<string | null>(null);
+  const [detailRule,     setDetailRule]     = useState<WazuhRule | null>(null);
 
   // Current user's rule range
   const [userRange, setUserRange] = useState<{ rangeStart: number; rangeEnd: number } | null>(null);
@@ -991,6 +1121,7 @@ function RuleTuningPageInner() {
                     <RuleCard
                       key={rule.id}
                       rule={rule}
+                      onView={() => setDetailRule(rule)}
                       onEdit={() => handleEdit(rule)}
                       onToggle={() => handleToggle(rule.id)}
                       onDelete={() => handleDelete(rule)}
@@ -1005,6 +1136,14 @@ function RuleTuningPageInner() {
         </div>
       </div>
  
+      {detailRule && (
+        <RuleDetailModal
+          rule={detailRule}
+          isOwned={isOwnedRule(detailRule)}
+          onClose={() => setDetailRule(null)}
+        />
+      )}
+
       {isApprenant && (
         <HelpPanel title="Guide — Rule Tuning" sections={RULE_TUNING_HELP} />
       )}

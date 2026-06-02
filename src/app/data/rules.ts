@@ -15,6 +15,9 @@ export interface WazuhRule {
   relativeDirname: string;
   xml?: string;
   approved?: boolean;
+  reviewStatus?: "pending" | "approved" | "rejected" | null;
+  reviewComment?: string | null;
+  reviewedBy?: string | null;
 }
  
 export interface DetectionRule {
