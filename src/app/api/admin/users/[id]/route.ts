@@ -111,8 +111,11 @@ export async function PATCH(
   if (!Number.isInteger(rangeStart) || !Number.isInteger(rangeEnd)) {
     return NextResponse.json({ error: "rangeStart et rangeEnd doivent être des entiers." }, { status: 400 });
   }
-  if (rangeStart < 1000000) {
-    return NextResponse.json({ error: "La plage doit commencer à 1 000 000 minimum." }, { status: 400 });
+  if (rangeStart < 900229) {
+    return NextResponse.json({ error: "La plage doit commencer à 900 229 minimum (après les règles DocFortress)." }, { status: 400 });
+  }
+  if (rangeEnd > 999999) {
+    return NextResponse.json({ error: "La plage ne peut pas dépasser 999 999 (limite Wazuh)." }, { status: 400 });
   }
   if (rangeEnd <= rangeStart) {
     return NextResponse.json({ error: "rangeEnd doit être supérieur à rangeStart." }, { status: 400 });

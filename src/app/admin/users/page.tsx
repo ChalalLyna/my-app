@@ -300,8 +300,8 @@ export default function UsersPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs text-gray-400 mb-1.5 font-medium">Start ID <span className="text-gray-600">(min. 1 000 000)</span></label>
-                <input type="number" value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} placeholder="1000000"
+                <label className="block text-xs text-gray-400 mb-1.5 font-medium">Start ID <span className="text-gray-600">(900 229 – 999 899)</span></label>
+                <input type="number" value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} placeholder="901000"
                   className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-brand/50" />
                 {rangeStart !== "" && !isNaN(Number(rangeStart)) && (
                   <p className="text-xs text-gray-500 mt-1.5 font-mono">

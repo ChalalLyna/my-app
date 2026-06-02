@@ -231,9 +231,9 @@ level: critical
 ];
  
 export const XML_TEMPLATE = `<!-- CyberLab Custom Rule -->
-<!-- Your rule ID must be within your assigned range (starting at 1000000) -->
+<!-- Your rule ID must be within your assigned range (901000–999999) -->
 <group name="cyberlab,">
-  <rule id="1000000" level="7">
+  <rule id="901000" level="7">
     <description>New CyberLab detection rule</description>
     <group>cyberlab,</group>
   </rule>

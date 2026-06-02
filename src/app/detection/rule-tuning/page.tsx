@@ -147,6 +147,11 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError, userRange }: E
         setRangeValidErr("Aucun ID de règle trouvé dans le XML. Ajoutez un attribut id=\"...\" à la balise <rule>.");
         return;
       }
+      const overWazuhMax = ids.filter(id => id > 999999);
+      if (overWazuhMax.length > 0) {
+        setRangeValidErr(`ID${overWazuhMax.length > 1 ? "s" : ""} invalide${overWazuhMax.length > 1 ? "s" : ""} : ${overWazuhMax.join(", ")}. Wazuh accepte les IDs jusqu'à 999 999 maximum.`);
+        return;
+      }
       const outOfRange = ids.filter(id => id < userRange.rangeStart || id > userRange.rangeEnd);
       if (outOfRange.length > 0) {
         setRangeValidErr(
