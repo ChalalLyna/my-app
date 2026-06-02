@@ -6,34 +6,36 @@
   --color-brand-dark: #4f46e5;
   --color-brand-light: #eef2ff;
 
-  /* Lightened dark palette — navy-tinted grays */
-  --color-gray-950: #0d1626;
-  --color-gray-900: #1a2436;
-  --color-gray-800: #252f42;
-  --color-gray-700: #3a4560;
+  /* === Palette sombre allégée === */
+  --color-gray-950: #0f172a;     /* Fond principal plus doux */
+  --color-gray-900: #1e2937;     /* Cards & surfaces principales */
+  --color-gray-800: #334155;     /* Éléments secondaires */
+  --color-gray-700: #475569;     /* Bordures et textes tertiaires */
+  --color-gray-600: #64748b;     /* Amélioré pour textes secondaires */
+  --color-gray-500: #94a3b8;     /* Texte gris plus visible */
 }
- 
+
 @layer base {
   * {
     box-sizing: border-box;
   }
- 
+
   html {
     font-family: 'Geist', 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
- 
+
   body {
-    background-color: #0d1626;
-    color: white;
+    background-color: #0f172a;   /* Fond global plus doux */
+    color: #e2e8f0;              /* Texte principal plus clair */
   }
 }
- 
+
 @layer utilities {
   .animate-in {
     animation: fadeIn 0.2s ease-out;
   }
- 
+
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
