@@ -58,17 +58,17 @@ const STATUS_CONFIG = {
   },
   triggered: {
     label:     "Triggered",
-    bg:        "bg-orange-900/30",
-    border:    "border-orange-600/40",
+    bg:        "bg-orange-900/50",
+    border:    "border-orange-500/60",
     text:      "text-orange-300",
-    dot:       "bg-orange-400",
+    dot:       "bg-orange-500",
     icon:      Zap,
     iconColor: "text-orange-400",
   },
   covered: {
     label:     "Covered",
     bg:        "bg-amber-900/30",
-    border:    "border-amber-700/40",
+    border:    "border-amber-600/50",
     text:      "text-amber-300",
     dot:       "bg-amber-400",
     icon:      Circle,
@@ -376,26 +376,51 @@ export default function CoveragePage() {
           </button>
         </div>
 
-        {/* Stats */}
+        {/* Stats - Nouvelle disposition */}
         {data && (
-          <div className="grid grid-cols-5 gap-3">
-            {[
-              { label: "Total",       value: data.stats.total,       color: "text-white",         bg: "bg-gray-800/40",      border: "border-gray-700/50"      },
-              { label: "Detected",    value: data.stats.detected,    color: "text-emerald-400",   bg: "bg-emerald-900/20",   border: "border-emerald-800/40"   },
-              { label: "Triggered",   value: data.stats.triggered,   color: "text-orange-400",    bg: "bg-orange-900/20",    border: "border-orange-800/40"    },
-              { label: "Covered",     value: data.stats.covered,     color: "text-amber-400",     bg: "bg-amber-900/20",     border: "border-amber-800/40"     },
-              { label: "Not Covered", value: data.stats.not_covered, color: "text-gray-500",      bg: "bg-gray-800/30",      border: "border-gray-700/30"      },
-            ].map((s) => (
-              <div key={s.label} className={`rounded-xl border p-4 ${s.bg} ${s.border}`}>
-                <p className="text-xs text-gray-500 mb-1">{s.label}</p>
-                <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                {s.label !== "Total" && data.stats.total > 0 && (
+          <div className="grid grid-cols-2 gap-4">
+            {/* Groupe Tested Attacks */}
+            <div className="border border-gray-700/50 rounded-xl p-5 bg-gray-900/40">
+              <p className="text-xs text-gray-400 mb-4 flex items-center gap-2 uppercase tracking-widest">
+                <Zap size={15} className="text-orange-400" />
+                TESTED ATTACKS
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className={`rounded-xl border p-4 bg-emerald-900/20 border-emerald-800/40`}>
+                  <p className="text-xs text-gray-500 mb-1">Detected</p>
+                  <p className="text-3xl font-bold text-emerald-400">{data.stats.detected}</p>
                   <p className="text-[10px] text-gray-600 mt-1">
-                    {Math.round((s.value / data.stats.total) * 100)}% of total
+                    {data.stats.total > 0 && Math.round((data.stats.detected / data.stats.total) * 100)}% of total
                   </p>
-                )}
+                </div>
+
+                <div className={`rounded-xl border p-4 bg-orange-900/30 border-orange-600/60`}>
+                  <p className="text-xs text-gray-500 mb-1">Triggered</p>
+                  <p className="text-3xl font-bold text-orange-400">{data.stats.triggered}</p>
+                  <p className="text-[10px] text-gray-600 mt-1">
+                    {data.stats.total > 0 && Math.round((data.stats.triggered / data.stats.total) * 100)}% of total
+                  </p>
+                </div>
               </div>
-            ))}
+            </div>
+
+            {/* Autres cartes */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className={`rounded-xl border p-4 bg-gray-800/40 border-gray-700/50`}>
+                <p className="text-xs text-gray-500 mb-1">Total</p>
+                <p className="text-3xl font-bold text-white">{data.stats.total}</p>
+              </div>
+
+              <div className={`rounded-xl border p-4 bg-amber-900/20 border-amber-700/50`}>
+                <p className="text-xs text-gray-500 mb-1">Covered</p>
+                <p className="text-3xl font-bold text-amber-400">{data.stats.covered}</p>
+              </div>
+
+              <div className={`rounded-xl border p-4 bg-gray-800/30 border-gray-700/30`}>
+                <p className="text-xs text-gray-500 mb-1">Not Covered</p>
+                <p className="text-3xl font-bold text-gray-500">{data.stats.not_covered}</p>
+              </div>
+            </div>
           </div>
         )}
 
