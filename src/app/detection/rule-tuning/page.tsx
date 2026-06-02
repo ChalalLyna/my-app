@@ -715,7 +715,7 @@ function RuleTuningPageInner() {
     setLoading(true);
     setApiError(null);
     try {
-      const res  = await fetch(`/api/wazuh/rules?search=${encodeURIComponent(q)}&limit=100`);
+      const res  = await fetch(`/api/wazuh/rules?search=${encodeURIComponent(q)}&limit=500`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       setRules(data.rules ?? []);
@@ -1009,21 +1009,6 @@ function RuleTuningPageInner() {
               New rule
             </button>
           </div>
-        </div>
- 
-        {/* Stats */}
-        <div className="grid grid-cols-4 gap-3 mb-6">
-          {[
-            { label: "Total",    value: total,        color: "text-white",       border: "border-gray-800"       },
-            { label: "Active",   value: activeCount,  color: "text-emerald-400", border: "border-emerald-800/30" },
-            { label: "Inactive", value: inactiveCount,color: "text-gray-500",    border: "border-gray-800"       },
-            { label: "Critical",  value: rules.filter(r => r.severity === "Critical").length, color: "text-red-400", border: "border-red-800/30" },
-          ].map(s => (
-            <div key={s.label} className={`bg-gray-900 border ${s.border} rounded-xl p-4`}>
-              <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
-            </div>
-          ))}
         </div>
  
         {/* Main panel */}

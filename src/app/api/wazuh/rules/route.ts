@@ -72,36 +72,45 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: `Wazuh ${res.status}: ${text.slice(0, 200)}` }, { status: 502 });
     }
 
-    const data  = await res.json();
-    const all   = (data?.data?.affected_items ?? []).map(mapRule);
+    const data        = await res.json();
+    const all         = (data?.data?.affected_items ?? []).map(mapRule);
+    const wazuhTotal  = (data?.data?.total_affected_items as number) ?? all.length;
 
     // Admins see everything
     if (user.role === "admin") {
-      return NextResponse.json({ rules: all, total: all.length });
+      return NextResponse.json({ rules: all, total: wazuhTotal });
     }
 
-    // For non-admins: also fetch custom rules from etc/rules separately,
-    // because the paginated fetch above only returns low-ID built-in rules
-    // and custom rules (e.g. id=901001) are never in the first N results.
-    let etcRules: ReturnType<typeof mapRule>[] = [];
+    // For non-admins: fetch the user's custom rules by wazuhRuleId from our DB,
+    // then query Wazuh specifically for those IDs.
+    // (Paginated Wazuh fetch only returns low-ID built-in rules; custom rules at
+    //  IDs like 901001 are never in the first N results.)
+    const range = await getUserRange(user.idUtilisateur);
+    let customRules: ReturnType<typeof mapRule>[] = [];
     try {
-      const etcRes = await fetch(
-        `${baseUrl}/rules?relative_dirname=etc%2Frules&limit=500`,
-        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store", signal: AbortSignal.timeout(8000) }
+      const table = user.role === "apprenant" ? "RegleAjouteeParApprenant" : "RegleAjouteParConsultant";
+      const idCol = user.role === "apprenant" ? "IdApprenant" : "IdConsultant";
+      const [dbRows] = await pool.query<RowDataPacket[]>(
+        `SELECT wazuhRuleId FROM ${table} WHERE ${idCol} = ?`,
+        [user.idUtilisateur]
       );
-      if (etcRes.ok) {
-        const etcData = await etcRes.json();
-        etcRules = (etcData?.data?.affected_items ?? []).map(mapRule);
+      if (dbRows.length > 0) {
+        const ruleIds = dbRows.map((r: RowDataPacket) => r.wazuhRuleId as number).join(",");
+        const customRes = await fetch(
+          `${baseUrl}/rules?rule_ids=${ruleIds}&limit=500`,
+          { headers: { Authorization: `Bearer ${token}` }, cache: "no-store", signal: AbortSignal.timeout(8000) }
+        );
+        if (customRes.ok) {
+          const customData = await customRes.json();
+          customRules = (customData?.data?.affected_items ?? []).map(mapRule);
+        }
       }
     } catch { /* best-effort */ }
 
     // Merge and deduplicate by wazuhId
-    const merged = [...all, ...etcRules].filter(
+    const merged = [...all, ...customRules].filter(
       (r, i, arr) => arr.findIndex(x => x.wazuhId === r.wazuhId) === i
     );
-
-    // Other users: default rules (not in etc/) + their own range
-    const range = await getUserRange(user.idUtilisateur);
 
     const rules = merged.filter((r: ReturnType<typeof mapRule>) => {
       const isDefault = !r.relativeDirname.includes("etc");
