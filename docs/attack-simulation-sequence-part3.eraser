@@ -1,0 +1,42 @@
+title Simulation d'attaque — Partie 3 : Déploiement des agents & bruit réseau
+
+Utilisateur enregistré 3 [icon: user, color: blue]
+ÉtapeLancement [icon: layout, color: gray]
+Lab Offensif [icon: server, color: orange]
+Simulateur d'activité normale [icon: zap, color: yellow]
+
+activate Utilisateur enregistré 3
+activate ÉtapeLancement
+
+loop [label: Phase 3 — Pour chaque actif sélectionné] {
+  loop [label: Vérification de disponibilité des agents de simulation] {
+    ÉtapeLancement > Lab Offensif: Vérifier la disponibilité des agents de simulation
+    activate Lab Offensif
+    Lab Offensif --> ÉtapeLancement: Liste des agents disponibles et leurs cibles
+
+    alt [label: Si agent trouvé sur la cible] {
+      ÉtapeLancement > ÉtapeLancement: Agent détecté
+    } else [label: Sinon] {
+      ÉtapeLancement --> Utilisateur enregistré 3: Affiche log erreur — actif ignoré (délai dépassé)
+    }
+  }
+
+  ÉtapeLancement > Lab Offensif: Restreindre l'agent de simulation à la machine cible uniquement
+  Lab Offensif --> ÉtapeLancement: Restriction confirmée
+
+  ÉtapeLancement > Lab Offensif: Lancer l'opération d'attaque sur la cible
+  Lab Offensif --> ÉtapeLancement: Opération lancée
+  deactivate Lab Offensif
+  ÉtapeLancement --> Utilisateur enregistré 3: Affiche log terminal — opération lancée sur cet actif
+}
+
+opt [label: Phase 4 — Si bruit réseau activé] {
+  ÉtapeLancement > Simulateur d'activité normale: Déclencher la simulation de bruit réseau
+  activate Simulateur d'activité normale
+  Simulateur d'activité normale > Simulateur d'activité normale: Exécution du script de bruit (asynchrone)
+  Simulateur d'activité normale --> ÉtapeLancement: Requête acceptée, script lancé en arrière-plan
+  deactivate Simulateur d'activité normale
+}
+
+deactivate ÉtapeLancement
+deactivate Utilisateur enregistré 3

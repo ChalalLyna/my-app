@@ -1,0 +1,30 @@
+title Simulation d'attaque — Partie 5 : Enregistrement des résultats & alertes
+
+Utilisateur enregistré 3 [icon: user, color: blue]
+ÉtapeLancement [icon: layout, color: gray]
+Lab Offensif [icon: server, color: orange]
+Base de données [icon: database, color: green]
+
+activate Utilisateur enregistré 3
+activate ÉtapeLancement
+
+ÉtapeLancement > Base de données: Enregistrer les résultats de la simulation
+activate Base de données
+Base de données > Base de données: Sauvegarder l'attaque et les résultats
+Base de données --> ÉtapeLancement: Identifiant de l'attaque
+deactivate Base de données
+
+ÉtapeLancement > ÉtapeLancement: Attendre 5 secondes (indexation Wazuh)
+ÉtapeLancement > Lab Offensif: Récupérer les alertes générées depuis le début de l'attaque
+activate Lab Offensif
+Lab Offensif --> ÉtapeLancement: Liste des alertes Wazuh
+deactivate Lab Offensif
+ÉtapeLancement > Base de données: Enregistrer les alertes (règles SIEM, règles de détection)
+activate Base de données
+Base de données --> ÉtapeLancement: Confirmation
+deactivate Base de données
+
+ÉtapeLancement --> Utilisateur enregistré 3: Affiche les actions disponibles
+
+deactivate ÉtapeLancement
+deactivate Utilisateur enregistré 3

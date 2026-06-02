@@ -3,14 +3,12 @@ title Simulation d'attaque — Diagramme de séquence complet
 Utilisateur enregistré 3 [icon: user, color: blue]
 Interface [icon: monitor, color: gray]
 ÉtapeActif [icon: layout, color: gray]
-Actif [icon: database, color: green]
 ÉtapeTechniqueAttaque [icon: layout, color: gray]
 Lab Offensif [icon: server, color: orange]
 ÉtapeLancement [icon: layout, color: gray]
-MachineVirtuelle [icon: database, color: green]
 Plateforme de virtualisation [icon: server, color: purple]
 Simulateur d'activité normale [icon: zap, color: yellow]
-Attaque [icon: database, color: blue]
+Base de données [icon: database, color: green]
 Générateur de rapports [icon: file-text, color: gray]
 
 activate Utilisateur enregistré 3
@@ -20,10 +18,10 @@ activate Interface
 Interface > ÉtapeActif: Affiche l'étape 1
 activate ÉtapeActif
 
-ÉtapeActif > Actif: Récupérer la liste des actifs disponibles
-activate Actif
-Actif --> ÉtapeActif: Liste des actifs (nom, OS, IP, catégorie)
-deactivate Actif
+ÉtapeActif > Base de données: Récupérer la liste des actifs disponibles
+activate Base de données
+Base de données --> ÉtapeActif: Liste des actifs (nom, OS, IP, catégorie)
+deactivate Base de données
 ÉtapeActif --> Utilisateur enregistré 3: Affiche grille d'actifs (filtrable par catégorie)
 Utilisateur enregistré 3 > ÉtapeActif: Sélectionne 1 ou plusieurs actifs
 Utilisateur enregistré 3 > Interface: Clique Suivant
@@ -64,10 +62,10 @@ opt [label: Si bruit réseau activé] {
 
 Utilisateur enregistré 3 > ÉtapeLancement: Clique Lancer la simulation
 
-ÉtapeLancement > MachineVirtuelle: Récupérer la liste des machines d'infrastructure requises
-activate MachineVirtuelle
-MachineVirtuelle --> ÉtapeLancement: Machines requises (SIEM, moteur d'attaque, routeur, poste attaquant)
-deactivate MachineVirtuelle
+ÉtapeLancement > Base de données: Récupérer la liste des machines d'infrastructure requises
+activate Base de données
+Base de données --> ÉtapeLancement: Machines requises (SIEM, moteur d'attaque, routeur, poste attaquant)
+deactivate Base de données
 
 loop [label: Phase 1 — Pour chaque machine virtuelle cible] {
   ÉtapeLancement > Plateforme de virtualisation: Démarrer la machine virtuelle
@@ -131,6 +129,19 @@ loop [label: Phase 5 — Suivi de l'avancement des opérations] {
     Lab Offensif --> ÉtapeLancement: Opérations arrêtées
     deactivate Lab Offensif
     ÉtapeLancement --> Utilisateur enregistré 3: Affiche simulation stoppée
+    ÉtapeLancement > Base de données: Enregistrer les résultats de la simulation (statut: arrêtée)
+    activate Base de données
+    Base de données --> ÉtapeLancement: Identifiant de l'attaque
+    deactivate Base de données
+    ÉtapeLancement > ÉtapeLancement: Attendre 5 secondes (indexation Wazuh)
+    ÉtapeLancement > Lab Offensif: Récupérer les alertes générées depuis le début de l'attaque
+    activate Lab Offensif
+    Lab Offensif --> ÉtapeLancement: Liste des alertes Wazuh
+    deactivate Lab Offensif
+    ÉtapeLancement > Base de données: Enregistrer les alertes (règles SIEM, règles de détection)
+    activate Base de données
+    Base de données --> ÉtapeLancement: Confirmation
+    deactivate Base de données
   }
 
   loop [label: Pour chaque opération en cours] {
@@ -154,38 +165,65 @@ loop [label: Phase 5 — Suivi de l'avancement des opérations] {
     ÉtapeLancement > ÉtapeLancement: Arrêter la surveillance
     ÉtapeLancement --> Utilisateur enregistré 3: Affiche simulation terminée
   }
+
+  opt [label: Si timeout 60 min dépassé sans fin naturelle] {
+    ÉtapeLancement > ÉtapeLancement: Arrêter la surveillance (timeout sécurité)
+    ÉtapeLancement --> Utilisateur enregistré 3: Affiche avertissement timeout
+    ÉtapeLancement > Base de données: Enregistrer les résultats de la simulation (statut: arrêtée)
+    activate Base de données
+    Base de données --> ÉtapeLancement: Identifiant de l'attaque
+    deactivate Base de données
+    ÉtapeLancement > ÉtapeLancement: Attendre 5 secondes (indexation Wazuh)
+    ÉtapeLancement > Lab Offensif: Récupérer les alertes générées depuis le début de l'attaque
+    activate Lab Offensif
+    Lab Offensif --> ÉtapeLancement: Liste des alertes Wazuh
+    deactivate Lab Offensif
+    ÉtapeLancement > Base de données: Enregistrer les alertes (règles SIEM, règles de détection)
+    activate Base de données
+    Base de données --> ÉtapeLancement: Confirmation
+    deactivate Base de données
+  }
 }
 
-ÉtapeLancement > Attaque: Enregistrer les résultats de la simulation
-activate Attaque
-Attaque > Attaque: Sauvegarder l'attaque et les résultats
-Attaque --> ÉtapeLancement: Identifiant de l'attaque
-deactivate Attaque
+ÉtapeLancement > Base de données: Enregistrer les résultats de la simulation
+activate Base de données
+Base de données > Base de données: Sauvegarder l'attaque et les résultats
+Base de données --> ÉtapeLancement: Identifiant de l'attaque
+deactivate Base de données
+
+ÉtapeLancement > ÉtapeLancement: Attendre 5 secondes (indexation Wazuh)
+ÉtapeLancement > Lab Offensif: Récupérer les alertes générées depuis le début de l'attaque
+activate Lab Offensif
+Lab Offensif --> ÉtapeLancement: Liste des alertes Wazuh
+deactivate Lab Offensif
+ÉtapeLancement > Base de données: Enregistrer les alertes (règles SIEM, règles de détection)
+activate Base de données
+Base de données --> ÉtapeLancement: Confirmation
+deactivate Base de données
 
 ÉtapeLancement --> Utilisateur enregistré 3: Affiche les actions disponibles
 
 alt [label: Si l'utilisateur choisit de générer un rapport] {
   Utilisateur enregistré 3 > ÉtapeLancement: Clique Générer le rapport
 
+  ÉtapeLancement > Générateur de rapports: Générer le rapport (IDs des opérations)
+  activate Générateur de rapports
   loop [label: Pour chaque opération terminée] {
-    ÉtapeLancement > Lab Offensif: Récupérer les données complètes de l'opération
+    Générateur de rapports > Lab Offensif: Récupérer les données complètes de l'opération
     activate Lab Offensif
-    Lab Offensif --> ÉtapeLancement: Données de l'opération
+    Lab Offensif --> Générateur de rapports: Données de l'opération
     deactivate Lab Offensif
   }
-
-  ÉtapeLancement > Générateur de rapports: Générer le rapport d'analyse
-  activate Générateur de rapports
   Générateur de rapports --> ÉtapeLancement: Rapport généré
   deactivate Générateur de rapports
   ÉtapeLancement > ÉtapeLancement: Préparer le rapport pour téléchargement
   ÉtapeLancement --> Utilisateur enregistré 3: Affiche téléchargement du rapport
 
-  ÉtapeLancement > Attaque: Sauvegarder le rapport de simulation
-  activate Attaque
-  Attaque > Attaque: Associer le rapport à l'attaque
-  Attaque --> ÉtapeLancement: Confirmation
-  deactivate Attaque
+  ÉtapeLancement > Base de données: Sauvegarder le rapport de simulation
+  activate Base de données
+  Base de données > Base de données: Associer le rapport à l'attaque
+  Base de données --> ÉtapeLancement: Confirmation
+  deactivate Base de données
 } else [label: Si l'utilisateur choisit de consulter les détections] {
   Utilisateur enregistré 3 > Interface: Navigue vers la page de détection
 }

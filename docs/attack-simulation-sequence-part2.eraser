@@ -1,0 +1,55 @@
+title Simulation d'attaque — Partie 2 : Lancement & démarrage infrastructure
+
+Utilisateur enregistré 3 [icon: user, color: blue]
+Interface [icon: monitor, color: gray]
+ÉtapeLancement [icon: layout, color: gray]
+Base de données [icon: database, color: green]
+Plateforme de virtualisation [icon: server, color: purple]
+Lab Offensif [icon: server, color: orange]
+
+activate Utilisateur enregistré 3
+activate Interface
+
+Interface > ÉtapeLancement: Affiche l'étape 3
+deactivate Interface
+activate ÉtapeLancement
+ÉtapeLancement --> Utilisateur enregistré 3: Affiche résumé + checklist pré-lancement + interrupteur bruit
+
+opt [label: Si bruit réseau activé] {
+  Utilisateur enregistré 3 > ÉtapeLancement: Active l'interrupteur bruit
+  Utilisateur enregistré 3 > ÉtapeLancement: Sélectionne les actifs cibles du bruit
+}
+
+Utilisateur enregistré 3 > ÉtapeLancement: Clique Lancer la simulation
+
+ÉtapeLancement > Base de données: Récupérer la liste des machines d'infrastructure requises
+activate Base de données
+Base de données --> ÉtapeLancement: Machines requises (SIEM, moteur d'attaque, routeur, poste attaquant)
+deactivate Base de données
+
+loop [label: Phase 1 — Pour chaque machine virtuelle cible] {
+  ÉtapeLancement > Plateforme de virtualisation: Démarrer la machine virtuelle
+  activate Plateforme de virtualisation
+  Plateforme de virtualisation --> ÉtapeLancement: Confirmation de démarrage
+
+  opt [label: Si la machine vient de démarrer] {
+    loop [label: Vérification périodique jusqu'au démarrage complet] {
+      ÉtapeLancement > Plateforme de virtualisation: Vérifier l'état de la machine virtuelle
+      Plateforme de virtualisation --> ÉtapeLancement: État de la machine (en cours | arrêtée)
+    }
+  }
+  deactivate Plateforme de virtualisation
+  ÉtapeLancement --> Utilisateur enregistré 3: Affiche log terminal — machine démarrée
+}
+
+alt [label: Phase 2 — Si profil adversaire existant sélectionné] {
+  ÉtapeLancement > ÉtapeLancement: Profil d'adversaire prêt à l'emploi
+} else [label: Sinon] {
+  ÉtapeLancement > Lab Offensif: Créer un profil d'adversaire personnalisé
+  activate Lab Offensif
+  Lab Offensif --> ÉtapeLancement: Profil d'adversaire créé
+  deactivate Lab Offensif
+}
+
+deactivate ÉtapeLancement
+deactivate Utilisateur enregistré 3

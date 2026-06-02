@@ -1,0 +1,274 @@
+title Diagramme ERD — Schéma base de données
+
+Compte [icon: user, color: slate] {
+  IdCompte int pk
+  email string
+  mdp string
+  DateCreation date
+}
+
+Utilisateur [icon: user, color: blue] {
+  IdUtilisateur int pk
+  nom string
+  prenom string
+  role string
+  IdCompte int fk
+}
+
+MachineVirtuelle [icon: server, color: purple] {
+  IdVM int pk
+  nomMachine string
+  OS string
+  IP string
+  Vlan string
+  VmIdProxmox int
+  CPUmax string
+  RAMmax string
+  Disk string
+}
+
+Actif [icon: monitor, color: purple] {
+  IdActif int pk
+  nom string
+  categorie string
+  description string
+  DateCreation date
+  TypeActif string
+  IdVM int fk
+  IdAdministrateur int fk
+  IdMission int fk
+}
+
+Mission [icon: briefcase, color: green] {
+  IdMission int pk
+  titre string
+  client string
+  statut string
+  DateDebut date
+  DateFin date
+  description string
+  IdConsultant int fk
+  IdResultatMission int fk
+}
+
+ResultatMission [icon: file-text, color: green] {
+  IdResultatMission int pk
+  description string
+  rapport string
+}
+
+Attaque [icon: zap, color: red] {
+  IdAttaque int pk
+  DateExecution datetime
+  statut string
+  type string
+  calderaOperationId string
+  IdResultatAttaque int fk
+}
+
+ResultatAttaque [icon: file-text, color: red] {
+  IdResultatAttaque int pk
+  description string
+  rapport string
+  IdResultatMission int fk
+}
+
+Alerte [icon: alert-triangle, color: orange] {
+  IdAlerte int pk
+  severite string
+  message string
+  estFauxPositif boolean
+  dateDetection datetime
+  statut string
+  IdAttaque int fk
+  IdRegle int fk
+}
+
+Technique [icon: crosshair, color: yellow] {
+  IdTechnique int pk
+  mitreID string
+  nom string
+  tactique string
+  description string
+}
+
+ProfilAdversaire [icon: shield, color: yellow] {
+  IdProfil int pk
+  nom string
+  description string
+}
+
+CompositionProfil [color: yellow] {
+  IdProfil int fk
+  IdTechnique int fk
+}
+
+RegleDeDetection [icon: shield, color: cyan] {
+  IdRegle int pk
+}
+
+RegleSIEM [color: cyan] {
+  IdRegle int pk fk
+  wazuhRuleId int
+  titre string
+  niveau int
+}
+
+RegleCTI [color: cyan] {
+  IdRegle int pk fk
+  IdSigma string
+  Titre string
+  Description string
+  Auteur string
+  DateAjout date
+  DerniereModification date
+  TechniquesMitre string
+  Severite string
+  NiveauWazuh int
+  Produit string
+  Categorie string
+  SousCategorie string
+  YamlSigmaOriginal string
+  XmlWazuh string
+}
+
+RegleAjouteParConsultant [color: cyan] {
+  IdRegle int pk fk
+  IdConsultant int fk
+  IdMission int fk
+  nom string
+  description string
+  wazuhRuleId int
+  severite string
+  dateCreation datetime
+  XmlWazuh string
+}
+
+RegleAjouteeParApprenant [color: cyan] {
+  IdRegle int pk fk
+  IdApprenant int fk
+  IdConsultant int fk
+  nom string
+  description string
+  wazuhRuleId int
+  severite string
+  action string
+  statut string
+  dateCreation datetime
+  dateRevision datetime
+  commentaire string
+  XmlWazuh string
+  filename string
+}
+
+RegleClient [color: cyan] {
+  IdRegle int pk fk
+  IdMission int fk
+}
+
+CouvertureDetection [color: cyan] {
+  IdRegle int fk
+  IdTechnique int fk
+}
+
+RegleExportee [color: cyan] {
+  IdMission int fk
+  IdRegleAjoute int fk
+  IdRegleCTI int fk
+  DateExport date
+}
+
+LabApprentissage [color: gray] {
+  IdLabApprentissage int pk
+  IdUtilisateur int fk
+  IdActif int fk
+  IdTechnique int fk
+  IdAttaque int fk
+}
+
+LabAmelioration [color: gray] {
+  IdLabAmelioration int pk
+  IdUtilisateur int fk
+  IdActif int fk
+  IdTechnique int fk
+  IdAttaque int fk
+}
+
+LabMission [color: gray] {
+  IdUtilisateur int fk
+  IdActif int fk
+  IdTechnique int fk
+  IdAttaque int fk
+}
+
+Guide [icon: book, color: slate] {
+  IdGuide int pk
+  titre string
+  description string
+  contenu string
+  categorie string
+  DateCreation datetime
+  DateModification datetime
+}
+
+Scenario [icon: list, color: slate] {
+  IdScenario int pk
+  titre string
+  description string
+  objectif string
+  niveau string
+  bruit_recommande boolean
+  contenu string
+  DateCreation datetime
+}
+
+// Relations
+Utilisateur.IdCompte > Compte.IdCompte
+
+Mission.IdConsultant > Utilisateur.IdUtilisateur
+Mission.IdResultatMission > ResultatMission.IdResultatMission
+ResultatAttaque.IdResultatMission > ResultatMission.IdResultatMission
+
+Actif.IdVM > MachineVirtuelle.IdVM
+Actif.IdAdministrateur > Utilisateur.IdUtilisateur
+Actif.IdMission > Mission.IdMission
+
+Attaque.IdResultatAttaque > ResultatAttaque.IdResultatAttaque
+Alerte.IdAttaque > Attaque.IdAttaque
+Alerte.IdRegle > RegleDeDetection.IdRegle
+
+CompositionProfil.IdProfil > ProfilAdversaire.IdProfil
+CompositionProfil.IdTechnique > Technique.IdTechnique
+
+CouvertureDetection.IdRegle > RegleSIEM.IdRegle
+CouvertureDetection.IdTechnique > Technique.IdTechnique
+
+RegleSIEM.IdRegle - RegleDeDetection.IdRegle
+RegleCTI.IdRegle - RegleDeDetection.IdRegle
+RegleAjouteParConsultant.IdRegle - RegleDeDetection.IdRegle
+RegleAjouteeParApprenant.IdRegle - RegleDeDetection.IdRegle
+RegleClient.IdRegle - RegleDeDetection.IdRegle
+
+RegleAjouteParConsultant.IdConsultant > Utilisateur.IdUtilisateur
+RegleAjouteParConsultant.IdMission > Mission.IdMission
+RegleAjouteeParApprenant.IdApprenant > Utilisateur.IdUtilisateur
+RegleAjouteeParApprenant.IdConsultant > Utilisateur.IdUtilisateur
+RegleClient.IdMission > Mission.IdMission
+RegleExportee.IdMission > Mission.IdMission
+RegleExportee.IdRegleAjoute > RegleAjouteParConsultant.IdRegle
+RegleExportee.IdRegleCTI > RegleCTI.IdRegle
+
+LabApprentissage.IdUtilisateur > Utilisateur.IdUtilisateur
+LabApprentissage.IdActif > Actif.IdActif
+LabApprentissage.IdTechnique > Technique.IdTechnique
+LabApprentissage.IdAttaque > Attaque.IdAttaque
+
+LabAmelioration.IdUtilisateur > Utilisateur.IdUtilisateur
+LabAmelioration.IdActif > Actif.IdActif
+LabAmelioration.IdTechnique > Technique.IdTechnique
+LabAmelioration.IdAttaque > Attaque.IdAttaque
+
+LabMission.IdUtilisateur > Utilisateur.IdUtilisateur
+LabMission.IdActif > Actif.IdActif
+LabMission.IdTechnique > Technique.IdTechnique
+LabMission.IdAttaque > Attaque.IdAttaque

@@ -1,0 +1,37 @@
+title Simulation d'attaque — Partie 4c : Phase 5 — Fin naturelle & timeout
+
+Utilisateur enregistré 3 [icon: user, color: blue]
+ÉtapeLancement [icon: layout, color: gray]
+Lab Offensif [icon: server, color: orange]
+Base de données [icon: database, color: green]
+
+activate Utilisateur enregistré 3
+activate ÉtapeLancement
+
+loop [label: Phase 5 — Suivi de l'avancement des opérations (fin)] {
+  opt [label: Si toutes les opérations sont terminées] {
+    ÉtapeLancement > ÉtapeLancement: Arrêter la surveillance
+    ÉtapeLancement --> Utilisateur enregistré 3: Affiche simulation terminée
+  }
+
+  opt [label: Si timeout 60 min dépassé sans fin naturelle] {
+    ÉtapeLancement > ÉtapeLancement: Arrêter la surveillance (timeout sécurité)
+    ÉtapeLancement --> Utilisateur enregistré 3: Affiche avertissement timeout
+    ÉtapeLancement > Base de données: Enregistrer les résultats de la simulation (statut: arrêtée)
+    activate Base de données
+    Base de données --> ÉtapeLancement: Identifiant de l'attaque
+    deactivate Base de données
+    ÉtapeLancement > ÉtapeLancement: Attendre 5 secondes (indexation Wazuh)
+    ÉtapeLancement > Lab Offensif: Récupérer les alertes générées depuis le début de l'attaque
+    activate Lab Offensif
+    Lab Offensif --> ÉtapeLancement: Liste des alertes Wazuh
+    deactivate Lab Offensif
+    ÉtapeLancement > Base de données: Enregistrer les alertes (règles SIEM, règles de détection)
+    activate Base de données
+    Base de données --> ÉtapeLancement: Confirmation
+    deactivate Base de données
+  }
+}
+
+deactivate ÉtapeLancement
+deactivate Utilisateur enregistré 3

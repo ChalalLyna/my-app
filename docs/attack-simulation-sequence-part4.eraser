@@ -1,0 +1,76 @@
+title Simulation d'attaque — Partie 4 : Suivi des opérations & enregistrement
+
+Utilisateur enregistré 3 [icon: user, color: blue]
+ÉtapeLancement [icon: layout, color: gray]
+Lab Offensif [icon: server, color: orange]
+Base de données [icon: database, color: green]
+
+activate Utilisateur enregistré 3
+activate ÉtapeLancement
+
+loop [label: Phase 5 — Suivi de l'avancement des opérations] {
+  break [label: Si l'utilisateur stoppe la simulation] {
+    Utilisateur enregistré 3 > ÉtapeLancement: Clique Stopper la simulation
+    ÉtapeLancement > Lab Offensif: Arrêter toutes les opérations en cours
+    activate Lab Offensif
+    Lab Offensif --> ÉtapeLancement: Opérations arrêtées
+    deactivate Lab Offensif
+    ÉtapeLancement --> Utilisateur enregistré 3: Affiche simulation stoppée
+    ÉtapeLancement > Base de données: Enregistrer les résultats de la simulation (statut: arrêtée)
+    activate Base de données
+    Base de données --> ÉtapeLancement: Identifiant de l'attaque
+    deactivate Base de données
+    ÉtapeLancement > ÉtapeLancement: Attendre 5 secondes (indexation Wazuh)
+    ÉtapeLancement > Lab Offensif: Récupérer les alertes générées depuis le début de l'attaque
+    activate Lab Offensif
+    Lab Offensif --> ÉtapeLancement: Liste des alertes Wazuh
+    deactivate Lab Offensif
+    ÉtapeLancement > Base de données: Enregistrer les alertes (règles SIEM, règles de détection)
+    activate Base de données
+    Base de données --> ÉtapeLancement: Confirmation
+    deactivate Base de données
+  }
+
+  loop [label: Pour chaque opération en cours] {
+    ÉtapeLancement > Lab Offensif: Vérifier l'avancement de l'opération
+    activate Lab Offensif
+    Lab Offensif --> ÉtapeLancement: État de l'opération + étapes exécutées
+
+    loop [label: Pour chaque étape terminée non encore affichée] {
+      ÉtapeLancement > Lab Offensif: Récupérer le résultat de l'étape
+      Lab Offensif --> ÉtapeLancement: Résultat de l'étape (sortie, statut)
+      ÉtapeLancement --> Utilisateur enregistré 3: Affiche résultat de la technique exécutée
+    }
+    deactivate Lab Offensif
+
+    opt [label: Si opération terminée] {
+      ÉtapeLancement > ÉtapeLancement: Marquer l'opération comme terminée
+    }
+  }
+
+  opt [label: Si toutes les opérations sont terminées] {
+    ÉtapeLancement > ÉtapeLancement: Arrêter la surveillance
+    ÉtapeLancement --> Utilisateur enregistré 3: Affiche simulation terminée
+  }
+
+  opt [label: Si timeout 60 min dépassé sans fin naturelle] {
+    ÉtapeLancement > ÉtapeLancement: Arrêter la surveillance (timeout sécurité)
+    ÉtapeLancement --> Utilisateur enregistré 3: Affiche avertissement timeout
+    ÉtapeLancement > Base de données: Enregistrer les résultats de la simulation (statut: arrêtée)
+    activate Base de données
+    Base de données --> ÉtapeLancement: Identifiant de l'attaque
+    deactivate Base de données
+    ÉtapeLancement > ÉtapeLancement: Attendre 5 secondes (indexation Wazuh)
+    ÉtapeLancement > Lab Offensif: Récupérer les alertes générées depuis le début de l'attaque
+    activate Lab Offensif
+    Lab Offensif --> ÉtapeLancement: Liste des alertes Wazuh
+    deactivate Lab Offensif
+    ÉtapeLancement > Base de données: Enregistrer les alertes (règles SIEM, règles de détection)
+    activate Base de données
+    Base de données --> ÉtapeLancement: Confirmation
+    deactivate Base de données
+  }
+}
+
+deactivate ÉtapeLancement
+deactivate Utilisateur enregistré 3

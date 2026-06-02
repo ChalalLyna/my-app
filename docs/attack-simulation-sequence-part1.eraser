@@ -1,0 +1,51 @@
+title Simulation d'attaque — Partie 1 : Sélection des actifs & techniques
+
+Utilisateur enregistré 3 [icon: user, color: blue]
+Interface [icon: monitor, color: gray]
+ÉtapeActif [icon: layout, color: gray]
+ÉtapeTechniqueAttaque [icon: layout, color: gray]
+Lab Offensif [icon: server, color: orange]
+Base de données [icon: database, color: green]
+
+activate Utilisateur enregistré 3
+
+Utilisateur enregistré 3 > Interface: Accède au module de simulation
+activate Interface
+Interface > ÉtapeActif: Affiche l'étape 1
+activate ÉtapeActif
+
+ÉtapeActif > Base de données: Récupérer la liste des actifs disponibles
+activate Base de données
+Base de données --> ÉtapeActif: Liste des actifs (nom, OS, IP, catégorie)
+deactivate Base de données
+ÉtapeActif --> Utilisateur enregistré 3: Affiche grille d'actifs (filtrable par catégorie)
+Utilisateur enregistré 3 > ÉtapeActif: Sélectionne 1 ou plusieurs actifs
+Utilisateur enregistré 3 > Interface: Clique Suivant
+deactivate ÉtapeActif
+
+Interface > ÉtapeTechniqueAttaque: Affiche l'étape 2
+activate ÉtapeTechniqueAttaque
+
+par [label: Chargement parallèle] {
+  ÉtapeTechniqueAttaque > Lab Offensif: Récupérer les profils d'adversaires
+  activate Lab Offensif
+  Lab Offensif --> ÉtapeTechniqueAttaque: Liste des profils d'adversaires
+} and [label: En parallèle] {
+  ÉtapeTechniqueAttaque > Lab Offensif: Récupérer les techniques d'attaque disponibles
+  Lab Offensif --> ÉtapeTechniqueAttaque: Liste des techniques (TTPs)
+  deactivate Lab Offensif
+}
+
+ÉtapeTechniqueAttaque --> Utilisateur enregistré 3: Affiche grille adversaires + liste TTPs
+
+alt [label: Si mode adversaire] {
+  Utilisateur enregistré 3 > ÉtapeTechniqueAttaque: Sélectionne un profil adversaire
+  ÉtapeTechniqueAttaque --> Utilisateur enregistré 3: Affiche TTPs pré-sélectionnées
+} else [label: Sinon] {
+  Utilisateur enregistré 3 > ÉtapeTechniqueAttaque: Sélectionne TTPs individuellement
+}
+
+Utilisateur enregistré 3 > Interface: Clique Suivant
+deactivate ÉtapeTechniqueAttaque
+deactivate Interface
+deactivate Utilisateur enregistré 3

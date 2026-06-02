@@ -1,0 +1,39 @@
+title Simulation d'attaque — Partie 6 : Rapport & consultation des détections
+
+Utilisateur enregistré 3 [icon: user, color: blue]
+Interface [icon: monitor, color: gray]
+ÉtapeLancement [icon: layout, color: gray]
+Lab Offensif [icon: server, color: orange]
+Base de données [icon: database, color: green]
+Générateur de rapports [icon: file-text, color: gray]
+
+activate Utilisateur enregistré 3
+activate ÉtapeLancement
+
+alt [label: Si l'utilisateur choisit de générer un rapport] {
+  Utilisateur enregistré 3 > ÉtapeLancement: Clique Générer le rapport
+
+  ÉtapeLancement > Générateur de rapports: Générer le rapport (IDs des opérations)
+  activate Générateur de rapports
+  loop [label: Pour chaque opération terminée] {
+    Générateur de rapports > Lab Offensif: Récupérer les données complètes de l'opération
+    activate Lab Offensif
+    Lab Offensif --> Générateur de rapports: Données de l'opération
+    deactivate Lab Offensif
+  }
+  Générateur de rapports --> ÉtapeLancement: Rapport généré
+  deactivate Générateur de rapports
+  ÉtapeLancement > ÉtapeLancement: Préparer le rapport pour téléchargement
+  ÉtapeLancement --> Utilisateur enregistré 3: Affiche téléchargement du rapport
+
+  ÉtapeLancement > Base de données: Sauvegarder le rapport de simulation
+  activate Base de données
+  Base de données > Base de données: Associer le rapport à l'attaque
+  Base de données --> ÉtapeLancement: Confirmation
+  deactivate Base de données
+} else [label: Si l'utilisateur choisit de consulter les détections] {
+  Utilisateur enregistré 3 > Interface: Navigue vers la page de détection
+}
+
+deactivate ÉtapeLancement
+deactivate Utilisateur enregistré 3
