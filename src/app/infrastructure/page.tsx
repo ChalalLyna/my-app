@@ -7,7 +7,7 @@ import { useAuth } from "@/app/context/AuthContext";
 import {
   Server, Network, Play, Square, RotateCcw, Wifi,
   Plus, Pencil, Trash2, X, Loader2, RefreshCw,
-  HardDrive, Search, Filter, Construction,
+  HardDrive, Search, Filter,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -52,6 +52,28 @@ const EMPTY_FORM = {
   nom: "", categorie: "", description: "", typeActif: "lab" as "lab" | "client",
   nomMachine: "", os: "", ip: "", vlan: "", vmidProxmox: "", cpu: "", ram: "", disk: "",
 };
+
+const EMPTY_ADD_FORM = {
+  vmName: "", hostname: "", ram: "", cpu: "", template: "",
+};
+
+interface LudusTemplate {
+  id: string;
+  label: string;
+  os: string;
+  defaultRam: string;
+  defaultCpu: string;
+  category: string;
+}
+
+const LUDUS_TEMPLATES: LudusTemplate[] = [
+  { id: "owasp-juice-shop",        label: "OWASP Juice Shop",         os: "Ubuntu 22.04",        defaultRam: "2048", defaultCpu: "2", category: "lab" },
+  { id: "windows-7",               label: "Windows 7",                os: "Windows 7",           defaultRam: "2048", defaultCpu: "2", category: "lab" },
+  { id: "windows-10",              label: "Windows 10",               os: "Windows 10",          defaultRam: "4096", defaultCpu: "2", category: "lab" },
+  { id: "windows-server-2019",     label: "Windows Server 2019",      os: "Windows Server 2019", defaultRam: "4096", defaultCpu: "4", category: "lab" },
+  { id: "windows-server-2016",     label: "Windows Server 2016",      os: "Windows Server 2016", defaultRam: "4096", defaultCpu: "4", category: "lab" },
+  { id: "malware-lab-xz-backdoor", label: "Malware Lab (xz backdoor)", os: "Debian 12",          defaultRam: "2048", defaultCpu: "2", category: "lab" },
+];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -180,7 +202,11 @@ export default function InfrastructurePage() {
   const [loadingNet, setLoadingNet] = useState(false);
   const [netError, setNetError] = useState("");
 
-  const [showAddTodo, setShowAddTodo] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState(EMPTY_ADD_FORM);
+  const [addFormError, setAddFormError] = useState("");
+  const [addSaving, setAddSaving] = useState(false);
+
   const [modal, setModal] = useState<EditModal>(null);
   const [editTarget, setEditTarget] = useState<Asset | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -350,6 +376,62 @@ export default function InfrastructurePage() {
     }
   }
 
+  function applyTemplate(templateId: string) {
+    const tpl = LUDUS_TEMPLATES.find((t) => t.id === templateId);
+    if (!tpl) {
+      setAddForm((f) => ({ ...f, template: templateId }));
+      return;
+    }
+    setAddForm((f) => ({
+      ...f,
+      template: templateId,
+      vmName:   f.vmName   || tpl.label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      hostname: f.hostname || tpl.label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      ram:      f.ram      || tpl.defaultRam,
+      cpu:      f.cpu      || tpl.defaultCpu,
+    }));
+  }
+
+  async function handleAddAsset() {
+    if (!addForm.vmName || !addForm.hostname) {
+      setAddFormError("VM name and hostname are required.");
+      return;
+    }
+    if (!addForm.template) {
+      setAddFormError("Please select a template.");
+      return;
+    }
+    const tpl = LUDUS_TEMPLATES.find((t) => t.id === addForm.template)!;
+    setAddSaving(true);
+    setAddFormError("");
+    try {
+      const res = await fetch("/api/assets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nom:        addForm.vmName,
+          nomMachine: addForm.hostname,
+          cpu:        addForm.cpu || tpl.defaultCpu,
+          ram:        addForm.ram || tpl.defaultRam,
+          os:         tpl.os,
+          categorie:  tpl.category,
+          typeActif:  "lab",
+          description: `Déployé depuis le template Ludus : ${tpl.label}`,
+          ip: "", vlan: "", disk: "", vmidProxmox: null,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setAddFormError(data.error ?? "Failed to create asset.");
+        return;
+      }
+      setShowAddModal(false);
+      fetchAssets();
+    } finally {
+      setAddSaving(false);
+    }
+  }
+
   async function handleDelete() {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -436,7 +518,7 @@ export default function InfrastructurePage() {
                 <RefreshCw size={15} className={refreshingLive ? "animate-spin" : ""} />
               </button>
               <button
-                onClick={() => setShowAddTodo(true)}
+                onClick={() => { setAddForm(EMPTY_ADD_FORM); setAddFormError(""); setShowAddModal(true); }}
                 className="flex items-center gap-2 bg-brand/10 hover:bg-brand/20 border border-brand/30 text-brand px-4 py-2 rounded-xl text-sm font-medium transition-colors"
               >
                 <Plus size={14} /> Add asset
@@ -823,30 +905,102 @@ export default function InfrastructurePage() {
         )}
       </div>
 
-      {/* ── Add — À implémenter ─────────────────────────────────────────────── */}
-      {showAddTodo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
+      {/* ── Add Asset Modal ──────────────────────────────────────────────────── */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                  <Construction size={16} className="text-amber-400" />
+                <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center">
+                  <Plus size={16} className="text-brand" />
                 </div>
-                <h2 className="text-sm font-bold text-white">Coming soon</h2>
+                <h2 className="text-base font-bold text-white">Add asset</h2>
               </div>
-              <button onClick={() => setShowAddTodo(false)} className="text-gray-500 hover:text-white transition-colors">
-                <X size={16} />
+              <button onClick={() => setShowAddModal(false)} className="text-gray-500 hover:text-white transition-colors">
+                <X size={17} />
               </button>
             </div>
-            <p className="text-sm text-gray-400 mb-5">
-              Asset creation from the interface is not yet implemented.
-            </p>
-            <button
-              onClick={() => setShowAddTodo(false)}
-              className="w-full py-2 rounded-xl text-sm font-medium bg-gray-800 hover:bg-gray-700 text-gray-300 transition-colors"
-            >
-              Close
-            </button>
+
+            <div className="flex flex-col gap-4">
+              {/* Template selector */}
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5 font-medium">
+                  Ludus template *
+                </label>
+                <select
+                  value={addForm.template}
+                  onChange={(e) => applyTemplate(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand/50"
+                >
+                  <option value="">— Select a template —</option>
+                  {LUDUS_TEMPLATES.map((tpl) => (
+                    <option key={tpl.id} value={tpl.id}>{tpl.label}</option>
+                  ))}
+                </select>
+                {addForm.template && (
+                  <p className="mt-1.5 text-xs text-gray-500">
+                    OS: <span className="text-gray-400">{LUDUS_TEMPLATES.find(t => t.id === addForm.template)?.os}</span>
+                  </p>
+                )}
+              </div>
+
+              <div className="border-t border-gray-800/60 pt-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-1.5">
+                  <Server size={11} /> VM configuration
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field
+                    label="VM name *"
+                    value={addForm.vmName}
+                    onChange={(v) => setAddForm((f) => ({ ...f, vmName: v }))}
+                    placeholder="juice-shop-01"
+                  />
+                  <Field
+                    label="Hostname *"
+                    value={addForm.hostname}
+                    onChange={(v) => setAddForm((f) => ({ ...f, hostname: v }))}
+                    placeholder="juice-shop-01"
+                  />
+                  <Field
+                    label="CPU (cores)"
+                    value={addForm.cpu}
+                    type="number"
+                    onChange={(v) => setAddForm((f) => ({ ...f, cpu: v }))}
+                    placeholder="2"
+                  />
+                  <Field
+                    label="RAM (MB)"
+                    value={addForm.ram}
+                    type="number"
+                    onChange={(v) => setAddForm((f) => ({ ...f, ram: v }))}
+                    placeholder="4096"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {addFormError && (
+              <p className="mt-4 text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
+                {addFormError}
+              </p>
+            )}
+
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="flex-1 py-2 rounded-xl text-sm font-medium text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddAsset}
+                disabled={addSaving}
+                className="flex-1 py-2 rounded-xl text-sm font-medium bg-brand/20 hover:bg-brand/30 border border-brand/30 text-brand transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {addSaving && <Loader2 size={13} className="animate-spin" />}
+                Create asset
+              </button>
+            </div>
           </div>
         </div>
       )}
