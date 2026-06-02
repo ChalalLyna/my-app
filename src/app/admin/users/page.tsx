@@ -6,17 +6,19 @@ import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import { useAuth } from "@/app/context/AuthContext";
 import {
   Search, Plus, Pencil, Trash2, X, Loader2,
-  ShieldCheck, GraduationCap, UserCog, Users,
+  ShieldCheck, GraduationCap, UserCog, Users, Hash,
 } from "lucide-react";
 
 interface UserRow {
   IdUtilisateur: number;
-  nom: string;
-  prenom: string;
-  role: "admin" | "consultant" | "apprenant";
-  IdCompte: number;
-  email: string;
-  DateCreation: string;
+  nom:           string;
+  prenom:        string;
+  role:          "admin" | "consultant" | "apprenant";
+  IdCompte:      number;
+  email:         string;
+  DateCreation:  string;
+  rangeStart:    number | null;
+  rangeEnd:      number | null;
 }
 
 type Role = "admin" | "consultant" | "apprenant";
@@ -55,6 +57,12 @@ export default function UsersPage() {
   const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
   const [deleting, setDeleting]     = useState(false);
 
+  // Range modal
+  const [rangeTarget, setRangeTarget] = useState<UserRow | null>(null);
+  const [rangeStart,  setRangeStart]  = useState("");
+  const [savingRange, setSavingRange] = useState(false);
+  const [rangeError,  setRangeError]  = useState("");
+
   const fetchUsers = useCallback(() => {
     setLoading(true);
     fetch("/api/admin/users")
@@ -69,46 +77,31 @@ export default function UsersPage() {
     `${u.prenom} ${u.nom} ${u.email} ${u.role}`.toLowerCase().includes(search.toLowerCase())
   );
 
-  function openAdd() {
-    setForm(EMPTY_FORM);
-    setError("");
-    setEditTarget(null);
-    setModal("add");
-  }
+  function openAdd() { setForm(EMPTY_FORM); setError(""); setEditTarget(null); setModal("add"); }
 
   function openEdit(u: UserRow) {
     setForm({ nom: u.nom, prenom: u.prenom, email: u.email, role: u.role, password: "" });
-    setError("");
-    setEditTarget(u);
-    setModal("edit");
+    setError(""); setEditTarget(u); setModal("edit");
+  }
+
+  function openRange(u: UserRow) {
+    setRangeTarget(u);
+    setRangeStart(u.rangeStart != null ? String(u.rangeStart) : "");
+    setRangeError("");
   }
 
   async function handleSave() {
-    if (!form.nom || !form.prenom || !form.email || !form.role) {
-      setError("All fields are required.");
-      return;
-    }
-    if (modal === "add" && !form.password) {
-      setError("Password is required.");
-      return;
-    }
-    setSaving(true);
-    setError("");
+    if (!form.nom || !form.prenom || !form.email || !form.role) { setError("All fields are required."); return; }
+    if (modal === "add" && !form.password) { setError("Password is required."); return; }
+    setSaving(true); setError("");
     try {
       const url    = modal === "add" ? "/api/admin/users" : `/api/admin/users/${editTarget!.IdUtilisateur}`;
       const method = modal === "add" ? "POST" : "PUT";
-      const res    = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
+      const res    = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      const data   = await res.json();
       if (!res.ok) { setError(data.error ?? "Unknown error."); return; }
-      setModal(null);
-      fetchUsers();
-    } finally {
-      setSaving(false);
-    }
+      setModal(null); fetchUsers();
+    } finally { setSaving(false); }
   }
 
   async function handleDelete() {
@@ -118,21 +111,32 @@ export default function UsersPage() {
       const res  = await fetch(`/api/admin/users/${deleteTarget.IdUtilisateur}`, { method: "DELETE" });
       const data = await res.json();
       if (!res.ok) { alert(data.error ?? "Delete failed."); return; }
-      setDeleteTarget(null);
-      fetchUsers();
-    } finally {
-      setDeleting(false);
-    }
+      setDeleteTarget(null); fetchUsers();
+    } finally { setDeleting(false); }
   }
 
-  function avatar(u: UserRow) {
-    return `${u.prenom?.[0] ?? ""}${u.nom?.[0] ?? ""}`.toUpperCase();
+  async function handleSaveRange() {
+    if (!rangeTarget) return;
+    setRangeError("");
+    const start = rangeStart === "" ? null : Number(rangeStart);
+    if (start !== null && (isNaN(start) || !Number.isInteger(start))) { setRangeError("Entrez un entier valide."); return; }
+    setSavingRange(true);
+    try {
+      const body = start === null ? { rangeStart: null, rangeEnd: null } : { rangeStart: start, rangeEnd: start + 99 };
+      const res  = await fetch(`/api/admin/users/${rangeTarget.IdUtilisateur}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) { setRangeError(data.error ?? "Erreur."); return; }
+      setRangeTarget(null); fetchUsers();
+    } finally { setSavingRange(false); }
   }
+
+  function avatar(u: UserRow) { return `${u.prenom?.[0] ?? ""}${u.nom?.[0] ?? ""}`.toUpperCase(); }
 
   return (
     <DashboardLayout>
       <div className="p-8">
-        {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -140,39 +144,24 @@ export default function UsersPage() {
               <span className="text-xs font-semibold uppercase tracking-widest text-brand">Administrator</span>
             </div>
             <h1 className="text-2xl font-bold text-white">User management</h1>
-            <p className="text-gray-500 text-sm mt-0.5">
-              {users.length} user{users.length !== 1 ? "s" : ""} registered
-            </p>
+            <p className="text-gray-500 text-sm mt-0.5">{users.length} user{users.length !== 1 ? "s" : ""} registered</p>
           </div>
-          <button
-            onClick={openAdd}
-            className="flex items-center gap-2 bg-brand/10 hover:bg-brand/20 border border-brand/30 text-brand px-4 py-2 rounded-xl text-sm font-medium transition-colors"
-          >
+          <button onClick={openAdd} className="flex items-center gap-2 bg-brand/10 hover:bg-brand/20 border border-brand/30 text-brand px-4 py-2 rounded-xl text-sm font-medium transition-colors">
             <Plus size={15} /> Add user
           </button>
         </div>
 
-        {/* Search */}
         <div className="relative mb-5">
           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, email, role…"
-            className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50"
-          />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, email, role…"
+            className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50" />
         </div>
 
-        {/* Table */}
         <div className="bg-gray-900 border border-gray-800/60 rounded-2xl overflow-hidden">
           {loading ? (
-            <div className="flex items-center justify-center py-16 text-gray-500">
-              <Loader2 size={20} className="animate-spin mr-2" /> Loading…
-            </div>
+            <div className="flex items-center justify-center py-16 text-gray-500"><Loader2 size={20} className="animate-spin mr-2" /> Loading…</div>
           ) : filtered.length === 0 ? (
-            <div className="flex items-center justify-center py-16 text-gray-500 text-sm">
-              No users found.
-            </div>
+            <div className="flex items-center justify-center py-16 text-gray-500 text-sm">No users found.</div>
           ) : (
             <table className="w-full text-sm">
               <thead>
@@ -180,25 +169,22 @@ export default function UsersPage() {
                   <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-6 py-3">User</th>
                   <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-6 py-3">Email</th>
                   <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-6 py-3">Role</th>
+                  <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-6 py-3">Rule range</th>
                   <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-6 py-3">Created</th>
                   <th className="text-right text-xs text-gray-500 font-semibold uppercase tracking-wider px-6 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((u) => {
-                  const role    = ROLE_META[u.role];
+                  const role     = ROLE_META[u.role];
                   const RoleIcon = role.icon;
-                  const isMe    = me?.id === String(u.IdUtilisateur);
+                  const isMe     = me?.id === String(u.IdUtilisateur);
+                  const hasRange = u.rangeStart != null && u.rangeEnd != null;
                   return (
-                    <tr
-                      key={u.IdUtilisateur}
-                      className="border-b border-gray-800/30 last:border-0 hover:bg-gray-800/20 transition-colors"
-                    >
+                    <tr key={u.IdUtilisateur} className="border-b border-gray-800/30 last:border-0 hover:bg-gray-800/20 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-brand/20 flex items-center justify-center text-xs font-bold text-brand flex-shrink-0">
-                            {avatar(u)}
-                          </div>
+                          <div className="w-8 h-8 rounded-full bg-brand/20 flex items-center justify-center text-xs font-bold text-brand flex-shrink-0">{avatar(u)}</div>
                           <div>
                             <p className="text-white font-medium">{u.prenom} {u.nom}</p>
                             {isMe && <span className="text-xs text-brand">You</span>}
@@ -208,28 +194,30 @@ export default function UsersPage() {
                       <td className="px-6 py-4 text-gray-400">{u.email}</td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${role.color} ${role.bg}`}>
-                          <RoleIcon size={11} />
-                          {role.label}
+                          <RoleIcon size={11} />{role.label}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-gray-500">
-                        {new Date(u.DateCreation).toLocaleDateString("en-US")}
+                      <td className="px-6 py-4">
+                        {u.role === "admin" ? (
+                          <span className="text-xs text-gray-600">—</span>
+                        ) : hasRange ? (
+                          <button onClick={() => openRange(u)} className="flex items-center gap-1.5 text-xs font-mono text-brand hover:text-brand-light transition-colors">
+                            <Hash size={11} />{u.rangeStart}–{u.rangeEnd}
+                          </button>
+                        ) : (
+                          <button onClick={() => openRange(u)} className="text-xs text-amber-500 hover:text-amber-400 underline underline-offset-2 transition-colors">
+                            Assign range
+                          </button>
+                        )}
                       </td>
+                      <td className="px-6 py-4 text-gray-500">{new Date(u.DateCreation).toLocaleDateString("en-US")}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => openEdit(u)}
-                            title="Edit"
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/50 transition-colors"
-                          >
+                          <button onClick={() => openEdit(u)} title="Edit" className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700/50 transition-colors">
                             <Pencil size={14} />
                           </button>
-                          <button
-                            onClick={() => setDeleteTarget(u)}
-                            disabled={isMe}
-                            title={isMe ? "You cannot delete your own account" : "Delete"}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
+                          <button onClick={() => setDeleteTarget(u)} disabled={isMe} title={isMe ? "You cannot delete your own account" : "Delete"}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
                             <Trash2 size={14} />
                           </button>
                         </div>
@@ -248,99 +236,92 @@ export default function UsersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-white">
-                {modal === "add" ? "Add user" : "Edit user"}
-              </h2>
-              <button
-                onClick={() => setModal(null)}
-                className="text-gray-500 hover:text-white transition-colors"
-              >
-                <X size={18} />
-              </button>
+              <h2 className="text-lg font-bold text-white">{modal === "add" ? "Add user" : "Edit user"}</h2>
+              <button onClick={() => setModal(null)} className="text-gray-500 hover:text-white transition-colors"><X size={18} /></button>
             </div>
-
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-gray-400 mb-1.5 font-medium">First name</label>
-                  <input
-                    value={form.prenom}
-                    onChange={(e) => setForm((f) => ({ ...f, prenom: e.target.value }))}
-                    placeholder="Sophie"
-                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50"
-                  />
+                  <input value={form.prenom} onChange={(e) => setForm((f) => ({ ...f, prenom: e.target.value }))} placeholder="Sophie"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50" />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-400 mb-1.5 font-medium">Last name</label>
-                  <input
-                    value={form.nom}
-                    onChange={(e) => setForm((f) => ({ ...f, nom: e.target.value }))}
-                    placeholder="Martin"
-                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50"
-                  />
+                  <input value={form.nom} onChange={(e) => setForm((f) => ({ ...f, nom: e.target.value }))} placeholder="Martin"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50" />
                 </div>
               </div>
-
               <div>
                 <label className="block text-xs text-gray-400 mb-1.5 font-medium">Email</label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                  placeholder="sophie@cyberlab.io"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50"
-                />
+                <input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="sophie@cyberlab.io"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50" />
               </div>
-
               <div>
                 <label className="block text-xs text-gray-400 mb-1.5 font-medium">Role</label>
-                <select
-                  value={form.role}
-                  onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as Role }))}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand/50"
-                >
+                <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as Role }))}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand/50">
                   <option value="apprenant">Learner</option>
                   <option value="consultant">Consultant</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
-
               <div>
                 <label className="block text-xs text-gray-400 mb-1.5 font-medium">
-                  Password{" "}
-                  {modal === "edit" && (
-                    <span className="text-gray-600">(leave blank to keep unchanged)</span>
-                  )}
+                  Password {modal === "edit" && <span className="text-gray-600">(leave blank to keep unchanged)</span>}
                 </label>
-                <input
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                <input type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                   placeholder={modal === "add" ? "Minimum 8 characters" : "••••••••"}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50"
-                />
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50" />
               </div>
-
-              {error && (
-                <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
-                  {error}
-                </p>
-              )}
-
+              {error && <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">{error}</p>}
               <div className="flex items-center gap-3 pt-1">
-                <button
-                  onClick={() => setModal(null)}
-                  className="flex-1 py-2 rounded-xl text-sm font-medium text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="flex-1 py-2 rounded-xl text-sm font-medium bg-brand/20 hover:bg-brand/30 border border-brand/30 text-brand transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
+                <button onClick={() => setModal(null)} className="flex-1 py-2 rounded-xl text-sm font-medium text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 transition-colors">Cancel</button>
+                <button onClick={handleSave} disabled={saving} className="flex-1 py-2 rounded-xl text-sm font-medium bg-brand/20 hover:bg-brand/30 border border-brand/30 text-brand transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                   {saving && <Loader2 size={14} className="animate-spin" />}
                   {modal === "add" ? "Create" : "Save"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Range Assignment Modal */}
+      {rangeTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-sm font-bold text-white flex items-center gap-2"><Hash size={14} className="text-brand" /> Rule ID range</h2>
+                <p className="text-xs text-gray-500 mt-0.5">{rangeTarget.prenom} {rangeTarget.nom}</p>
+              </div>
+              <button onClick={() => setRangeTarget(null)} className="text-gray-500 hover:text-white transition-colors"><X size={18} /></button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5 font-medium">Start ID <span className="text-gray-600">(min. 1 000 000)</span></label>
+                <input type="number" value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} placeholder="1000000"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-brand/50" />
+                {rangeStart !== "" && !isNaN(Number(rangeStart)) && (
+                  <p className="text-xs text-gray-500 mt-1.5 font-mono">
+                    → {rangeStart} – {Number(rangeStart) + 99} <span className="text-gray-600">(100 IDs)</span>
+                  </p>
+                )}
+              </div>
+              {rangeError && <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">{rangeError}</p>}
+              <div className="flex items-center gap-2 pt-1">
+                <button onClick={() => setRangeTarget(null)} className="flex-1 py-2 rounded-xl text-sm font-medium text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 transition-colors">Cancel</button>
+                {rangeTarget.rangeStart != null && (
+                  <button onClick={() => { setRangeStart(""); setTimeout(handleSaveRange, 0); }} disabled={savingRange}
+                    className="px-3 py-2 rounded-xl text-xs text-red-400 hover:bg-red-500/10 border border-red-500/20 transition-colors disabled:opacity-50">
+                    Remove
+                  </button>
+                )}
+                <button onClick={handleSaveRange} disabled={savingRange || rangeStart === ""}
+                  className="flex-1 py-2 rounded-xl text-sm font-medium bg-brand/20 hover:bg-brand/30 border border-brand/30 text-brand transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                  {savingRange && <Loader2 size={14} className="animate-spin" />}
+                  Save
                 </button>
               </div>
             </div>
@@ -353,31 +334,17 @@ export default function UsersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
-                <Trash2 size={18} className="text-red-400" />
-              </div>
+              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0"><Trash2 size={18} className="text-red-400" /></div>
               <div>
                 <h2 className="text-sm font-bold text-white">Delete user</h2>
                 <p className="text-xs text-gray-400">{deleteTarget.prenom} {deleteTarget.nom}</p>
               </div>
             </div>
-            <p className="text-sm text-gray-400 mb-5">
-              This action will permanently delete the account and all associated data. It cannot be undone.
-            </p>
+            <p className="text-sm text-gray-400 mb-5">This action will permanently delete the account and all associated data. It cannot be undone.</p>
             <div className="flex gap-3">
-              <button
-                onClick={() => setDeleteTarget(null)}
-                className="flex-1 py-2 rounded-xl text-sm font-medium text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex-1 py-2 rounded-xl text-sm font-medium bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {deleting && <Loader2 size={14} className="animate-spin" />}
-                Delete
+              <button onClick={() => setDeleteTarget(null)} className="flex-1 py-2 rounded-xl text-sm font-medium text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 transition-colors">Cancel</button>
+              <button onClick={handleDelete} disabled={deleting} className="flex-1 py-2 rounded-xl text-sm font-medium bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                {deleting && <Loader2 size={14} className="animate-spin" />}Delete
               </button>
             </div>
           </div>

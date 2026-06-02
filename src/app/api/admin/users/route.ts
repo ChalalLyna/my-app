@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
   try {
     const [rows] = await pool.execute(
       `SELECT u.IdUtilisateur, u.nom, u.prenom, u.role,
+              u.rangeStart, u.rangeEnd,
               c.IdCompte, c.email, c.DateCreation
        FROM Utilisateur u
        INNER JOIN Compte c ON c.IdCompte = u.IdCompte

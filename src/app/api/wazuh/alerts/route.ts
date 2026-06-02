@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifyToken, COOKIE_NAME } from "@/lib/auth";
+import pool from "@/lib/db";
+import { RowDataPacket } from "mysql2";
 
 export const dynamic = "force-dynamic";
 
@@ -10,8 +13,8 @@ function levelToSeverity(level: number): "Critical" | "High" | "Medium" | "Low" 
 }
 
 function mapAlert(hit: any) {
-  const src = hit._source ?? {};
-  const rule = src.rule ?? {};
+  const src   = hit._source ?? {};
+  const rule  = src.rule ?? {};
   const agent = src.agent ?? {};
   const groups: string[] = Array.isArray(rule.groups) ? rule.groups : (rule.groups ? [rule.groups] : []);
 
@@ -24,40 +27,77 @@ function mapAlert(hit: any) {
       );
 
   return {
-    id: hit._id,
-    title: rule.description ?? "Unknown Alert",
-    description: rule.description ?? "",
-    severity: levelToSeverity(rule.level ?? 0),
-    status: "New" as const,
-    ttp: `R:${rule.id ?? "?"}`,
-    ttpName: groups.join(", "),
-    asset: agent.name ?? agent.ip ?? "unknown",
-    timestamp: src["@timestamp"] ?? new Date().toISOString(),
-    source: src.decoder?.name ?? "Wazuh",
+    id:             hit._id,
+    title:          rule.description ?? "Unknown Alert",
+    description:    rule.description ?? "",
+    severity:       levelToSeverity(rule.level ?? 0),
+    status:         "New" as const,
+    ttp:            `R:${rule.id ?? "?"}`,
+    ttpName:        groups.join(", "),
+    asset:          agent.name ?? agent.ip ?? "unknown",
+    timestamp:      src["@timestamp"] ?? new Date().toISOString(),
+    source:         src.decoder?.name ?? "Wazuh",
     rawLog,
-    ruleLevel: rule.level as number | undefined,
-    agentId: agent.id as string | undefined,
-    agentIp: agent.ip as string | undefined,
+    ruleLevel:      rule.level as number | undefined,
+    agentId:        agent.id as string | undefined,
+    agentIp:        agent.ip as string | undefined,
     ruleFiredTimes: rule.firedtimes as number | undefined,
   };
 }
 
+async function getUserRange(userId: number) {
+  const [rows] = await pool.query<RowDataPacket[]>(
+    "SELECT rangeStart, rangeEnd FROM Utilisateur WHERE IdUtilisateur = ?",
+    [userId]
+  );
+  const row = rows[0];
+  if (!row || row.rangeStart == null || row.rangeEnd == null) return null;
+  return { rangeStart: row.rangeStart as number, rangeEnd: row.rangeEnd as number };
+}
+
 export async function GET(req: NextRequest) {
+  // Auth
+  const token = req.cookies.get(COOKIE_NAME)?.value;
+  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const payload = verifyToken(token);
+  if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const since = req.nextUrl.searchParams.get("since");
   if (!since) {
     return NextResponse.json({ error: "Missing 'since' parameter" }, { status: 400 });
   }
 
-  const wazuhUrl = process.env.WAZUH_URL;
-  const wazuhUser = process.env.WAZUH_USER;
+  const wazuhUrl      = process.env.WAZUH_URL;
+  const wazuhUser     = process.env.WAZUH_USER;
   const wazuhPassword = process.env.WAZUH_PASSWORD;
 
   if (!wazuhUrl || !wazuhUser || !wazuhPassword) {
     return NextResponse.json({ error: "Wazuh not configured" }, { status: 500 });
   }
 
+  // Build rule ID filter: default rules (< 1 000 000) + user's own range
+  const range = payload.role === "admin" ? null : await getUserRange(payload.idUtilisateur);
+
+  // Admins see all alerts; others see only default + their range
+  const ruleIdFilter = payload.role === "admin"
+    ? null
+    : range
+      ? {
+          bool: {
+            should: [
+              { range: { "rule.id": { lte: 999999 } } },
+              { range: { "rule.id": { gte: range.rangeStart, lte: range.rangeEnd } } },
+            ],
+            minimum_should_match: 1,
+          },
+        }
+      : { range: { "rule.id": { lte: 999999 } } }; // no range assigned → only default alerts
+
+  const mustClauses: any[] = [{ range: { "@timestamp": { gte: since } } }];
+  if (ruleIdFilter) mustClauses.push(ruleIdFilter);
+
   const auth = Buffer.from(`${wazuhUser}:${wazuhPassword}`).toString("base64");
-  const url = `${wazuhUrl}/internal/search/opensearch-with-long-numerals`;
+  const url  = `${wazuhUrl}/internal/search/opensearch-with-long-numerals`;
 
   const body = {
     params: {
@@ -67,7 +107,7 @@ export async function GET(req: NextRequest) {
         sort: [{ "@timestamp": { order: "desc" } }],
         query: {
           bool: {
-            must: [{ range: { "@timestamp": { gte: since } } }],
+            must:     mustClauses,
             must_not: [{ term: { "agent.id": "000" } }],
           },
         },
@@ -94,7 +134,6 @@ export async function GET(req: NextRequest) {
     }
 
     const data = await res.json();
-    // Wazuh Dashboard wraps hits under rawResponse
     const hits: any[] = data?.rawResponse?.hits?.hits ?? data?.hits?.hits ?? [];
     return NextResponse.json(hits.map(mapAlert), {
       headers: { "Cache-Control": "no-store" },

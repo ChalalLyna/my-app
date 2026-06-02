@@ -77,6 +77,8 @@ CREATE TABLE Utilisateur (
     prenom          VARCHAR(100) NOT NULL,
     role            ENUM('apprenant','consultant','admin') NOT NULL,
     IdCompte        INT          NOT NULL,
+    rangeStart      INT          NULL,
+    rangeEnd        INT          NULL,
     PRIMARY KEY (IdUtilisateur),
     CONSTRAINT fk_utilisateur_compte FOREIGN KEY (IdCompte)
         REFERENCES Compte(IdCompte)

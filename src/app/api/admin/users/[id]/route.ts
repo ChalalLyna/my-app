@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import pool from "@/lib/db";
 import { verifyToken, COOKIE_NAME } from "@/lib/auth";
+import { RowDataPacket } from "mysql2";
 
 function requireAdmin(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
@@ -83,6 +84,60 @@ export async function PUT(
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
+}
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const admin = requireAdmin(req);
+  if (!admin) return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
+
+  const { id: rawId } = await params;
+  const id = Number(rawId);
+  if (isNaN(id)) return NextResponse.json({ error: "ID invalide." }, { status: 400 });
+
+  const { rangeStart, rangeEnd } = await req.json();
+
+  // Allow clearing the range
+  if (rangeStart === null && rangeEnd === null) {
+    await pool.execute(
+      "UPDATE Utilisateur SET rangeStart = NULL, rangeEnd = NULL WHERE IdUtilisateur = ?",
+      [id]
+    );
+    return NextResponse.json({ success: true });
+  }
+
+  if (!Number.isInteger(rangeStart) || !Number.isInteger(rangeEnd)) {
+    return NextResponse.json({ error: "rangeStart et rangeEnd doivent être des entiers." }, { status: 400 });
+  }
+  if (rangeStart < 1000000) {
+    return NextResponse.json({ error: "La plage doit commencer à 1 000 000 minimum." }, { status: 400 });
+  }
+  if (rangeEnd <= rangeStart) {
+    return NextResponse.json({ error: "rangeEnd doit être supérieur à rangeStart." }, { status: 400 });
+  }
+
+  // Check for overlap with other users
+  const [overlaps] = await pool.query<RowDataPacket[]>(
+    `SELECT IdUtilisateur FROM Utilisateur
+     WHERE IdUtilisateur != ?
+       AND rangeStart IS NOT NULL
+       AND NOT (rangeEnd < ? OR rangeStart > ?)`,
+    [id, rangeStart, rangeEnd]
+  );
+  if (overlaps.length > 0) {
+    return NextResponse.json(
+      { error: "Cette plage chevauche celle d'un autre utilisateur." },
+      { status: 409 }
+    );
+  }
+
+  await pool.execute(
+    "UPDATE Utilisateur SET rangeStart = ?, rangeEnd = ? WHERE IdUtilisateur = ?",
+    [rangeStart, rangeEnd, id]
+  );
+  return NextResponse.json({ success: true });
 }
 
 export async function DELETE(

@@ -126,9 +126,10 @@ interface EditorPanelProps {
   onCancel: () => void;
   saving: boolean;
   saveError: string | null;
+  userRange: { rangeStart: number; rangeEnd: number } | null;
 }
  
-function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelProps) {
+function EditorPanel({ rule, onSave, onCancel, saving, saveError, userRange }: EditorPanelProps) {
   const isNew    = rule === null;
   const isSystem = rule ? !rule.relativeDirname.includes("etc") : false;
  
@@ -156,6 +157,16 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError }: EditorPanelP
         </button>
       </div>
  
+      {/* Range reminder */}
+      {userRange && (
+        <div className="mx-6 mt-4 flex items-center gap-2 p-2.5 bg-gray-800/40 border border-gray-700/40 rounded-xl shrink-0">
+          <Hash size={11} className="text-brand shrink-0" />
+          <p className="text-[11px] text-gray-400">
+            Your rule ID range: <span className="font-mono text-brand">{userRange.rangeStart}–{userRange.rangeEnd}</span>
+          </p>
+        </div>
+      )}
+
       {isSystem && (
         <div className="mx-6 mt-4 flex items-start gap-2 p-3 bg-amber-900/15 border border-amber-800/30 rounded-xl shrink-0">
           <AlertTriangle size={13} className="text-amber-500 shrink-0 mt-0.5" />
@@ -309,9 +320,10 @@ interface RuleCardProps {
   onToggle: () => void;
   onDelete: () => void;
   loadingEdit: boolean;
+  canEdit: boolean;
 }
  
-function RuleCard({ rule, onEdit, onToggle, onDelete, loadingEdit }: RuleCardProps) {
+function RuleCard({ rule, onEdit, onToggle, onDelete, loadingEdit, canEdit }: RuleCardProps) {
   const sev = SEVERITY_STYLES[rule.severity];
   return (
     <div className={`flex items-center gap-4 px-5 py-4 border-b border-gray-800/40 hover:bg-gray-800/20 transition-colors group ${rule.status === "inactive" ? "opacity-50" : ""}`}>
@@ -335,20 +347,23 @@ function RuleCard({ rule, onEdit, onToggle, onDelete, loadingEdit }: RuleCardPro
       </div>
       <span className="text-xs text-gray-600 shrink-0 w-48 truncate font-mono">{rule.filename || "—"}</span>
       <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-        <button
-          onClick={onEdit}
-          disabled={loadingEdit}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-xs font-medium transition-all disabled:opacity-50"
-        >
-          {loadingEdit ? <Loader2 size={12} className="animate-spin" /> : <Edit2 size={12} />}
-          Edit
-        </button>
-        <button
-          onClick={onDelete}
-          className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-900/20 transition-all"
-        >
-          <Trash2 size={13} />
-        </button>
+        {canEdit ? (
+          <>
+            <button
+              onClick={onEdit}
+              disabled={loadingEdit}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-xs font-medium transition-all disabled:opacity-50"
+            >
+              {loadingEdit ? <Loader2 size={12} className="animate-spin" /> : <Edit2 size={12} />}
+              Edit
+            </button>
+            <button onClick={onDelete} className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-900/20 transition-all">
+              <Trash2 size={13} />
+            </button>
+          </>
+        ) : (
+          <span className="text-[10px] text-gray-700 px-2">read-only</span>
+        )}
       </div>
     </div>
   );
@@ -490,7 +505,7 @@ function RuleTuningPageInner() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const isApprenant  = user?.role === "apprenant";
- 
+
   const [rules,          setRules]          = useState<WazuhRule[]>([]);
   const [loading,        setLoading]        = useState(false);
   const [apiError,       setApiError]       = useState<string | null>(null);
@@ -509,6 +524,30 @@ function RuleTuningPageInner() {
   const [sendingReview,  setSendingReview]  = useState(false);
   const [reviewSent,     setReviewSent]     = useState(false);
   const [reviewError,    setReviewError]    = useState<string | null>(null);
+
+  // Current user's rule range
+  const [userRange, setUserRange] = useState<{ rangeStart: number; rangeEnd: number } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.rangeStart != null && data?.rangeEnd != null) {
+          setUserRange({ rangeStart: data.rangeStart, rangeEnd: data.rangeEnd });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // A rule is "owned" by the user if its wazuhId is in their range
+  const isOwnedRule = (rule: WazuhRule) => {
+    if (user?.role === "admin") return true;
+    if (!userRange) return false;
+    return rule.wazuhId >= userRange.rangeStart && rule.wazuhId <= userRange.rangeEnd;
+  };
+
+  // Default Wazuh/DocFortress rules (not in etc/) — read-only for everyone
+  const isDefaultRule = (rule: WazuhRule) => !rule.relativeDirname.includes("etc");
  
   const fetchRules = useCallback(async (q: string) => {
     setLoading(true);
@@ -763,6 +802,22 @@ function RuleTuningPageInner() {
           </div>
  
           <div className="flex items-center gap-2">
+            {/* Range badge */}
+            {user?.role !== "admin" && (
+              userRange ? (
+                <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-800/60 border border-gray-700/60 text-xs font-mono text-gray-400">
+                  <Hash size={11} className="text-brand" />
+                  <span className="text-brand">{userRange.rangeStart}</span>
+                  <span className="text-gray-600">–</span>
+                  <span className="text-brand">{userRange.rangeEnd}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-900/20 border border-amber-700/30 text-xs text-amber-400">
+                  <AlertTriangle size={11} />
+                  No range assigned
+                </div>
+              )
+            )}
             <button
               onClick={() => setShowCti(true)}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600/15 border border-amber-700/30 text-amber-400 hover:bg-amber-600/25 text-sm font-semibold transition-all"
@@ -771,7 +826,13 @@ function RuleTuningPageInner() {
               CTI rules
             </button>
             <button
-              onClick={() => { setSaveError(null); setEditorTarget(null); }}
+              onClick={() => {
+                if (user?.role !== "admin" && !userRange) {
+                  alert("Aucune plage de règles assignée à votre compte. Contactez un administrateur.");
+                  return;
+                }
+                setSaveError(null); setEditorTarget(null);
+              }}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white text-sm font-semibold shadow-md shadow-brand/20 transition-all"
             >
               <Plus size={15} />
@@ -805,6 +866,7 @@ function RuleTuningPageInner() {
               onCancel={() => { setEditorTarget(undefined); setSaveError(null); }}
               saving={saving}
               saveError={saveError}
+              userRange={userRange}
             />
           ) : (
             <>
@@ -881,6 +943,7 @@ function RuleTuningPageInner() {
                       onToggle={() => handleToggle(rule.id)}
                       onDelete={() => handleDelete(rule)}
                       loadingEdit={loadingEdit === rule.id}
+                      canEdit={!isDefaultRule(rule) && isOwnedRule(rule)}
                     />
                   ))
                 )}
