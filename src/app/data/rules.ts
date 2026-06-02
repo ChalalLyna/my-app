@@ -14,6 +14,7 @@ export interface WazuhRule {
   filename: string;
   relativeDirname: string;
   xml?: string;
+  approved?: boolean;
 }
  
 export interface DetectionRule {
@@ -230,9 +231,9 @@ level: critical
 ];
  
 export const XML_TEMPLATE = `<!-- CyberLab Custom Rule -->
-<!-- Custom IDs must be between 100000 and 199999 -->
+<!-- Your rule ID must be within your assigned range (starting at 1000000) -->
 <group name="cyberlab,">
-  <rule id="100001" level="7">
+  <rule id="1000000" level="7">
     <description>New CyberLab detection rule</description>
     <group>cyberlab,</group>
   </rule>

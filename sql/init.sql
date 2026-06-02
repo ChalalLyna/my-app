@@ -245,15 +245,16 @@ CREATE TABLE LabMission (
 -- ------------------------------------------------------------
 
 CREATE TABLE RegleAjouteParConsultant (
-    IdRegle         INT NOT NULL,
-    IdConsultant    INT NOT NULL,
-    IdMission       INT,            -- NULL si hors mission
-    nom             VARCHAR(255),
-    description     TEXT,
-    wazuhRuleId     INT,
-    severite        VARCHAR(50),
-    dateCreation    DATETIME DEFAULT CURRENT_TIMESTAMP,
-    XmlWazuh        LONGTEXT,
+    IdRegle               INT NOT NULL,
+    IdConsultant          INT NOT NULL,
+    IdMission             INT,            -- NULL si hors mission
+    nom                   VARCHAR(255),
+    description           TEXT,
+    wazuhRuleId           INT,
+    severite              VARCHAR(50),
+    dateCreation          DATETIME DEFAULT CURRENT_TIMESTAMP,
+    derniereModification  DATETIME NULL,
+    XmlWazuh              LONGTEXT,
     PRIMARY KEY (IdRegle),
     CONSTRAINT fk_rapc_regle      FOREIGN KEY (IdRegle)
         REFERENCES RegleDeDetection(IdRegle),
@@ -264,20 +265,21 @@ CREATE TABLE RegleAjouteParConsultant (
 );
 
 CREATE TABLE RegleAjouteeParApprenant (
-    IdRegle         INT NOT NULL,
-    IdApprenant     INT NOT NULL,
-    IdConsultant    INT,
-    nom             VARCHAR(255),
-    description     TEXT,
-    wazuhRuleId     INT,
-    severite        VARCHAR(50),
-    action          ENUM('create','modify') NOT NULL DEFAULT 'create',
-    statut          ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
-    dateCreation    DATETIME DEFAULT CURRENT_TIMESTAMP,
-    dateRevision    DATETIME,
-    commentaire     TEXT,
-    XmlWazuh        LONGTEXT,
-    filename        VARCHAR(255),
+    IdRegle               INT NOT NULL,
+    IdApprenant           INT NOT NULL,
+    IdConsultant          INT,
+    nom                   VARCHAR(255),
+    description           TEXT,
+    wazuhRuleId           INT,
+    severite              VARCHAR(50),
+    action                ENUM('create','modify') NOT NULL DEFAULT 'create',
+    statut                ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+    dateCreation          DATETIME DEFAULT CURRENT_TIMESTAMP,
+    derniereModification  DATETIME NULL,
+    dateRevision          DATETIME,
+    commentaire           TEXT,
+    XmlWazuh              LONGTEXT,
+    filename              VARCHAR(255),
     PRIMARY KEY (IdRegle),
     CONSTRAINT fk_rapa_regle      FOREIGN KEY (IdRegle)
         REFERENCES RegleDeDetection(IdRegle),

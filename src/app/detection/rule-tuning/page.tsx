@@ -132,11 +132,32 @@ interface EditorPanelProps {
 function EditorPanel({ rule, onSave, onCancel, saving, saveError, userRange }: EditorPanelProps) {
   const isNew    = rule === null;
   const isSystem = rule ? !rule.relativeDirname.includes("etc") : false;
- 
-  const [xml,         setXml]         = useState(rule?.xml ?? XML_TEMPLATE);
-  const [description, setDescription] = useState(rule?.description ?? "");
-  const [level,       setLevel]       = useState(rule?.level ?? 7);
-  const [groups,      setGroups]      = useState(rule?.groups.join(", ") ?? "cyberlab");
+
+  const [xml,            setXml]            = useState(rule?.xml ?? XML_TEMPLATE);
+  const [description,    setDescription]    = useState(rule?.description ?? "");
+  const [level,          setLevel]          = useState(rule?.level ?? 7);
+  const [groups,         setGroups]         = useState(rule?.groups.join(", ") ?? "cyberlab");
+  const [rangeValidErr,  setRangeValidErr]  = useState<string | null>(null);
+
+  function handleSaveClick() {
+    // Validate rule IDs in XML against user's range (admins bypass)
+    if (userRange) {
+      const ids = [...xml.matchAll(/<rule\s[^>]*\bid="(\d+)"/g)].map(m => Number(m[1]));
+      if (ids.length === 0) {
+        setRangeValidErr("Aucun ID de règle trouvé dans le XML. Ajoutez un attribut id=\"...\" à la balise <rule>.");
+        return;
+      }
+      const outOfRange = ids.filter(id => id < userRange.rangeStart || id > userRange.rangeEnd);
+      if (outOfRange.length > 0) {
+        setRangeValidErr(
+          `ID${outOfRange.length > 1 ? "s" : ""} hors plage : ${outOfRange.join(", ")}. Votre plage est ${userRange.rangeStart}–${userRange.rangeEnd}.`
+        );
+        return;
+      }
+    }
+    setRangeValidErr(null);
+    onSave(xml, { description, level, groups });
+  }
  
   return (
     <div className="flex flex-col h-full">
@@ -287,6 +308,12 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError, userRange }: E
               New rules will be active after restart.
             </div>
           )}
+          {rangeValidErr && (
+            <div className="flex items-start gap-1.5">
+              <AlertTriangle size={12} className="text-red-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-red-400">{rangeValidErr}</p>
+            </div>
+          )}
           {saveError && <p className="text-xs text-red-400">{saveError}</p>}
         </div>
         <div className="flex gap-2">
@@ -297,7 +324,7 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError, userRange }: E
             Cancel
           </button>
           <button
-            onClick={() => onSave(xml, { description, level, groups })}
+            onClick={handleSaveClick}
             disabled={saving}
             className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
               !saving ? "bg-brand hover:bg-brand-dark text-white shadow-md shadow-brand/20" : "bg-gray-800 text-gray-600 cursor-not-allowed"
@@ -511,7 +538,7 @@ function RuleTuningPageInner() {
   const [apiError,       setApiError]       = useState<string | null>(null);
   const [total,          setTotal]          = useState(0);
   const [search,         setSearch]         = useState("");
-  const [filterStatus,   setFilterStatus]   = useState<"all" | "active" | "inactive">("all");
+  const [filterStatus,   setFilterStatus]   = useState<"all" | "active" | "inactive" | "mine">("all");
   const [editorTarget,   setEditorTarget]   = useState<WazuhRule | null | undefined>(undefined);
   const [loadingEdit,    setLoadingEdit]    = useState<string | null>(null);
   const [saving,         setSaving]         = useState(false);
@@ -609,9 +636,11 @@ function RuleTuningPageInner() {
     return () => clearTimeout(debounceRef.current);
   }, [search, fetchRules]);
  
-  const filtered = rules.filter(r =>
-    filterStatus === "all" || r.status === filterStatus
-  );
+  const filtered = rules.filter(r => {
+    if (filterStatus === "mine") return isOwnedRule(r);
+    if (filterStatus === "all")  return true;
+    return r.status === filterStatus;
+  });
  
   const handleToggle = (id: string) => {
     setRules(prev => prev.map(r =>
@@ -667,14 +696,14 @@ function RuleTuningPageInner() {
  
   const handleSave = async (
     xml: string,
-    _meta: { description: string; level: number; groups: string }
+    meta: { description: string; level: number; groups: string }
   ) => {
     setSaving(true);
     setSaveError(null);
- 
-    const isNew      = editorTarget === null;
+
+    const isNew       = editorTarget === null;
     const originalXml = (!isNew && editorTarget?.xml) ? editorTarget.xml : null;
- 
+
     let filename: string;
     if (isNew) {
       filename = `cyberlab_${Date.now()}.xml`;
@@ -683,12 +712,18 @@ function RuleTuningPageInner() {
     } else {
       filename = `cyberlab_override_${editorTarget!.wazuhId}.xml`;
     }
- 
+
     try {
       const res = await fetch("/api/wazuh/rules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename, xml }),
+        body: JSON.stringify({
+          filename,
+          xml,
+          nom:         meta.description || filename,
+          description: meta.description,
+          severite:    meta.level >= 12 ? "Critical" : meta.level >= 8 ? "High" : meta.level >= 4 ? "Medium" : "Low",
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
@@ -895,6 +930,18 @@ function RuleTuningPageInner() {
                       {f === "all" ? "All" : f === "active" ? "Active" : "Inactive"}
                     </button>
                   ))}
+                  {userRange && (
+                    <button
+                      onClick={() => setFilterStatus(filterStatus === "mine" ? "all" : "mine")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        filterStatus === "mine"
+                          ? "bg-indigo-600 text-white shadow-sm"
+                          : "bg-gray-800/60 text-gray-500 hover:text-gray-300 border border-gray-800"
+                      }`}
+                    >
+                      My rules
+                    </button>
+                  )}
                 </div>
                 <button
                   onClick={() => fetchRules(search)}
@@ -943,7 +990,7 @@ function RuleTuningPageInner() {
                       onToggle={() => handleToggle(rule.id)}
                       onDelete={() => handleDelete(rule)}
                       loadingEdit={loadingEdit === rule.id}
-                      canEdit={!isDefaultRule(rule) && isOwnedRule(rule)}
+                      canEdit={!isDefaultRule(rule) && isOwnedRule(rule) && !rule.approved}
                     />
                   ))
                 )}

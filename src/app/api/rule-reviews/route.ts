@@ -72,31 +72,52 @@ export async function POST(req: NextRequest) {
   try {
     await conn.beginTransaction();
 
-    const [r1] = await conn.execute<ResultSetHeader>(
-      "INSERT INTO RegleDeDetection () VALUES ()"
+    // Check if a record already exists for this user + filename (created at save time)
+    const [existing] = await conn.query<RowDataPacket[]>(
+      "SELECT IdRegle FROM RegleAjouteeParApprenant WHERE IdApprenant = ? AND filename = ?",
+      [payload.idUtilisateur, filename]
     );
-    const idRegle = r1.insertId;
 
-    await conn.execute(
-      `INSERT INTO RegleAjouteeParApprenant
-         (IdRegle, IdApprenant, nom, XmlWazuh, filename, action)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [idRegle, payload.idUtilisateur, ruleName, xml, filename, action]
-    );
+    let idRegle: number;
+
+    if (existing.length > 0) {
+      // Record already exists — UPDATE instead of INSERT to avoid duplicates
+      idRegle = existing[0].IdRegle;
+      await conn.execute(
+        `UPDATE RegleAjouteeParApprenant
+         SET nom = ?, XmlWazuh = ?, action = ?, statut = 'pending',
+             IdConsultant = NULL, dateRevision = NULL, commentaire = NULL
+         WHERE IdRegle = ?`,
+        [ruleName, xml, action, idRegle]
+      );
+    } else {
+      // No record yet — create one
+      const [r1] = await conn.execute<ResultSetHeader>(
+        "INSERT INTO RegleDeDetection () VALUES ()"
+      );
+      idRegle = r1.insertId;
+
+      await conn.execute(
+        `INSERT INTO RegleAjouteeParApprenant
+           (IdRegle, IdApprenant, nom, XmlWazuh, filename, action)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [idRegle, payload.idUtilisateur, ruleName, xml, filename, action]
+      );
+    }
 
     await conn.commit();
 
     return NextResponse.json(
       {
-        id:           idRegle,
+        id:            idRegle,
         ruleName,
         xml,
         filename,
         action,
-        status:       "pending",
-        submittedBy:  `${payload.prenom} ${payload.nom}`,
+        status:        "pending",
+        submittedBy:   `${payload.prenom} ${payload.nom}`,
         submittedById: payload.idUtilisateur,
-        submittedAt:  new Date().toISOString(),
+        submittedAt:   new Date().toISOString(),
       },
       { status: 201 }
     );

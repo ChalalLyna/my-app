@@ -89,6 +89,21 @@ export async function GET(req: NextRequest) {
       return isDefault || inRange;
     });
 
+    // For apprenants: mark approved rules so the frontend can lock them
+    if (user.role === "apprenant") {
+      const [approvedRows] = await pool.query<RowDataPacket[]>(
+        "SELECT filename FROM RegleAjouteeParApprenant WHERE IdApprenant = ? AND statut = 'approved'",
+        [user.idUtilisateur]
+      );
+      const approvedFilenames = new Set(approvedRows.map((r: RowDataPacket) => r.filename as string));
+
+      const enriched = rules.map((r: ReturnType<typeof mapRule>) => ({
+        ...r,
+        approved: approvedFilenames.has(r.filename),
+      }));
+      return NextResponse.json({ rules: enriched, total: enriched.length });
+    }
+
     return NextResponse.json({ rules, total: rules.length });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 502 });
@@ -100,15 +115,38 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const { filename, xml } = (await req.json()) as { filename: string; xml: string };
+    const body = await req.json();
+    const { filename, xml, nom, description, severite } = body as {
+      filename:    string;
+      xml:         string;
+      nom?:        string;
+      description?: string;
+      severite?:   string;
+    };
 
     if (!filename || !xml) {
       return NextResponse.json({ error: "Missing filename or xml" }, { status: 400 });
     }
 
+    const ruleName = nom || filename;
+
     const ruleIds = extractRuleIds(xml);
     if (ruleIds.length === 0) {
       return NextResponse.json({ error: "Aucun ID de règle trouvé dans le XML." }, { status: 400 });
+    }
+
+    // Block modification of approved rules (apprenants only)
+    if (user.role === "apprenant") {
+      const [approvedRows] = await pool.query<RowDataPacket[]>(
+        "SELECT IdRegle FROM RegleAjouteeParApprenant WHERE IdApprenant = ? AND filename = ? AND statut = 'approved'",
+        [user.idUtilisateur, filename]
+      );
+      if (approvedRows.length > 0) {
+        return NextResponse.json(
+          { error: "Cette règle a été approuvée et ne peut plus être modifiée." },
+          { status: 403 }
+        );
+      }
     }
 
     // Admins bypass range checks
@@ -168,7 +206,7 @@ export async function POST(req: NextRequest) {
 
     // Record in DB (best-effort — Wazuh save already succeeded)
     const mainRuleId = ruleIds[0];
-    const severity   = levelToSeverity(0); // default, XML parsing for level is optional
+    const severity   = severite ?? levelToSeverity(0);
     try {
       const conn = await pool.getConnection();
       try {
@@ -190,34 +228,35 @@ export async function POST(req: NextRequest) {
           if (user.role === "apprenant") {
             await conn.execute(
               `INSERT INTO RegleAjouteeParApprenant
-                 (IdRegle, IdApprenant, nom, XmlWazuh, filename, wazuhRuleId, action, statut)
-               VALUES (?, ?, ?, ?, ?, ?, 'create', 'pending')`,
-              [idRegle, user.idUtilisateur, filename, xml, filename, mainRuleId]
+                 (IdRegle, IdApprenant, nom, description, XmlWazuh, filename, wazuhRuleId, severite, action, statut)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'create', 'pending')`,
+              [idRegle, user.idUtilisateur, ruleName, description ?? null, xml, filename, mainRuleId, severity]
             );
           } else if (user.role === "consultant") {
             await conn.execute(
               `INSERT INTO RegleAjouteParConsultant
-                 (IdRegle, IdConsultant, nom, XmlWazuh, wazuhRuleId, severite)
-               VALUES (?, ?, ?, ?, ?, ?)`,
-              [idRegle, user.idUtilisateur, filename, xml, mainRuleId, severity]
+                 (IdRegle, IdConsultant, nom, description, XmlWazuh, wazuhRuleId, severite)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              [idRegle, user.idUtilisateur, ruleName, description ?? null, xml, mainRuleId, severity]
             );
           }
         } else {
-          // Existing rule — update XML
+          // Existing rule — UPDATE (never INSERT a second row)
           if (user.role === "apprenant") {
             await conn.execute(
               `UPDATE RegleAjouteeParApprenant
-               SET XmlWazuh = ?, filename = ?, action = 'modify', statut = 'pending',
-                   dateRevision = NULL, commentaire = NULL
+               SET nom = ?, description = ?, XmlWazuh = ?, filename = ?, severite = ?,
+                   action = 'modify', statut = 'pending',
+                   dateRevision = NULL, commentaire = NULL, derniereModification = NOW()
                WHERE IdApprenant = ? AND wazuhRuleId = ?`,
-              [xml, filename, user.idUtilisateur, mainRuleId]
+              [ruleName, description ?? null, xml, filename, severity, user.idUtilisateur, mainRuleId]
             );
           } else if (user.role === "consultant") {
             await conn.execute(
               `UPDATE RegleAjouteParConsultant
-               SET XmlWazuh = ?
+               SET nom = ?, description = ?, XmlWazuh = ?, severite = ?, derniereModification = NOW()
                WHERE IdConsultant = ? AND wazuhRuleId = ?`,
-              [xml, user.idUtilisateur, mainRuleId]
+              [ruleName, description ?? null, xml, severity, user.idUtilisateur, mainRuleId]
             );
           }
         }
@@ -263,7 +302,7 @@ export async function DELETE(req: NextRequest) {
     }
   } catch { /* best-effort */ }
 
-  // Ownership check for non-admins
+  // Ownership + approval checks for non-admins
   if (user.role !== "admin") {
     const range = await getUserRange(user.idUtilisateur);
     if (wazuhRuleId != null && (!range || wazuhRuleId < range.rangeStart || wazuhRuleId > range.rangeEnd)) {
@@ -271,6 +310,20 @@ export async function DELETE(req: NextRequest) {
         { error: "Vous ne pouvez pas supprimer une règle qui ne vous appartient pas." },
         { status: 403 }
       );
+    }
+
+    // Block deletion of approved rules
+    if (user.role === "apprenant") {
+      const [approvedRows] = await pool.query<RowDataPacket[]>(
+        "SELECT IdRegle FROM RegleAjouteeParApprenant WHERE IdApprenant = ? AND filename = ? AND statut = 'approved'",
+        [user.idUtilisateur, filename]
+      );
+      if (approvedRows.length > 0) {
+        return NextResponse.json(
+          { error: "Cette règle a été approuvée et ne peut pas être supprimée." },
+          { status: 403 }
+        );
+      }
     }
   }
 
