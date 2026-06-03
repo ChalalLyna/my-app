@@ -65,7 +65,7 @@ const BAR_COLORS = [
 
 function fmt(date: string | null) {
   if (!date) return "—";
-  return new Date(date).toLocaleDateString("fr-FR", {
+  return new Date(date).toLocaleDateString("en-US", {
     day: "2-digit", month: "short", year: "numeric",
   });
 }
@@ -110,7 +110,7 @@ function ReportModal({ attack, onClose }: { attack: Attack; onClose: () => void 
               {attack.rapport}
             </pre>
           ) : (
-            <p className="text-sm text-gray-600 text-center py-8">Aucun rapport disponible.</p>
+            <p className="text-sm text-gray-600 text-center py-8">No report available.</p>
           )}
         </div>
       </div>
@@ -145,18 +145,18 @@ function AttackRow({ attack, onReport }: { attack: Attack; onReport: () => void 
           </div>
         </td>
 
-        {/* Tactique */}
+        {/* Tactic */}
         <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap hidden md:table-cell">
           {attack.tactique}
         </td>
 
-        {/* Actif */}
+        {/* Asset */}
         <td className="px-4 py-3 hidden lg:table-cell">
           <div className="text-xs text-white">{attack.actifNom}</div>
           <div className="text-[10px] text-gray-600 font-mono">{attack.actifIP}</div>
         </td>
 
-        {/* Statut */}
+        {/* Status */}
         <td className="px-4 py-3 whitespace-nowrap">
           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statutStyle}`}>
             {attack.statut}
@@ -172,7 +172,7 @@ function AttackRow({ attack, onReport }: { attack: Attack; onReport: () => void 
                 className="flex items-center gap-1 text-[10px] font-semibold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 px-2 py-1 rounded-lg transition-colors"
               >
                 <FileText size={11} />
-                Rapport
+                Report
               </button>
             )}
             <button
@@ -192,20 +192,20 @@ function AttackRow({ attack, onReport }: { attack: Attack; onReport: () => void 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div>
                 <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1 flex items-center gap-1">
-                  <Monitor size={10} /> Système
+                  <Monitor size={10} /> System
                 </p>
                 <p className="text-xs text-gray-300">{attack.actifOS || "—"}</p>
                 <p className="text-[10px] font-mono text-gray-500">{attack.actifIP}</p>
               </div>
               <div>
                 <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">
-                  Catégorie actif
+                  Asset Category
                 </p>
                 <p className="text-xs text-gray-300">{attack.actifCategorie || "—"}</p>
               </div>
               <div>
                 <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1 flex items-center gap-1">
-                  <FileText size={10} /> Résultat complet
+                  <FileText size={10} /> Full Result
                 </p>
                 <p className="text-xs text-gray-400 leading-relaxed">
                   {attack.resultatDescription || "—"}
@@ -226,7 +226,7 @@ function CustomTooltip({ active, payload, label }: any) {
   return (
     <div className="bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 shadow-xl">
       <p className="text-xs font-semibold text-white mb-1">{label}</p>
-      <p className="text-xs text-indigo-400">{payload[0].value} attaque{payload[0].value > 1 ? "s" : ""}</p>
+      <p className="text-xs text-indigo-400">{payload[0].value} attack{payload[0].value > 1 ? "s" : ""}</p>
     </div>
   );
 }
@@ -260,14 +260,14 @@ function FiltersBar({
         <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
         <input
           type="text"
-          placeholder="Rechercher une technique…"
+          placeholder="Search for a technique…"
           value={filters.search}
           onChange={(e) => set("search", e.target.value)}
           className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 transition-colors"
         />
       </div>
 
-      {/* Actif */}
+      {/* Asset */}
       <div className="relative">
         <Filter size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
         <select
@@ -275,12 +275,12 @@ function FiltersBar({
           onChange={(e) => set("actif", e.target.value)}
           className="bg-gray-900 border border-gray-800 rounded-xl pl-8 pr-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-indigo-500/50 transition-colors appearance-none cursor-pointer"
         >
-          <option value="">Tous les actifs</option>
+          <option value="">All assets</option>
           {actifs.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
       </div>
 
-      {/* Tactique */}
+      {/* Tactic */}
       <div className="relative">
         <Shield size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
         <select
@@ -288,7 +288,7 @@ function FiltersBar({
           onChange={(e) => set("tactique", e.target.value)}
           className="bg-gray-900 border border-gray-800 rounded-xl pl-8 pr-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-indigo-500/50 transition-colors appearance-none cursor-pointer"
         >
-          <option value="">Toutes les tactiques</option>
+          <option value="">All tactics</option>
           {tactiques.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
       </div>
@@ -321,7 +321,7 @@ function FiltersBar({
           onClick={() => onChange({ search: "", actif: "", tactique: "", dateFrom: "", dateTo: "" })}
           className="text-[10px] text-gray-500 hover:text-white transition-colors underline"
         >
-          Réinitialiser
+          Reset
         </button>
       )}
     </div>
@@ -516,14 +516,14 @@ export default function ApprenantDashboard() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full">
-              Apprenant
+              Trainee
             </span>
           </div>
 
 
 
-          
-          <p className="text-gray-500 text-sm mt-1">Votre tableau de bord d'apprentissage en cybersécurité</p>
+
+          <p className="text-gray-500 text-sm mt-1">Your cybersecurity learning dashboard</p>
         </div>
 
         {/* ── Stat cards + Top 3 ── */}
@@ -537,7 +537,7 @@ export default function ApprenantDashboard() {
             ) : (
               <p className="text-3xl font-bold text-white">{stats?.attackCount ?? 0}</p>
             )}
-            <p className="text-xs text-gray-500 mt-0.5">Attaques réalisées</p>
+            <p className="text-xs text-gray-500 mt-0.5">Attacks performed</p>
           </div>
 
           <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5 flex flex-col justify-center">
@@ -549,7 +549,7 @@ export default function ApprenantDashboard() {
             ) : (
               <p className="text-3xl font-bold text-white">{stats?.techniqueCount ?? 0}</p>
             )}
-            <p className="text-xs text-gray-500 mt-0.5">Techniques MITRE pratiquées</p>
+            <p className="text-xs text-gray-500 mt-0.5">MITRE techniques practiced</p>
           </div>
 
           {/* Top 3 techniques */}
@@ -566,7 +566,7 @@ export default function ApprenantDashboard() {
               </div>
             ) : topTechniques.length === 0 ? (
               <p className="text-xs text-gray-600 text-center flex-1 flex items-center justify-center">
-                Aucune donnée disponible.
+                No data available.
               </p>
             ) : (
               <ol className="space-y-3 flex-1 flex flex-col justify-center">
@@ -597,30 +597,30 @@ export default function ApprenantDashboard() {
         <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-6">
           <div className="flex items-center gap-2 mb-6">
             <Shield size={15} className="text-indigo-400" />
-            <p className="text-sm font-semibold text-white">Tactiques MITRE ATT&CK pratiquées</p>
+            <p className="text-sm font-semibold text-white">MITRE ATT&CK Tactics practiced</p>
             {tactics.length > 0 && (
-              <span className="text-xs text-gray-600 ml-auto">{tactics.length} tactique{tactics.length > 1 ? "s" : ""}</span>
+              <span className="text-xs text-gray-600 ml-auto">{tactics.length} tactic{tactics.length > 1 ? "s" : ""}</span>
             )}
             {selectedTactic && (
               <button
                 onClick={() => setSelectedTactic(null)}
                 className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-white transition-colors ml-2"
               >
-                <X size={12} /> Fermer
+                <X size={12} /> Close
               </button>
             )}
           </div>
 
           {loading ? (
-            <div className="h-48 flex items-center justify-center text-gray-600 text-sm">Chargement…</div>
+            <div className="h-48 flex items-center justify-center text-gray-600 text-sm">Loading…</div>
           ) : tactics.length === 0 ? (
             <div className="h-48 flex items-center justify-center text-gray-600 text-sm">
-              Aucune donnée — lancez votre première attaque pour voir apparaître le graphique.
+              No data — launch your first attack to see the chart.
             </div>
           ) : (
             <>
               {!selectedTactic && (
-                <p className="text-[10px] text-gray-600 mb-3">Cliquez sur une barre pour voir les techniques associées.</p>
+                <p className="text-[10px] text-gray-600 mb-3">Click on a bar to see the associated techniques.</p>
               )}
               <ResponsiveContainer width="100%" height={Math.max(180, tactics.length * 46)}>
                 <BarChart
@@ -665,7 +665,7 @@ export default function ApprenantDashboard() {
                 </BarChart>
               </ResponsiveContainer>
 
-              {/* Drill-down : techniques de la tactique sélectionnée */}
+              {/* Drill-down: techniques for the selected tactic */}
               {selectedTactic && (
                 <div className="mt-6 border-t border-gray-800/60 pt-5">
                   <p className="text-xs font-semibold text-white mb-4 flex items-center gap-2">
@@ -754,10 +754,10 @@ export default function ApprenantDashboard() {
                 </div>
               )}
               {loading ? (
-                <div className="flex items-center justify-center py-16 text-gray-600 text-sm">Chargement…</div>
+                <div className="flex items-center justify-center py-16 text-gray-600 text-sm">Loading…</div>
               ) : filtered.length === 0 ? (
                 <div className="flex items-center justify-center py-16 text-gray-600 text-sm">
-                  {attacks.length === 0 ? "Aucune attaque enregistrée." : "Aucun résultat pour ces filtres."}
+                  {attacks.length === 0 ? "No attacks recorded." : "No results for these filters."}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -766,9 +766,9 @@ export default function ApprenantDashboard() {
                       <tr className="border-b border-gray-800/60">
                         <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">Date</th>
                         <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Technique</th>
-                        <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">Tactique</th>
-                        <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">Actif ciblé</th>
-                        <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Statut</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">Tactic</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">Targeted Asset</th>
+                        <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                         <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>

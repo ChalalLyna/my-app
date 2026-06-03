@@ -23,12 +23,12 @@ const NIVEAU_META: Record<string, {
   label: string; icon: React.ComponentType<{ size: number; className?: string }>;
   color: string; bg: string;
 }> = {
-  beginner:     { label: "Débutant",      icon: GraduationCap, color: "text-emerald-400", bg: "bg-emerald-500/10" },
-  intermediate: { label: "Intermédiaire", icon: Zap,           color: "text-amber-400",   bg: "bg-amber-500/10" },
-  advanced:     { label: "Avancé",        icon: Flame,         color: "text-red-400",     bg: "bg-red-500/10" },
+  beginner:     { label: "Beginner",     icon: GraduationCap, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+  intermediate: { label: "Intermediate", icon: Zap,           color: "text-amber-400",   bg: "bg-amber-500/10" },
+  advanced:     { label: "Advanced",     icon: Flame,         color: "text-red-400",     bg: "bg-red-500/10" },
 };
 
-const DEFAULT = { label: "Autre", icon: Layers, color: "text-gray-400", bg: "bg-gray-500/10" };
+const DEFAULT = { label: "Other", icon: Layers, color: "text-gray-400", bg: "bg-gray-500/10" };
 
 export default function ScenarioReaderPage() {
   const { id } = useParams<{ id: string }>();
@@ -56,11 +56,11 @@ export default function ScenarioReaderPage() {
           className="flex items-center gap-2 text-gray-500 hover:text-white text-sm mb-8 transition-colors"
         >
           <ArrowLeft size={15} />
-          Retour aux scénarios
+          Back to scenarios
         </button>
 
-        {loading  && <div className="flex items-center justify-center py-32 text-gray-600 text-sm">Chargement…</div>}
-        {notFound && <div className="flex items-center justify-center py-32 text-gray-600 text-sm">Scénario introuvable.</div>}
+        {loading  && <div className="flex items-center justify-center py-32 text-gray-600 text-sm">Loading…</div>}
+        {notFound && <div className="flex items-center justify-center py-32 text-gray-600 text-sm">Scenario not found.</div>}
 
         {scenario && (
           <>
@@ -74,7 +74,7 @@ export default function ScenarioReaderPage() {
                 {scenario.bruitRecommande && (
                   <div className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                     <Volume2 size={11} />
-                    Bruit ambiant recommandé
+                    Ambient noise recommended
                   </div>
                 )}
               </div>
@@ -88,7 +88,7 @@ export default function ScenarioReaderPage() {
                 <div className="mt-5 bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Target size={13} className="text-indigo-400" />
-                    <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">Objectif</span>
+                    <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">Objective</span>
                   </div>
                   <p className="text-sm text-gray-300 leading-relaxed">{scenario.objectif}</p>
                 </div>

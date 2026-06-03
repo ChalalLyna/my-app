@@ -148,8 +148,7 @@ export default function StepSelectAdversary({ selection, onSelectionChange }: Pr
           // Merge executors per technique (avoid duplicate platform+name combos)
           if (execs.length > 0) {
             const existing = techExecutors.get(techKey) ?? [];
-            const seen = new Set(existing.map(e => `${e.platform}:${e.name}`));
-            techExecutors.set(techKey, [...existing, ...execs.filter(e => !seen.has(`${e.platform}:${e.name}`))]);
+            techExecutors.set(techKey, [...existing, ...execs]);
           }
         }
 
