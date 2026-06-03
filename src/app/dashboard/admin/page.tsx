@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import { useAuth } from "@/app/context/AuthContext";
 import {
   Users, Server, Crosshair, Activity,
   TrendingUp, Shield, User, Cpu, Database,
+  Flag, ClipboardCheck, ChevronRight, CheckCircle, Circle,
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell,
@@ -47,6 +49,20 @@ interface LiveVm {
   maxmem: number;
 }
 
+interface MissionRow {
+  id: string; name: string; type: string;
+  status: string; createdAt: string | null;
+}
+
+interface ReviewRow {
+  id: number; ruleName: string; submittedBy: string; submittedAt: string;
+}
+
+interface CoverageStats {
+  total: number; detected: number; triggered: number;
+  covered: number; not_covered: number;
+}
+
 const LAB_RAM_GB = 32;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -68,6 +84,11 @@ function fmtWeek(w: string) {
   return new Date(w + "T12:00:00Z").toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
 }
 
+function fmtDate(d: string | null) {
+  if (!d) return "—";
+  return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+}
+
 function fullName(nom: string, prenom: string) {
   return [prenom, nom].filter(Boolean).join(" ") || "Unknown";
 }
@@ -78,6 +99,19 @@ const STATUT_DOT: Record<string, string> = {
   success: "bg-emerald-400", terminee: "bg-emerald-400", "terminé": "bg-emerald-400", "terminée": "bg-emerald-400",
   failed: "bg-red-500", "stoppé": "bg-red-500", "stoppée": "bg-red-500", "stopé": "bg-red-500", "arrêté": "bg-red-500",
   running: "bg-amber-400", "en cours": "bg-amber-400",
+};
+
+const MISSION_STATUS_STYLE: Record<string, { text: string; dot: string }> = {
+  "Planned":     { text: "text-amber-400",   dot: "bg-amber-400"   },
+  "In Progress": { text: "text-blue-400",    dot: "bg-blue-500"    },
+  "Completed":   { text: "text-emerald-400", dot: "bg-emerald-500" },
+  "Failed":      { text: "text-red-400",     dot: "bg-red-500"     },
+};
+
+const MISSION_TYPE_COLOR: Record<string, string> = {
+  "Red Team":    "text-red-400 bg-red-500/10 border-red-500/20",
+  "Blue Team":   "text-blue-400 bg-blue-500/10 border-blue-500/20",
+  "Purple Team": "text-purple-400 bg-purple-500/10 border-purple-500/20",
 };
 
 // ─── UI Primitives ────────────────────────────────────────────────────────────
@@ -102,18 +136,22 @@ function KpiCard({
 }
 
 function Panel({
-  title, icon: Icon, children, className = "",
+  title, icon: Icon, children, className = "", action,
 }: {
   title: string;
   icon?: React.ComponentType<{ size: number; className?: string }>;
   children: React.ReactNode;
   className?: string;
+  action?: React.ReactNode;
 }) {
   return (
     <div className={`bg-gray-900 border border-gray-800/60 rounded-2xl p-5 flex flex-col gap-4 ${className}`}>
-      <div className="flex items-center gap-2">
-        {Icon && <Icon size={14} className="text-indigo-400" />}
-        <p className="text-sm font-semibold text-white">{title}</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {Icon && <Icon size={14} className="text-indigo-400" />}
+          <p className="text-sm font-semibold text-white">{title}</p>
+        </div>
+        {action}
       </div>
       {children}
     </div>
@@ -127,8 +165,8 @@ function ResourceBar({
   icon: React.ComponentType<{ size: number; className?: string }>;
   usedLabel: string; maxLabel: string; pct: number; color: string;
 }) {
-  const barColor = pct > 90 ? "bg-red-500" : pct > 70 ? "bg-amber-500" : color;
-  const textColor = pct > 90 ? "text-red-400" : pct > 70 ? "text-amber-400" : "text-emerald-400";
+  const barColor  = pct > 90 ? "bg-red-500"    : pct > 70 ? "bg-amber-500"  : color;
+  const textColor = pct > 90 ? "text-red-400"  : pct > 70 ? "text-amber-400" : "text-emerald-400";
   const clampedPct = Math.min(pct, 100);
 
   return (
@@ -174,38 +212,13 @@ function AttackTooltip({ active, payload, label }: any) {
   );
 }
 
-// ─── Platform VM Row ──────────────────────────────────────────────────────────
-
-function VmStatusRow({ vm, live }: { vm: PlatformVm; live?: LiveVm }) {
-  const running = live?.status === "running";
-  const unknown = !live;
-  const cpuPct  = live ? Math.round(live.cpu * 100) : null;
-  const ramPct  = live && live.maxmem > 0 ? Math.round((live.mem / live.maxmem) * 100) : null;
-
-  return (
-    <div className="flex items-center gap-3 py-2 border-b border-gray-800/40 last:border-0">
-      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-        unknown ? "bg-gray-600" : running ? "bg-emerald-400 shadow-[0_0_6px_#34d399]" : "bg-red-500"
-      }`} />
-      <span className="text-xs text-gray-300 flex-1 truncate">{vm.name}</span>
-      {!unknown && cpuPct !== null && <span className="text-[10px] text-gray-600">CPU {cpuPct}%</span>}
-      {!unknown && ramPct !== null && <span className="text-[10px] text-gray-600">RAM {ramPct}%</span>}
-      <span className={`text-[10px] font-semibold ${
-        unknown ? "text-gray-600" : running ? "text-emerald-400" : "text-red-400"
-      }`}>
-        {unknown ? "unknown" : live?.status}
-      </span>
-    </div>
-  );
-}
-
 // ─── Recent Attack Row ────────────────────────────────────────────────────────
 
 function RecentAttackRow({ a }: { a: Attack }) {
   const dot = STATUT_DOT[a.statut] ?? "bg-gray-600";
   return (
     <div className="flex items-start gap-3 py-2 border-b border-gray-800/40 last:border-0">
-      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 ${dot}`} />
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${dot}`} />
       <div className="flex-1 min-w-0">
         <p className="text-xs text-white font-medium truncate">{a.techniqueName}</p>
         <p className="text-[10px] text-gray-500 mt-0.5">
@@ -225,17 +238,24 @@ function RecentAttackRow({ a }: { a: Attack }) {
 
 export default function AdminDashboard() {
   const { user } = useAuth();
+  const router   = useRouter();
 
   const [users,       setUsers]       = useState<UserRow[]>([]);
   const [attacks,     setAttacks]     = useState<Attack[]>([]);
   const [assetCount,  setAssetCount]  = useState<number | null>(null);
   const [platformVms, setPlatformVms] = useState<PlatformVm[]>([]);
   const [liveVms,     setLiveVms]     = useState<LiveVm[]>([]);
+  const [missions,    setMissions]    = useState<MissionRow[]>([]);
+  const [reviews,     setReviews]     = useState<ReviewRow[]>([]);
+  const [coverage,    setCoverage]    = useState<CoverageStats | null>(null);
 
-  const [ldUsers,   setLdUsers]   = useState(true);
-  const [ldAttacks, setLdAttacks] = useState(true);
-  const [ldAssets,  setLdAssets]  = useState(true);
-  const [ldInfra,   setLdInfra]   = useState(true);
+  const [ldUsers,    setLdUsers]    = useState(true);
+  const [ldAttacks,  setLdAttacks]  = useState(true);
+  const [ldAssets,   setLdAssets]   = useState(true);
+  const [ldInfra,    setLdInfra]    = useState(true);
+  const [ldMissions, setLdMissions] = useState(true);
+  const [ldReviews,  setLdReviews]  = useState(true);
+  const [ldCoverage, setLdCoverage] = useState(true);
 
   const fetchAll = useCallback(async () => {
     setLdUsers(true);
@@ -267,6 +287,27 @@ export default function AdminDashboard() {
       setPlatformVms(Array.isArray(pvms) ? pvms : []);
       setLiveVms(Array.isArray(lvms) ? lvms : []);
     }).finally(() => setLdInfra(false));
+
+    setLdMissions(true);
+    fetch("/api/missions")
+      .then(r => r.json())
+      .then(d => setMissions(Array.isArray(d) ? d : []))
+      .catch(() => {})
+      .finally(() => setLdMissions(false));
+
+    setLdReviews(true);
+    fetch("/api/rule-reviews?status=pending")
+      .then(r => r.json())
+      .then(d => setReviews(Array.isArray(d) ? d : []))
+      .catch(() => {})
+      .finally(() => setLdReviews(false));
+
+    setLdCoverage(true);
+    fetch("/api/coverage")
+      .then(r => r.json())
+      .then(d => setCoverage(d.stats ?? null))
+      .catch(() => {})
+      .finally(() => setLdCoverage(false));
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -335,31 +376,33 @@ export default function AdminDashboard() {
 
   const recentAttacks = useMemo(() => attacks.slice(0, 5), [attacks]);
 
-  const recentUsers = useMemo(() =>
-    [...users]
-      .filter(u => u.DateCreation)
-      .sort((a, b) => b.DateCreation.localeCompare(a.DateCreation))
-      .slice(0, 4),
-    [users]
-  );
-
   const liveMap = useMemo(() => new Map(liveVms.map(lv => [lv.vmid, lv])), [liveVms]);
 
   const labResources = useMemo(() => {
     const running = liveVms.filter(v => v.status === "running");
-    const cpuPct   = running.reduce((s, v) => s + v.cpu, 0) * 100;
-    const ramUsed  = running.reduce((s, v) => s + v.mem, 0) / (1024 ** 3);
-    return {
-      cpuPct,
-      ramUsedGb: ramUsed,
-      ramPct:    (ramUsed / LAB_RAM_GB) * 100,
-    };
+    const cpuPct  = running.reduce((s, v) => s + v.cpu, 0) * 100;
+    const ramUsed = running.reduce((s, v) => s + v.mem, 0) / (1024 ** 3);
+    return { cpuPct, ramUsedGb: ramUsed, ramPct: (ramUsed / LAB_RAM_GB) * 100 };
   }, [liveVms]);
 
   const vmOnlineCount = useMemo(() =>
     platformVms.filter(pv => liveMap.get(pv.vmid)?.status === "running").length,
     [platformVms, liveMap]
   );
+
+  const missionStats = useMemo(() => ({
+    total:      missions.length,
+    inProgress: missions.filter(m => m.status === "In Progress").length,
+    completed:  missions.filter(m => m.status === "Completed").length,
+  }), [missions]);
+
+  const recentMissions = useMemo(() => missions.slice(0, 4), [missions]);
+  const pendingReviews = useMemo(() => reviews.slice(0, 4), [reviews]);
+
+  const coveragePct = useMemo(() => {
+    if (!coverage || coverage.total === 0) return 0;
+    return Math.round(((coverage.detected + coverage.triggered + coverage.covered) / coverage.total) * 100);
+  }, [coverage]);
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
@@ -372,7 +415,6 @@ export default function AdminDashboard() {
           <span className="text-xs font-semibold uppercase tracking-widest text-red-400 bg-red-500/10 px-2.5 py-0.5 rounded-full">
             Administrator
           </span>
-
           <p className="text-gray-500 text-sm mt-0.5">CyberLab platform overview</p>
         </div>
 
@@ -394,51 +436,46 @@ export default function AdminDashboard() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
               <ResourceBar
-                label="CPU"
-                icon={Cpu}
-                usedLabel={`${labResources.cpuPct.toFixed(1)}%`}
-                maxLabel="100%"
-                pct={labResources.cpuPct}
-                color="bg-indigo-500"
+                label="CPU" icon={Cpu}
+                usedLabel={`${labResources.cpuPct.toFixed(1)}%`} maxLabel="100%"
+                pct={labResources.cpuPct} color="bg-indigo-500"
               />
               <ResourceBar
-                label="RAM"
-                icon={Database}
-                usedLabel={`${labResources.ramUsedGb.toFixed(1)} GB`}
-                maxLabel={`${LAB_RAM_GB} GB`}
-                pct={labResources.ramPct}
-                color="bg-indigo-500"
+                label="RAM" icon={Database}
+                usedLabel={`${labResources.ramUsedGb.toFixed(1)} GB`} maxLabel={`${LAB_RAM_GB} GB`}
+                pct={labResources.ramPct} color="bg-indigo-500"
               />
             </div>
           )}
         </div>
 
-        {/* Row 1 — KPI cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Row 1 — KPI cards (5) */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <KpiCard
-            label="Total users"
-            value={ldUsers ? "—" : userStats.total}
+            label="Total users" value={ldUsers ? "—" : userStats.total}
             sub={ldUsers ? undefined : `${userStats.apprenants} apprentices · ${userStats.consultants} consultants`}
             icon={Users} color="text-indigo-400" bg="bg-indigo-500/10"
           />
           <KpiCard
-            label="Attack simulations"
-            value={ldAttacks ? "—" : attackStats.total}
+            label="Attack simulations" value={ldAttacks ? "—" : attackStats.total}
             sub={ldAttacks ? undefined : `${attackStats.rate}% success rate`}
             icon={Crosshair} color="text-red-400" bg="bg-red-500/10"
           />
           <KpiCard
-            label="Registered assets"
-            value={ldAssets ? "—" : (assetCount ?? 0)}
+            label="Registered assets" value={ldAssets ? "—" : (assetCount ?? 0)}
             icon={Server} color="text-blue-400" bg="bg-blue-500/10"
           />
           <KpiCard
-            label="Platform VMs online"
-            value={ldInfra ? "—" : `${vmOnlineCount}/${platformVms.length}`}
+            label="Platform VMs online" value={ldInfra ? "—" : `${vmOnlineCount}/${platformVms.length}`}
             sub={ldInfra ? undefined : vmOnlineCount === platformVms.length ? "All systems operational" : "Some VMs offline"}
             icon={Activity}
             color={!ldInfra && vmOnlineCount < platformVms.length ? "text-amber-400" : "text-emerald-400"}
             bg={!ldInfra && vmOnlineCount < platformVms.length ? "bg-amber-500/10" : "bg-emerald-500/10"}
+          />
+          <KpiCard
+            label="Missions" value={ldMissions ? "—" : missionStats.total}
+            sub={ldMissions ? undefined : `${missionStats.inProgress} in progress · ${missionStats.completed} completed`}
+            icon={Flag} color="text-violet-400" bg="bg-violet-500/10"
           />
         </div>
 
@@ -564,49 +601,123 @@ export default function AdminDashboard() {
           </Panel>
         </div>
 
-        {/* Row 4 — Platform VMs + Recent attacks + Recent signups */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Row 4 — Recent Attacks · Recent Missions · Rule Reviews · Detection Coverage */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
 
-          <Panel title="Platform VM status" icon={Activity}>
-            {ldInfra ? <Loading /> : platformVms.length === 0 ? <Empty text="No platform VMs configured" /> : (
-              <div>
-                {platformVms.map(vm => <VmStatusRow key={vm.vmid} vm={vm} live={liveMap.get(vm.vmid)} />)}
-              </div>
-            )}
-          </Panel>
-
+          {/* Recent attacks */}
           <Panel title="Recent attacks" icon={Crosshair}>
             {ldAttacks ? <Loading /> : recentAttacks.length === 0 ? <Empty text="No attacks yet" /> : (
               <div>{recentAttacks.map(a => <RecentAttackRow key={a.id} a={a} />)}</div>
             )}
           </Panel>
 
-          <Panel title="Recent signups" icon={Users}>
-            {ldUsers ? <Loading /> : recentUsers.length === 0 ? <Empty text="No users yet" /> : (
-              <div>
-                {recentUsers.map(u => (
-                  <div key={u.IdUtilisateur} className="flex items-center gap-3 py-2 border-b border-gray-800/40 last:border-0">
-                    <div className="w-7 h-7 rounded-full bg-indigo-500/10 flex items-center justify-center shrink-0">
-                      <User size={12} className="text-indigo-400" />
-                    </div>
+          {/* Recent missions */}
+          <Panel
+            title="Recent missions"
+            icon={Flag}
+            action={
+              <button
+                onClick={() => router.push("/mission")}
+                className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-white transition-colors"
+              >
+                View all <ChevronRight size={11} />
+              </button>
+            }
+          >
+            {ldMissions ? <Loading /> : recentMissions.length === 0 ? <Empty text="No missions yet" /> : (
+              <div className="flex flex-col gap-2">
+                {recentMissions.map(m => {
+                  const st = MISSION_STATUS_STYLE[m.status] ?? { text: "text-gray-400", dot: "bg-gray-600" };
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => router.push(`/mission/${m.id}`)}
+                      className="flex items-center gap-2.5 p-2.5 rounded-xl bg-gray-800/40 hover:bg-gray-800/70 border border-gray-800/40 text-left transition-all"
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${st.dot}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-white font-medium truncate">{m.name}</p>
+                        <p className="text-[10px] text-gray-600 mt-0.5">{fmtDate(m.createdAt)}</p>
+                      </div>
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 ${MISSION_TYPE_COLOR[m.type] ?? "text-gray-400 bg-gray-800 border-gray-700"}`}>
+                        {m.type}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </Panel>
+
+          {/* Pending rule reviews */}
+          <Panel
+            title="Pending rule reviews"
+            icon={ClipboardCheck}
+            action={
+              reviews.length > 0
+                ? <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full">{reviews.length}</span>
+                : undefined
+            }
+          >
+            {ldReviews ? <Loading /> : pendingReviews.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-6 gap-2">
+                <CheckCircle size={20} className="text-emerald-500/40" />
+                <p className="text-xs text-gray-600">No pending reviews</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {pendingReviews.map(r => (
+                  <button
+                    key={r.id}
+                    onClick={() => router.push("/rule-review")}
+                    className="flex items-start gap-2.5 p-2.5 rounded-xl bg-amber-950/20 hover:bg-amber-950/40 border border-amber-800/20 text-left transition-all"
+                  >
+                    <Circle size={10} className="text-amber-400 mt-0.5 shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-white font-medium truncate">
-                        {[u.prenom, u.nom].filter(Boolean).join(" ") || u.email}
-                      </p>
-                      <p className="text-[10px] text-gray-600">{u.role}</p>
+                      <p className="text-xs text-white font-medium truncate">{r.ruleName || `Rule #${r.id}`}</p>
+                      <p className="text-[10px] text-gray-500 mt-0.5">{r.submittedBy} · {fmtDate(r.submittedAt)}</p>
                     </div>
-                    <span className="text-[10px] text-gray-600 whitespace-nowrap shrink-0">
-                      {u.DateCreation
-                        ? new Date(u.DateCreation).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })
-                        : "—"}
-                    </span>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
           </Panel>
-        </div>
 
+          {/* Detection coverage */}
+          <Panel title="Detection coverage" icon={Shield}>
+            {ldCoverage ? <Loading /> : !coverage ? <Empty text="No data" /> : (
+              <div className="flex flex-col gap-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] text-gray-500">Overall coverage</span>
+                    <span className="text-xs font-bold text-white">{coveragePct}%</span>
+                  </div>
+                  <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-indigo-500 rounded-full transition-all duration-700"
+                      style={{ width: `${coveragePct}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-gray-600 mt-1">{coverage.total} techniques total</p>
+                </div>
+                <div className="space-y-2">
+                  {([
+                    { label: "Detected",    value: coverage.detected,    dot: "bg-emerald-400", text: "text-emerald-400" },
+                    { label: "Triggered",   value: coverage.triggered,   dot: "bg-blue-400",    text: "text-blue-400"    },
+                    { label: "Covered",     value: coverage.covered,     dot: "bg-violet-400",  text: "text-violet-400"  },
+                    { label: "Not covered", value: coverage.not_covered, dot: "bg-gray-600",    text: "text-gray-500"    },
+                  ] as { label: string; value: number; dot: string; text: string }[]).map(({ label, value, dot, text }) => (
+                    <div key={label} className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
+                      <span className="text-xs text-gray-400 flex-1">{label}</span>
+                      <span className={`text-xs font-bold ${text}`}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Panel>
+        </div>
 
       </div>
     </DashboardLayout>

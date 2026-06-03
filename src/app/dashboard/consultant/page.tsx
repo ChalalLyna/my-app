@@ -260,7 +260,7 @@ export default function ConsultantDashboard() {
             <div className="grid grid-cols-3 gap-5">
 
               {/* Recent missions */}
-              <div className="col-span-2 bg-gray-900 border border-gray-800/60 rounded-2xl p-5 flex flex-col gap-3">
+              <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Flag size={14} className="text-violet-400" />
@@ -306,6 +306,15 @@ export default function ConsultantDashboard() {
                     })}
                   </div>
                 )}
+              </div>
+
+              {/* Mission distribution */}
+              <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5 flex flex-col gap-4">
+                <div className="flex items-center gap-2">
+                  <Flag size={14} className="text-violet-400" />
+                  <p className="text-sm font-bold text-white">Mission Distribution</p>
+                </div>
+                <MissionDonut missions={data.stats.missions} />
               </div>
 
               {/* Pending rule reviews */}
@@ -358,11 +367,8 @@ export default function ConsultantDashboard() {
               </div>
             </div>
 
-            {/* ── Bottom grid ────────────────────────────────────────── */}
-            <div className="grid grid-cols-2 gap-5">
-
-              {/* Recent lab attacks */}
-              <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5 flex flex-col gap-3">
+            {/* ── Bottom ─────────────────────────────────────────────── */}
+            <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Crosshair size={14} className="text-indigo-400" />
@@ -399,16 +405,6 @@ export default function ConsultantDashboard() {
                 )}
               </div>
 
-              {/* Mission status chart */}
-              <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5 flex flex-col gap-4">
-                <div className="flex items-center gap-2">
-                  <Flag size={14} className="text-violet-400" />
-                  <p className="text-sm font-bold text-white">Mission Distribution</p>
-                </div>
-                <MissionDonut missions={data.stats.missions} />
-              </div>
-
-            </div>
           </>
         )}
       </div>
