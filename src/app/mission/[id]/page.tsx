@@ -1,13 +1,14 @@
 "use client";
- 
+
 import { useRouter, useParams } from "next/navigation";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import { MOCK_MISSIONS, MISSION_TASKS, MissionStatus } from "@/app/data/missions";
+import { useMission } from "@/app/context/MissionContext";
 import {
   ArrowLeft, Flag, Calendar, Monitor, User,
-  CheckCircle, Circle, FileText, ShieldAlert,
-  Lightbulb, BarChart2, Hash, Clock, AlertTriangle,
-  TrendingUp,
+  CheckCircle, FileText, ShieldAlert,
+  Lightbulb, BarChart2, Clock,
+  LogIn, LogOut,
 } from "lucide-react";
  
 const STATUS_STYLES: Record<MissionStatus, string> = {
@@ -62,6 +63,7 @@ function ScoreGauge({ score }: { score: number }) {
 export default function MissionDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const { activeMission, enterMission, exitMission } = useMission();
   const mission = MOCK_MISSIONS.find(m => m.id === params.id);
  
   if (!mission) {
@@ -112,12 +114,33 @@ export default function MissionDetailPage() {
             </div>
           </div>
  
-          {mission.status === "Completed" && (
-            <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold shadow-md transition-all">
-              <FileText size={14} />
-              Export report
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {mission.status !== "Completed" && (
+              activeMission?.id === mission.id ? (
+                <button
+                  onClick={exitMission}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-900/40 hover:bg-red-900/60 border border-red-800/60 text-red-400 text-sm font-semibold transition-all"
+                >
+                  <LogOut size={14} />
+                  Quitter l&apos;environnement
+                </button>
+              ) : (
+                <button
+                  onClick={() => enterMission(mission)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white text-sm font-semibold shadow-md shadow-brand/20 transition-all"
+                >
+                  <LogIn size={14} />
+                  Entrer dans l&apos;environnement
+                </button>
+              )
+            )}
+            {mission.status === "Completed" && (
+              <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold shadow-md transition-all">
+                <FileText size={14} />
+                Export report
+              </button>
+            )}
+          </div>
         </div>
  
         {/* Meta cards */}
@@ -150,7 +173,7 @@ export default function MissionDetailPage() {
             <div className="flex flex-col gap-2">
               {taskObjects.map(task => (
                 <div key={task.id} className="flex items-start gap-2.5 p-2.5 rounded-xl bg-gray-800/40 border border-gray-800/40">
-                  <CheckCircle size={14} className={mission.status === "Completed" ? "text-emerald-400 mt-0.5 flex-shrink-0" : "text-gray-700 mt-0.5 flex-shrink-0"} />
+                  <CheckCircle size={14} className={mission.status === "Completed" ? "text-emerald-400 mt-0.5 shrink-0" : "text-gray-700 mt-0.5 shrink-0"} />
                   <div>
                     <p className="text-xs font-semibold text-white">{task.label}</p>
                     <p className="text-[10px] text-gray-600 mt-0.5 leading-relaxed">{task.description}</p>
@@ -218,7 +241,7 @@ export default function MissionDetailPage() {
                   <div className="flex flex-col gap-2.5">
                     {mission.report.vulnerabilities.map((v, i) => (
                       <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-gray-800/40 border border-gray-800/40">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border flex-shrink-0 mt-0.5 ${VULN_COLORS[v.severity]}`}>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border shrink-0 mt-0.5 ${VULN_COLORS[v.severity]}`}>
                           {v.severity}
                         </span>
                         <div>
@@ -239,7 +262,7 @@ export default function MissionDetailPage() {
                   <div className="flex flex-col gap-2">
                     {mission.report.recommendations.map((r, i) => (
                       <div key={i} className="flex items-start gap-3 text-sm text-gray-400">
-                        <span className="w-5 h-5 rounded-full bg-amber-900/30 border border-amber-800/40 text-amber-400 text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="w-5 h-5 rounded-full bg-amber-900/30 border border-amber-800/40 text-amber-400 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
                           {i + 1}
                         </span>
                         {r}

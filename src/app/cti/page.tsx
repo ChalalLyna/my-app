@@ -3,11 +3,13 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import { useAuth } from "@/app/context/AuthContext";
+import { useMission } from "@/app/context/MissionContext";
 import {
   Shield, Search, X, ChevronLeft, ChevronRight,
   RefreshCw, Plus, Loader2, AlertCircle, CheckCircle2,
   FileCode2, FileText, Tag, Calendar, User, Layers,
   Download, FolderOpen, Users, GraduationCap, CheckCircle,
+  Flag, PackageCheck,
 } from "lucide-react";
 import { RuleReview } from "@/app/data/ruleReviews";
 
@@ -172,9 +174,27 @@ function CodeBlock({ content }: { content: string | null }) {
 
 export default function CTIPage() {
   const { user, loading: authLoading } = useAuth();
+  const { activeMission } = useMission();
   const isAdmin = user?.role === "admin";
+  const isConsultant = user?.role === "consultant";
 
   const [activeTab, setActiveTab] = useState<Tab>("cti");
+  const [exportMode, setExportMode]         = useState(false);
+  const [selectedRuleIds, setSelectedRuleIds] = useState<Set<number>>(new Set());
+  const [exportDone, setExportDone]         = useState(false);
+
+  const toggleRuleSelection = (id: number) => {
+    setSelectedRuleIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const handleExportToMission = () => {
+    setExportDone(true);
+    setTimeout(() => { setExportDone(false); setExportMode(false); setSelectedRuleIds(new Set()); }, 2500);
+  };
 
   // ── CTI state ────────────────────────────────────────────────
   const [rules, setRules]         = useState<CTIRule[]>([]);
@@ -388,16 +408,65 @@ export default function CTIPage() {
             </p>
           </div>
 
-          {isAdmin && activeTab === "cti" && (
-            <button
-              onClick={() => { setShowManage(true); setImportMsg(null); }}
-              className="flex items-center gap-2 bg-brand/10 hover:bg-brand/20 border border-brand/30 text-brand px-4 py-2 rounded-xl text-sm font-medium transition-colors"
-            >
-              <FolderOpen size={15} />
-              Manage Categories
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {isAdmin && activeTab === "cti" && (
+              <button
+                onClick={() => { setShowManage(true); setImportMsg(null); }}
+                className="flex items-center gap-2 bg-brand/10 hover:bg-brand/20 border border-brand/30 text-brand px-4 py-2 rounded-xl text-sm font-medium transition-colors"
+              >
+                <FolderOpen size={15} />
+                Manage Categories
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* ── Mission export banner ────────────────────────────────── */}
+        {activeMission && isConsultant && activeTab === "cti" && (
+          <div className="mb-5 flex items-center justify-between gap-4 px-4 py-3 rounded-xl border border-amber-800/50 bg-amber-950/30">
+            <div className="flex items-center gap-2.5">
+              <Flag size={14} className="text-amber-400 shrink-0" />
+              <p className="text-sm text-amber-300 font-medium">
+                Mission active — <span className="font-bold">{activeMission.name}</span>
+              </p>
+              {exportDone && (
+                <span className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-semibold">
+                  <CheckCircle2 size={11} />
+                  {selectedRuleIds.size} rule{selectedRuleIds.size !== 1 ? "s" : ""} exported
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {exportMode ? (
+                <>
+                  <button
+                    onClick={() => { setExportMode(false); setSelectedRuleIds(new Set()); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-400 hover:text-white border border-gray-700 hover:bg-gray-800 transition-colors"
+                  >
+                    <X size={12} />
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleExportToMission}
+                    disabled={selectedRuleIds.size === 0}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <PackageCheck size={12} />
+                    Export {selectedRuleIds.size > 0 ? `${selectedRuleIds.size} ` : ""}rule{selectedRuleIds.size !== 1 ? "s" : ""} to client
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setExportMode(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-600/20 hover:bg-amber-600/40 border border-amber-600/40 text-amber-400 transition-colors"
+                >
+                  <PackageCheck size={12} />
+                  Select rules to export
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── Tab navigation ──────────────────────────────────────── */}
         <div className="flex gap-1 mb-6 bg-gray-900 border border-gray-800/60 rounded-2xl p-1 w-fit">
@@ -532,6 +601,7 @@ export default function CTIPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-gray-800/60">
+                          {exportMode && <th className="w-10 px-4 py-3" />}
                           <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-5 py-3">Title</th>
                           <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Category</th>
                           <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Subcategory</th>
@@ -542,38 +612,55 @@ export default function CTIPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {rules.map((rule) => (
-                          <tr
-                            key={rule.IdRegle}
-                            onClick={() => openDetail(rule)}
-                            className="border-b border-gray-800/30 last:border-0 hover:bg-gray-800/30 cursor-pointer transition-colors"
-                          >
-                            <td className="px-5 py-3.5 max-w-xs">
-                              <p className="text-white font-medium truncate">{rule.Titre ?? "—"}</p>
-                              {rule.IdSigma && (
-                                <p className="text-gray-600 text-xs font-mono truncate mt-0.5">{rule.IdSigma}</p>
+                        {rules.map((rule) => {
+                          const isSelected = selectedRuleIds.has(rule.IdRegle);
+                          const rowBg = exportMode && isSelected
+                            ? "bg-amber-950/30 hover:bg-amber-950/40"
+                            : "hover:bg-gray-800/30";
+                          return (
+                            <tr
+                              key={rule.IdRegle}
+                              onClick={() => exportMode ? toggleRuleSelection(rule.IdRegle) : openDetail(rule)}
+                              className={`border-b border-gray-800/30 last:border-0 cursor-pointer transition-colors ${rowBg}`}
+                            >
+                              {exportMode && (
+                                <td className="px-4 py-3.5">
+                                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${isSelected ? "bg-amber-500 border-amber-500" : "border-gray-600"}`}>
+                                    {isSelected && (
+                                      <svg viewBox="0 0 10 8" className="w-2.5 h-2">
+                                        <path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                </td>
                               )}
-                            </td>
-                            <td className="px-4 py-3.5">
-                              <CategoryBadge cat={rule.Categorie} />
-                            </td>
-                            <td className="px-4 py-3.5">
-                              <SubCategoryBadge sub={rule.SousCategorie} />
-                            </td>
-                            <td className="px-4 py-3.5">
-                              <SeverityBadge level={rule.Severite} />
-                            </td>
-                            <td className="px-4 py-3.5">
-                              <MitreBadges raw={rule.TechniquesMitre} />
-                            </td>
-                            <td className="px-4 py-3.5 text-gray-400 text-xs max-w-35 truncate">
-                              {rule.Auteur ?? "—"}
-                            </td>
-                            <td className="px-4 py-3.5 text-gray-500 text-xs whitespace-nowrap">
-                              {fmtDate(rule.DerniereModification ?? rule.DateAjout)}
-                            </td>
-                          </tr>
-                        ))}
+                              <td className="px-5 py-3.5 max-w-xs">
+                                <p className="text-white font-medium truncate">{rule.Titre ?? "—"}</p>
+                                {rule.IdSigma && (
+                                  <p className="text-gray-600 text-xs font-mono truncate mt-0.5">{rule.IdSigma}</p>
+                                )}
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <CategoryBadge cat={rule.Categorie} />
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <SubCategoryBadge sub={rule.SousCategorie} />
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <SeverityBadge level={rule.Severite} />
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <MitreBadges raw={rule.TechniquesMitre} />
+                              </td>
+                              <td className="px-4 py-3.5 text-gray-400 text-xs max-w-35 truncate">
+                                {rule.Auteur ?? "—"}
+                              </td>
+                              <td className="px-4 py-3.5 text-gray-500 text-xs whitespace-nowrap">
+                                {fmtDate(rule.DerniereModification ?? rule.DateAjout)}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

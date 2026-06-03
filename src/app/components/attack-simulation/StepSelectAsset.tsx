@@ -1,8 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Monitor, Server, Terminal, Laptop, Loader2, AlertCircle, Tag, CheckSquare } from "lucide-react";
+import { Search, Monitor, Server, Terminal, Laptop, Loader2, AlertCircle, Tag, CheckSquare, Building2 } from "lucide-react";
 import { Asset } from "@/app/types/simulation";
+import { useMission } from "@/app/context/MissionContext";
+
+const MOCK_CLIENT_ASSETS: Asset[] = [
+  { id: "c1", name: "WS-CORP-042",     os: "Windows 10 Pro",        category: "Workstation",       description: "Finance department workstation" },
+  { id: "c2", name: "SRV-DC-01",       os: "Windows Server 2019",   category: "Domain Controller", description: "Primary domain controller" },
+  { id: "c3", name: "SRV-FILE-01",     os: "Windows Server 2016",   category: "File Server",       description: "Corporate file server" },
+  { id: "c4", name: "USER-LAPTOP-03",  os: "Windows 11 Pro",        category: "Workstation",       description: "HR department laptop" },
+  { id: "c5", name: "SRV-WEB-01",      os: "Ubuntu 22.04 LTS",      category: "Web Server",        description: "External web server" },
+  { id: "c6", name: "SRV-MAIL-01",     os: "Windows Server 2019",   category: "Mail Server",       description: "Exchange mail server" },
+];
 
 function getOsIcon(os: string): React.ComponentType<{ size: number; className?: string }> {
   const lower = os.toLowerCase();
@@ -19,6 +29,9 @@ interface Props {
 }
 
 export default function StepSelectAsset({ selectedAssets, onToggleAsset }: Props) {
+  const { activeMission } = useMission();
+  const isClientEnv = !!activeMission;
+
   const [search, setSearch]           = useState("");
   const [assets, setAssets]           = useState<Asset[]>([]);
   const [loading, setLoading]         = useState(true);
@@ -26,6 +39,11 @@ export default function StepSelectAsset({ selectedAssets, onToggleAsset }: Props
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
 
   const loadAssets = () => {
+    if (isClientEnv) {
+      setAssets(MOCK_CLIENT_ASSETS);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     fetch("/api/assets")
@@ -41,7 +59,7 @@ export default function StepSelectAsset({ selectedAssets, onToggleAsset }: Props
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { loadAssets(); }, []);
+  useEffect(() => { loadAssets(); }, [isClientEnv]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Unique categories from loaded assets
   const categories = [...new Set(assets.map((a) => a.category).filter(Boolean))] as string[];
@@ -62,12 +80,20 @@ export default function StepSelectAsset({ selectedAssets, onToggleAsset }: Props
     <div className="flex flex-col gap-4 flex-1 min-h-0">
       <div className="flex items-center justify-between shrink-0">
         <h2 className="text-lg font-bold text-white">Step 1: Select Target Asset(s)</h2>
-        {selectedCount > 0 && (
-          <span className="flex items-center gap-1.5 text-xs font-semibold text-brand bg-brand/10 px-2.5 py-1 rounded-lg">
-            <CheckSquare size={12} />
-            {selectedCount} asset{selectedCount > 1 ? "s" : ""} selected
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {isClientEnv && (
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg">
+              <Building2 size={12} />
+              Client environment
+            </span>
+          )}
+          {selectedCount > 0 && (
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-brand bg-brand/10 px-2.5 py-1 rounded-lg">
+              <CheckSquare size={12} />
+              {selectedCount} asset{selectedCount > 1 ? "s" : ""} selected
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Search */}

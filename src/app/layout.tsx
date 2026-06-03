@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/app/context/AuthContext";
+import { MissionProvider } from "@/app/context/MissionContext";
 
 export const metadata: Metadata = {
   title: "CyberLab – Simulation Platform",
@@ -12,7 +13,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fr">
       <body>
         <AuthProvider>
-          {children}
+          <MissionProvider>
+            {children}
+          </MissionProvider>
         </AuthProvider>
       </body>
     </html>

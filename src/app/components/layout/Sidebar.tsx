@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Shield, LogOut } from "lucide-react";
+import { Shield, LogOut, Flag, X } from "lucide-react";
 import { useAuth } from "@/app/context/AuthContext";
+import { useMission } from "@/app/context/MissionContext";
 import { NAV_ITEMS } from "@/app/config/navigation";
 
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
+  const { activeMission, exitMission } = useMission();
   const pathname = usePathname();
 
   if (!user) return null;
@@ -24,6 +26,30 @@ export default function Sidebar() {
         </div>
         <span className="text-white font-bold text-lg tracking-tight">CyberLab</span>
       </div>
+
+      {/* Mission active banner */}
+      {activeMission && (
+        <div className="mx-3 mt-3 rounded-xl border border-red-800/60 bg-red-950/40 p-3 shrink-0">
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-red-400">Mission Active</span>
+            </div>
+            <button
+              onClick={exitMission}
+              className="text-red-600 hover:text-red-400 transition-colors"
+              title="Quitter la mission"
+            >
+              <X size={13} />
+            </button>
+          </div>
+          <div className="flex items-start gap-1.5">
+            <Flag size={11} className="text-red-500 mt-0.5 shrink-0" />
+            <p className="text-xs font-semibold text-white leading-snug line-clamp-2">{activeMission.name}</p>
+          </div>
+          <p className="text-[10px] text-red-400/70 mt-1 font-mono">{activeMission.id} · {activeMission.type}</p>
+        </div>
+      )}
 
       {/* Nav */}
       
