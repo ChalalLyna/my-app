@@ -6,7 +6,7 @@ import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import { MISSION_TASKS, Mission, MissionType, MissionStatus } from "@/app/data/missions";
 import {
   Flag, Plus, X, ChevronRight, Calendar,
-  Monitor, CheckCircle,
+  Monitor, CheckCircle, Lock,
   Search, FileText,
   Crosshair, Shield, Eye,
   Loader2, AlertCircle,
@@ -29,7 +29,21 @@ const TYPE_STYLES: Record<MissionType, { text: string; bg: string; border: strin
 
 const MISSION_TYPES: MissionType[] = ["Red Team", "Blue Team", "Purple Team"];
 
-const TASK_CATEGORIES = Array.from(new Set(MISSION_TASKS.map((t) => t.category)));
+// Tasks auto-included vs selectable per mission type
+const TASK_CONFIG: Record<MissionType, { required: string[]; optional: string[] }> = {
+  "Purple Team": {
+    required: ["import-rules", "replicate-client"],
+    optional: ["tune-rules", "review-alerts", "gap-analysis", "export-rules"],
+  },
+  "Blue Team": {
+    required: [],
+    optional: ["import-rules", "tune-rules", "export-rules"],
+  },
+  "Red Team": {
+    required: ["replicate-client"],
+    optional: ["export-rules"],
+  },
+};
 
 // ─── Create Mission Drawer ────────────────────────────────────────────────────
 
@@ -39,20 +53,27 @@ interface CreateMissionDrawerProps {
 }
 
 function CreateMissionDrawer({ onClose, onCreate }: CreateMissionDrawerProps) {
-  const [name, setName]                   = useState("");
-  const [type, setType]                   = useState<MissionType>("Purple Team");
-  const [target, setTarget]               = useState("");
-  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
-  const [submitting, setSubmitting]       = useState(false);
-  const [error, setError]                 = useState<string | null>(null);
+  const [name, setName]                       = useState("");
+  const [description, setDescription]         = useState("");
+  const [type, setType]                       = useState<MissionType>("Purple Team");
+  const [target, setTarget]                   = useState("");
+  const [selectedOptional, setSelectedOptional] = useState<string[]>([]);
+  const [submitting, setSubmitting]           = useState(false);
+  const [error, setError]                     = useState<string | null>(null);
 
-  const toggleTask = (id: string) => {
-    setSelectedTasks((prev) =>
+  const config     = TASK_CONFIG[type];
+  const allTasks   = [...config.required, ...selectedOptional];
+  const canCreate  = name.trim().length > 0 && !submitting;
+
+  const toggleOptional = (id: string) =>
+    setSelectedOptional((prev) =>
       prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
     );
-  };
 
-  const canCreate = name.trim().length > 0 && selectedTasks.length > 0 && !submitting;
+  const handleTypeChange = (t: MissionType) => {
+    setType(t);
+    setSelectedOptional([]);
+  };
 
   const handleCreate = async () => {
     if (!canCreate) return;
@@ -62,23 +83,28 @@ function CreateMissionDrawer({ onClose, onCreate }: CreateMissionDrawerProps) {
       const res = await fetch("/api/missions", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ name: name.trim(), type, target: target.trim() || null, tasks: selectedTasks }),
+        body:    JSON.stringify({
+          name:        name.trim(),
+          type,
+          target:      target.trim() || null,
+          description: description.trim() || null,
+          tasks:       allTasks,
+        }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Error"); setSubmitting(false); return; }
 
-      // Build a local mission object to update state immediately
-      const newMission: Mission = {
-        id:        data.id,
-        name:      name.trim(),
+      onCreate({
+        id:          data.id,
+        name:        name.trim(),
         type,
-        status:    "Planned",
-        tasks:     selectedTasks,
-        createdAt: new Date().toISOString(),
-        target:    target.trim() || "Not defined",
-        createdBy: "",
-      };
-      onCreate(newMission);
+        status:      "Planned",
+        tasks:       allTasks,
+        createdAt:   new Date().toISOString(),
+        target:      target.trim() || "Not defined",
+        createdBy:   "",
+        description: description.trim() || undefined,
+      } as Mission);
       onClose();
     } catch {
       setError("Network error");
@@ -86,10 +112,12 @@ function CreateMissionDrawer({ onClose, onCreate }: CreateMissionDrawerProps) {
     }
   };
 
+  const getTask = (id: string) => MISSION_TASKS.find((t) => t.id === id);
+
   return (
     <>
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30" onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-[480px] bg-gray-950 border-l border-gray-800/60 z-40 flex flex-col shadow-2xl">
+      <div className="fixed right-0 top-0 h-full w-[500px] bg-gray-950 border-l border-gray-800/60 z-40 flex flex-col shadow-2xl">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-800/60 shrink-0">
@@ -99,7 +127,7 @@ function CreateMissionDrawer({ onClose, onCreate }: CreateMissionDrawerProps) {
             </div>
             <div>
               <p className="text-white font-bold">New mission</p>
-              <p className="text-gray-500 text-xs">Define the parameters and tasks</p>
+              <p className="text-gray-500 text-xs">Configure the mission parameters</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-colors">
@@ -124,28 +152,28 @@ function CreateMissionDrawer({ onClose, onCreate }: CreateMissionDrawerProps) {
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ex: Purple Team Q2 2025"
+              placeholder="Ex: Purple Team Q2 2025 — AcmeCorp"
               className="bg-gray-900 border border-gray-700/80 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all"
             />
           </div>
 
           {/* Type */}
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">Mission type</label>
-            <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">Mission type <span className="text-red-400">*</span></label>
+            <div className="grid grid-cols-3 gap-2">
               {MISSION_TYPES.map((t) => {
                 const st = TYPE_STYLES[t];
                 const Icon = st.icon;
                 return (
                   <button
                     key={t}
-                    onClick={() => setType(t)}
-                    className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border-2 text-left transition-all ${
+                    onClick={() => handleTypeChange(t)}
+                    className={`flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl border-2 text-center transition-all ${
                       type === t ? `${st.border} ${st.bg} ${st.text}` : "border-gray-800 bg-gray-800/30 text-gray-500 hover:border-gray-700"
                     }`}
                   >
-                    <Icon size={15} />
-                    <span className="text-sm font-semibold">{t}</span>
+                    <Icon size={16} />
+                    <span className="text-xs font-semibold leading-tight">{t}</span>
                   </button>
                 );
               })}
@@ -158,60 +186,98 @@ function CreateMissionDrawer({ onClose, onCreate }: CreateMissionDrawerProps) {
             <input
               value={target}
               onChange={(e) => setTarget(e.target.value)}
-              placeholder="Ex: AcmeCorp, WS-CORP-042"
+              placeholder="Ex: AcmeCorp"
               className="bg-gray-900 border border-gray-700/80 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all"
+            />
+          </div>
+
+          {/* Description */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Objectives, scope, context…"
+              rows={3}
+              className="bg-gray-900 border border-gray-700/80 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all resize-none"
             />
           </div>
 
           {/* Tasks */}
           <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-                Tasks <span className="text-red-400">*</span>
-              </label>
-              {selectedTasks.length > 0 && (
-                <span className="text-xs font-semibold text-brand bg-brand/10 px-2 py-0.5 rounded-full">
-                  {selectedTasks.length} selected
-                </span>
-              )}
-            </div>
-            {TASK_CATEGORIES.map((category) => (
-              <div key={category}>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 mb-2 flex items-center gap-1.5">
-                  <span className="w-4 h-px bg-gray-800" />
-                  {category}
+            <label className="text-xs font-semibold uppercase tracking-widest text-gray-500">Tasks</label>
+
+            {/* Required (auto-included) */}
+            {config.required.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 flex items-center gap-1.5">
+                  <Lock size={9} className="text-gray-600" />
+                  Included
                   <span className="flex-1 h-px bg-gray-800" />
                 </p>
-                <div className="flex flex-col gap-1.5">
-                  {MISSION_TASKS.filter((t) => t.category === category).map((task) => {
-                    const isChecked = selectedTasks.includes(task.id);
-                    return (
-                      <button
-                        key={task.id}
-                        onClick={() => toggleTask(task.id)}
-                        className={`flex items-start gap-3 p-3 rounded-xl border text-left transition-all duration-150 ${
-                          isChecked ? "border-brand/50 bg-brand/5" : "border-gray-800/60 bg-gray-800/20 hover:border-gray-700"
-                        }`}
-                      >
-                        <div className={`mt-0.5 w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-all ${
-                          isChecked ? "bg-brand border-brand" : "border-gray-600"
-                        }`}>
-                          {isChecked && (
-                            <svg viewBox="0 0 10 8" className="w-2.5 h-2">
-                              <path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-semibold ${isChecked ? "text-white" : "text-gray-300"}`}>{task.label}</p>
-                          <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">{task.description}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                {config.required.map((id) => {
+                  const task = getTask(id);
+                  if (!task) return null;
+                  return (
+                    <div key={id} className="flex items-start gap-3 p-3 rounded-xl border border-brand/30 bg-brand/5">
+                      <div className="mt-0.5 w-4 h-4 rounded flex items-center justify-center shrink-0 bg-brand border-2 border-brand">
+                        <svg viewBox="0 0 10 8" className="w-2.5 h-2">
+                          <path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-white">{task.label}</p>
+                        <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">{task.description}</p>
+                      </div>
+                      <Lock size={11} className="text-gray-600 mt-1 shrink-0" />
+                    </div>
+                  );
+                })}
               </div>
-            ))}
+            )}
+
+            {/* Optional */}
+            {config.optional.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 flex items-center gap-1.5">
+                  <span className="w-4 h-px bg-gray-800" />
+                  Optional
+                  <span className="flex-1 h-px bg-gray-800" />
+                </p>
+                {config.optional.map((id) => {
+                  const task = getTask(id);
+                  if (!task) return null;
+                  const isChecked = selectedOptional.includes(id);
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => toggleOptional(id)}
+                      className={`flex items-start gap-3 p-3 rounded-xl border text-left transition-all duration-150 ${
+                        isChecked ? "border-indigo-600/50 bg-indigo-950/30" : "border-gray-800/60 bg-gray-800/20 hover:border-gray-700"
+                      }`}
+                    >
+                      <div className={`mt-0.5 w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-all ${
+                        isChecked ? "bg-indigo-600 border-indigo-600" : "border-gray-600"
+                      }`}>
+                        {isChecked && (
+                          <svg viewBox="0 0 10 8" className="w-2.5 h-2">
+                            <path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-semibold ${isChecked ? "text-white" : "text-gray-300"}`}>{task.label}</p>
+                        <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">{task.description}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {config.required.length === 0 && config.optional.length === 0 && (
+              <p className="text-xs text-gray-600 text-center py-2">No tasks available for this type.</p>
+            )}
           </div>
         </div>
 

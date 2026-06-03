@@ -10,6 +10,7 @@ import {
   CheckCircle, FileText, ShieldAlert,
   Lightbulb, BarChart2, Clock,
   LogIn, LogOut, Loader2, AlertCircle,
+  Sparkles, X,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -25,6 +26,7 @@ interface MissionDetail {
   createdAt:        string | null;
   completedAt:      string | null;
   createdBy:        string;
+  attacks:          { id: number; date: string; statut: string }[];
   ttpsUsed:         string[];
   alertsGenerated:  number;
   report:           MissionReport | null;
@@ -84,9 +86,32 @@ export default function MissionDetailPage() {
   const params = useParams();
   const { activeMission, enterMission, exitMission } = useMission();
 
-  const [mission, setMission]   = useState<MissionDetail | null>(null);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
+  const [mission, setMission]         = useState<MissionDetail | null>(null);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState<string | null>(null);
+  const [generating, setGenerating]   = useState(false);
+  const [genError, setGenError]       = useState<string | null>(null);
+  const [reportModal, setReportModal] = useState<string | null>(null);
+
+  const handleGenerateReport = async () => {
+    if (!mission) return;
+    setGenerating(true);
+    setGenError(null);
+    try {
+      const res  = await fetch(`/api/missions/${missionId}/report/generate`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { setGenError(data.error ?? "Error"); return; }
+      setReportModal(data.report as string);
+      // Refresh mission to get saved report
+      const r2 = await fetch(`/api/missions/${missionId}`);
+      const d2 = await r2.json();
+      if (!d2.error) setMission(d2);
+    } catch {
+      setGenError("Network error");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const missionId = params.id as string;
 
@@ -184,14 +209,39 @@ export default function MissionDetailPage() {
                 </button>
               )
             )}
-            {mission.status === "Completed" && (
-              <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold shadow-md transition-all">
+            {/* Generate report — available once at least one attack has been done */}
+            {mission.attacks && mission.attacks.length > 0 && (
+              <button
+                onClick={handleGenerateReport}
+                disabled={generating}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-700 hover:bg-violet-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold shadow-md transition-all"
+              >
+                {generating
+                  ? <Loader2 size={14} className="animate-spin" />
+                  : <Sparkles size={14} />
+                }
+                {generating ? "Generating…" : mission.report ? "Regenerate report" : "Generate report"}
+              </button>
+            )}
+            {mission.status === "Completed" && mission.report && (
+              <button
+                onClick={() => setReportModal((mission.report as any).fullReport ?? JSON.stringify(mission.report, null, 2))}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold shadow-md transition-all"
+              >
                 <FileText size={14} />
-                Export report
+                View report
               </button>
             )}
           </div>
         </div>
+
+        {/* Gen error */}
+        {genError && (
+          <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-900/20 border border-red-800/40 text-red-400 text-sm">
+            <AlertCircle size={14} />
+            {genError}
+          </div>
+        )}
 
         {/* Meta cards */}
         <div className="grid grid-cols-4 gap-3">
@@ -362,6 +412,57 @@ export default function MissionDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* ── AI Report Modal ─────────────────────────────────────────────── */}
+      {reportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-gray-900 border border-gray-800/60 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl">
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800/60 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <Sparkles size={15} className="text-violet-400" />
+                <p className="text-white font-bold">AI Mission Report</p>
+                <span className="text-[10px] font-semibold text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-full">
+                  Llama 4 Scout
+                </span>
+              </div>
+              <button
+                onClick={() => setReportModal(null)}
+                className="text-gray-500 hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal body — markdown rendered as preformatted */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-gray-700 [&::-webkit-scrollbar-thumb]:rounded-full [scrollbar-width:thin]">
+              <pre className="text-sm text-gray-300 font-mono whitespace-pre-wrap leading-relaxed">
+                {reportModal}
+              </pre>
+            </div>
+
+            {/* Modal footer */}
+            <div className="px-6 py-4 border-t border-gray-800/60 flex items-center justify-between shrink-0">
+              <p className="text-xs text-gray-600">Report saved to this mission</p>
+              <button
+                onClick={() => {
+                  const blob = new Blob([reportModal], { type: "text/markdown" });
+                  const url  = URL.createObjectURL(blob);
+                  const a    = document.createElement("a");
+                  a.href     = url;
+                  a.download = `mission-report-${mission.id}.md`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-sm font-semibold transition-colors"
+              >
+                <FileText size={13} />
+                Download .md
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }
