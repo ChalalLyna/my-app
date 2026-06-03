@@ -33,7 +33,7 @@ const CATEGORY_META: Record<
   "red-team":   { label: "Red Team",     icon: Crosshair, color: "text-red-400",    bg: "bg-red-500/10" },
 };
 
-const DEFAULT_CATEGORY = { label: "Autre", icon: BookOpen, color: "text-gray-400", bg: "bg-gray-500/10" };
+const DEFAULT_CATEGORY = { label: "Other", icon: BookOpen, color: "text-gray-400", bg: "bg-gray-500/10" };
 
 function getCategoryMeta(cat: string) {
   return CATEGORY_META[cat] ?? DEFAULT_CATEGORY;
@@ -71,18 +71,18 @@ export default function GuideReaderPage() {
           className="flex items-center gap-2 text-gray-500 hover:text-white text-sm mb-8 transition-colors"
         >
           <ArrowLeft size={15} />
-          Retour aux guides
+          Back to guides
         </button>
 
         {loading && (
           <div className="flex items-center justify-center py-32 text-gray-600 text-sm">
-            Chargement…
+            Loading…
           </div>
         )}
 
         {notFound && (
           <div className="flex items-center justify-center py-32 text-gray-600 text-sm">
-            Guide introuvable.
+            Guide not found.
           </div>
         )}
 

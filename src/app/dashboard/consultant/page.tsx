@@ -68,16 +68,16 @@ const ATTACK_STATUS_STYLE: Record<string, string> = {
 
 function fmt(d: string | null) {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+  return new Date(d).toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 // ─── Donut chart ──────────────────────────────────────────────────────────────
 
 function MissionDonut({ missions }: { missions: Stats["missions"] }) {
   const segments = [
-    { label: "En cours",   value: missions.enCours,   color: "#3b82f6" },
-    { label: "Terminées",  value: missions.terminees,  color: "#10b981" },
-    { label: "Planifiées", value: missions.planifiees, color: "#f59e0b" },
+    { label: "In Progress", value: missions.enCours,   color: "#3b82f6" },
+    { label: "Completed",   value: missions.terminees,  color: "#10b981" },
+    { label: "Planned",     value: missions.planifiees, color: "#f59e0b" },
   ];
 
   const total = missions.total;
@@ -86,7 +86,7 @@ function MissionDonut({ missions }: { missions: Stats["missions"] }) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-2 py-8">
         <Flag size={28} className="text-gray-700" />
-        <p className="text-xs text-gray-600">Aucune mission créée</p>
+        <p className="text-xs text-gray-600">No missions created</p>
       </div>
     );
   }
@@ -207,15 +207,15 @@ export default function ConsultantDashboard() {
                 Consultant
               </span>
             </div>
-            <h1 className="text-2xl font-bold text-white">Bonjour, {prenom}</h1>
-            <p className="text-gray-500 text-sm mt-0.5">Voici un résumé de votre activité sur la plateforme</p>
+            <h1 className="text-2xl font-bold text-white">Hello, {prenom}</h1>
+            <p className="text-gray-500 text-sm mt-0.5">Here is a summary of your activity on the platform</p>
           </div>
         </div>
 
         {loading && (
           <div className="flex items-center justify-center py-24 gap-3">
             <Loader2 size={22} className="text-brand animate-spin" />
-            <p className="text-gray-500 text-sm">Chargement…</p>
+            <p className="text-gray-500 text-sm">Loading…</p>
           </div>
         )}
 
@@ -236,23 +236,23 @@ export default function ConsultantDashboard() {
                 value={data.stats.missions.total}
                 color="text-violet-400"
                 bg="bg-violet-500/10"
-                sub={`${data.stats.missions.enCours} en cours · ${data.stats.missions.terminees} terminées`}
+                sub={`${data.stats.missions.enCours} in progress · ${data.stats.missions.terminees} completed`}
               />
               <StatCard
                 icon={Crosshair}
-                label="Simulations lab"
+                label="Lab Simulations"
                 value={data.stats.labAttacks}
                 color="text-indigo-400"
                 bg="bg-indigo-500/10"
-                sub="Attaques hors mission"
+                sub="Out-of-mission attacks"
               />
               <StatCard
                 icon={ClipboardCheck}
-                label="Règles à valider"
+                label="Rules to Validate"
                 value={data.stats.pendingReviews}
                 color={data.stats.pendingReviews > 0 ? "text-amber-400" : "text-gray-500"}
                 bg={data.stats.pendingReviews > 0 ? "bg-amber-500/10" : "bg-gray-800/60"}
-                sub={`${data.stats.reviewedByMe} validées par moi`}
+                sub={`${data.stats.reviewedByMe} reviewed by me`}
               />
             </div>
 
@@ -264,18 +264,18 @@ export default function ConsultantDashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Flag size={14} className="text-violet-400" />
-                    <p className="text-sm font-bold text-white">Missions récentes</p>
+                    <p className="text-sm font-bold text-white">Recent Missions</p>
                   </div>
                   <button
                     onClick={() => router.push("/mission")}
                     className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-brand transition-colors"
                   >
-                    Voir tout <ChevronRight size={11} />
+                    View all <ChevronRight size={11} />
                   </button>
                 </div>
 
                 {data.recentMissions.length === 0 ? (
-                  <p className="text-xs text-gray-600 text-center py-6">Aucune mission pour l&apos;instant</p>
+                  <p className="text-xs text-gray-600 text-center py-6">No missions yet</p>
                 ) : (
                   <div className="flex flex-col gap-2">
                     {data.recentMissions.map((m) => {
@@ -296,7 +296,7 @@ export default function ConsultantDashboard() {
                             </div>
                             <p className="text-[10px] text-gray-600 mt-0.5">
                               {m.target || "—"} · {fmt(m.createdAt)}
-                              {m.attackCount > 0 && ` · ${m.attackCount} attaque${m.attackCount > 1 ? "s" : ""}`}
+                              {m.attackCount > 0 && ` · ${m.attackCount} attack${m.attackCount > 1 ? "s" : ""}`}
                             </p>
                           </div>
                           <span className={`text-[10px] font-semibold shrink-0 ${st.text}`}>{m.status}</span>
@@ -313,7 +313,7 @@ export default function ConsultantDashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <ClipboardCheck size={14} className="text-amber-400" />
-                    <p className="text-sm font-bold text-white">À valider</p>
+                    <p className="text-sm font-bold text-white">To Validate</p>
                     {data.stats.pendingReviews > 0 && (
                       <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full">
                         {data.stats.pendingReviews}
@@ -324,14 +324,14 @@ export default function ConsultantDashboard() {
                     onClick={() => router.push("/rule-review")}
                     className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-brand transition-colors"
                   >
-                    Voir tout <ChevronRight size={11} />
+                    View all <ChevronRight size={11} />
                   </button>
                 </div>
 
                 {data.pendingReviews.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-6 gap-2">
                     <CheckCircle size={20} className="text-emerald-500/40" />
-                    <p className="text-xs text-gray-600 text-center">Aucune règle en attente</p>
+                    <p className="text-xs text-gray-600 text-center">No pending rules</p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-1.5">
@@ -343,7 +343,7 @@ export default function ConsultantDashboard() {
                       >
                         <Circle size={10} className="text-amber-400 mt-0.5 shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-white truncate">{r.ruleName || `Règle #${r.id}`}</p>
+                          <p className="text-xs font-semibold text-white truncate">{r.ruleName || `Rule #${r.id}`}</p>
                           <p className="text-[10px] text-gray-500 mt-0.5">
                             {r.submittedBy} · {fmt(r.dateCreation)}
                           </p>
@@ -366,18 +366,18 @@ export default function ConsultantDashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Crosshair size={14} className="text-indigo-400" />
-                    <p className="text-sm font-bold text-white">Simulations lab récentes</p>
+                    <p className="text-sm font-bold text-white">Recent Lab Simulations</p>
                   </div>
                   <button
                     onClick={() => router.push("/attack-simulation")}
                     className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-brand transition-colors"
                   >
-                    Lancer <ChevronRight size={11} />
+                    Launch <ChevronRight size={11} />
                   </button>
                 </div>
 
                 {data.recentAttacks.length === 0 ? (
-                  <p className="text-xs text-gray-600 text-center py-6">Aucune simulation effectuée</p>
+                  <p className="text-xs text-gray-600 text-center py-6">No simulations performed</p>
                 ) : (
                   <div className="flex flex-col gap-2">
                     {data.recentAttacks.map((a) => {
@@ -403,7 +403,7 @@ export default function ConsultantDashboard() {
               <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5 flex flex-col gap-4">
                 <div className="flex items-center gap-2">
                   <Flag size={14} className="text-violet-400" />
-                  <p className="text-sm font-bold text-white">Répartition des missions</p>
+                  <p className="text-sm font-bold text-white">Mission Distribution</p>
                 </div>
                 <MissionDonut missions={data.stats.missions} />
               </div>

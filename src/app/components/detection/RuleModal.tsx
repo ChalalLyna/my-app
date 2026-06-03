@@ -86,8 +86,8 @@ export default function RuleModal({ alert, onClose }: Props) {
               <Shield size={16} className="text-brand" />
             </div>
             <div>
-              <p className="text-white font-bold text-base">Règle Wazuh</p>
-              <p className="text-gray-500 text-xs font-mono mt-0.5">ID : {ruleId}</p>
+              <p className="text-white font-bold text-base">Wazuh Rule</p>
+              <p className="text-gray-500 text-xs font-mono mt-0.5">ID: {ruleId}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-colors">
@@ -101,7 +101,7 @@ export default function RuleModal({ alert, onClose }: Props) {
           {!loading && apiError && (
             <div className="flex items-start gap-2 p-3 bg-amber-900/15 border border-amber-800/30 rounded-xl">
               <AlertTriangle size={13} className="text-amber-500 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-500/80">Manager API indisponible — données partielles depuis l'alerte</p>
+              <p className="text-xs text-amber-500/80">Manager API unavailable — partial data from alert</p>
             </div>
           )}
 
@@ -123,9 +123,9 @@ export default function RuleModal({ alert, onClose }: Props) {
           <div className="grid grid-cols-2 gap-2.5">
             {([
               { icon: Hash,     label: "Rule ID",       value: info.id },
-              { icon: Shield,   label: "Niveau Wazuh",  value: `Level ${info.level}` },
-              { icon: Tag,      label: "Groupes",       value: info.groups.length > 0 ? info.groups.join(", ") : "—" },
-              { icon: FileCode, label: "Fichier règle", value: info.filename || "—" },
+              { icon: Shield,   label: "Wazuh Level",   value: `Level ${info.level}` },
+              { icon: Tag,      label: "Groups",        value: info.groups.length > 0 ? info.groups.join(", ") : "—" },
+              { icon: FileCode, label: "Rule File",     value: info.filename || "—" },
             ] as { icon: React.ElementType; label: string; value: string }[]).map(({ icon: Icon, label, value }) => (
               <div key={label} className="bg-gray-900 border border-gray-800/50 rounded-xl p-3">
                 <div className="flex items-center gap-1.5 mb-1">
@@ -186,13 +186,13 @@ export default function RuleModal({ alert, onClose }: Props) {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <FileCode size={13} className="text-gray-600" />
-              <p className="text-xs font-semibold uppercase tracking-widest text-gray-600">Contenu XML de la règle</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-600">Rule XML Content</p>
             </div>
 
             {loading ? (
               <div className="bg-gray-900/80 border border-gray-800/50 rounded-xl p-4 flex items-center gap-2 text-gray-600">
                 <Loader2 size={13} className="animate-spin" />
-                <span className="text-xs">Chargement depuis Wazuh Manager...</span>
+                <span className="text-xs">Loading from Wazuh Manager...</span>
               </div>
             ) : info.xml ? (
               <div className="bg-gray-900/80 border border-gray-800/50 rounded-xl p-4 font-mono text-[11px] text-emerald-400/80 leading-relaxed whitespace-pre-wrap max-h-64 overflow-y-auto">
@@ -200,7 +200,7 @@ export default function RuleModal({ alert, onClose }: Props) {
               </div>
             ) : (
               <div className="bg-gray-900/80 border border-gray-800/50 rounded-xl p-4 text-xs text-gray-600 italic">
-                XML non disponible (Wazuh Manager API inaccessible ou fichier introuvable)
+                XML not available (Wazuh Manager API unreachable or file not found)
               </div>
             )}
           </div>
@@ -212,7 +212,7 @@ export default function RuleModal({ alert, onClose }: Props) {
             onClick={onClose}
             className="px-4 py-2 rounded-lg border border-gray-700 text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
           >
-            Fermer
+            Close
           </button>
           <button
             onClick={() => {
@@ -222,7 +222,7 @@ export default function RuleModal({ alert, onClose }: Props) {
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand hover:bg-brand-dark text-white text-sm font-semibold shadow-md shadow-brand/20 transition-all"
           >
             <Sliders size={14} />
-            Modifier dans Rule Tuning
+            Edit in Rule Tuning
           </button>
         </div>
       </div>
