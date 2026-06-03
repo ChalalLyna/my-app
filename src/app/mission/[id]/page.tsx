@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import { useMission } from "@/app/context/MissionContext";
-import { MissionType, MissionStatus, MissionReport } from "@/app/data/missions";
+import { MissionType, MissionStatus, MissionReport, MISSION_TASKS } from "@/app/data/missions";
 import {
   ArrowLeft, Calendar, Monitor, User,
   CheckCircle, FileText, ShieldAlert,
@@ -86,34 +86,28 @@ export default function MissionDetailPage() {
   const params = useParams();
   const { activeMission, enterMission, exitMission } = useMission();
 
-  const [mission, setMission]         = useState<MissionDetail | null>(null);
-  const [loading, setLoading]         = useState(true);
-  const [error, setError]             = useState<string | null>(null);
-  const [generating, setGenerating]   = useState(false);
-  const [genError, setGenError]       = useState<string | null>(null);
-  const [reportModal, setReportModal] = useState<string | null>(null);
-
-  const handleGenerateReport = async () => {
-    if (!mission) return;
-    setGenerating(true);
-    setGenError(null);
-    try {
-      const res  = await fetch(`/api/missions/${missionId}/report/generate`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) { setGenError(data.error ?? "Error"); return; }
-      setReportModal(data.report as string);
-      // Refresh mission to get saved report
-      const r2 = await fetch(`/api/missions/${missionId}`);
-      const d2 = await r2.json();
-      if (!d2.error) setMission(d2);
-    } catch {
-      setGenError("Network error");
-    } finally {
-      setGenerating(false);
-    }
-  };
+  const [mission, setMission]           = useState<MissionDetail | null>(null);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState<string | null>(null);
+  const [generating, setGenerating]     = useState(false);
+  const [genError, setGenError]         = useState<string | null>(null);
+  const [reportModal, setReportModal]   = useState<string | null>(null);
+  const [exportedRules, setExportedRules] = useState<{ id: number; titre: string; severite: string; sourceType: string; dateExport: string }[]>([]);
+  const [ending, setEnding]             = useState(false);
 
   const missionId = params.id as string;
+
+  const refreshMission = async () => {
+    const r = await fetch(`/api/missions/${missionId}`);
+    const d = await r.json();
+    if (!d.error) setMission(d);
+  };
+
+  const refreshExportedRules = async () => {
+    const r = await fetch(`/api/missions/${missionId}/rules/export`);
+    const d = await r.json();
+    if (Array.isArray(d)) setExportedRules(d);
+  };
 
   useEffect(() => {
     fetch(`/api/missions/${missionId}`)
@@ -124,7 +118,51 @@ export default function MissionDetailPage() {
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [missionId]);
+    refreshExportedRules();
+  }, [missionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleEnterMission = async () => {
+    if (!mission) return;
+    if (mission.status === "Planned") {
+      await fetch(`/api/missions/${missionId}`, {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ statut: "In Progress" }),
+      });
+      setMission((prev) => prev ? { ...prev, status: "In Progress" } : prev);
+    }
+    enterMission({ id: mission.id, name: mission.name, type: mission.type, status: "In Progress", tasks: mission.tasks, createdAt: mission.createdAt ?? "", target: mission.target, createdBy: mission.createdBy });
+  };
+
+  const handleEndMission = async () => {
+    if (!mission) return;
+    setEnding(true);
+    await fetch(`/api/missions/${missionId}`, {
+      method:  "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ statut: "Completed" }),
+    });
+    setMission((prev) => prev ? { ...prev, status: "Completed" } : prev);
+    if (activeMission?.id === mission.id) exitMission();
+    setEnding(false);
+  };
+
+  const handleGenerateReport = async () => {
+    if (!mission) return;
+    setGenerating(true);
+    setGenError(null);
+    try {
+      const res  = await fetch(`/api/missions/${missionId}/report/generate`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { setGenError(data.error ?? "Error"); return; }
+      setReportModal(data.report as string);
+      await refreshMission();
+    } catch {
+      setGenError("Network error");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -159,8 +197,6 @@ export default function MissionDetailPage() {
     : null;
 
   const isActiveMission = activeMission?.id === mission.id;
-  const canEnter = mission.status !== "Completed";
-
   return (
     <DashboardLayout>
       <div className="p-8 flex flex-col gap-6">
@@ -190,7 +226,8 @@ export default function MissionDetailPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            {canEnter && (
+            {/* Enter / Exit environment */}
+            {mission.status !== "Completed" && (
               isActiveMission ? (
                 <button
                   onClick={exitMission}
@@ -201,7 +238,7 @@ export default function MissionDetailPage() {
                 </button>
               ) : (
                 <button
-                  onClick={() => enterMission({ id: mission.id, name: mission.name, type: mission.type, status: mission.status, tasks: mission.tasks, createdAt: mission.createdAt ?? "", target: mission.target, createdBy: mission.createdBy })}
+                  onClick={handleEnterMission}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white text-sm font-semibold shadow-md shadow-brand/20 transition-all"
                 >
                   <LogIn size={14} />
@@ -209,21 +246,30 @@ export default function MissionDetailPage() {
                 </button>
               )
             )}
-            {/* Generate report — available once at least one attack has been done */}
-            {mission.attacks && mission.attacks.length > 0 && (
+            {/* End mission */}
+            {mission.status === "In Progress" && (
+              <button
+                onClick={handleEndMission}
+                disabled={ending}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white text-sm font-semibold transition-all disabled:opacity-50"
+              >
+                {ending ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                End mission
+              </button>
+            )}
+            {/* Generate report — not available when Planned */}
+            {mission.status !== "Planned" && (
               <button
                 onClick={handleGenerateReport}
                 disabled={generating}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-700 hover:bg-violet-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold shadow-md transition-all"
               >
-                {generating
-                  ? <Loader2 size={14} className="animate-spin" />
-                  : <Sparkles size={14} />
-                }
-                {generating ? "Generating…" : mission.report ? "Regenerate report" : "Generate report"}
+                {generating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                {generating ? "Generating…" : mission.report ? "Regenerate" : "Generate report"}
               </button>
             )}
-            {mission.status === "Completed" && mission.report && (
+            {/* View saved report */}
+            {mission.report && (
               <button
                 onClick={() => setReportModal((mission.report as any).fullReport ?? JSON.stringify(mission.report, null, 2))}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold shadow-md transition-all"
@@ -271,12 +317,18 @@ export default function MissionDetailPage() {
               <span className="ml-auto text-xs text-gray-500">{mission.tasks.length} tasks</span>
             </div>
             <div className="flex flex-col gap-2">
-              {mission.tasks.map((taskId) => (
-                <div key={taskId} className="flex items-start gap-2.5 p-2.5 rounded-xl bg-gray-800/40 border border-gray-800/40">
-                  <CheckCircle size={14} className={mission.status === "Completed" ? "text-emerald-400 mt-0.5 shrink-0" : "text-gray-700 mt-0.5 shrink-0"} />
-                  <p className="text-xs font-semibold text-white">{taskId}</p>
-                </div>
-              ))}
+              {mission.tasks.map((taskId) => {
+                const task = MISSION_TASKS.find((t) => t.id === taskId);
+                return (
+                  <div key={taskId} className="flex items-start gap-2.5 p-2.5 rounded-xl bg-gray-800/40 border border-gray-800/40">
+                    <CheckCircle size={14} className={mission.status === "Completed" ? "text-emerald-400 mt-0.5 shrink-0" : "text-gray-700 mt-0.5 shrink-0"} />
+                    <div>
+                      <p className="text-xs font-semibold text-white">{task?.label ?? taskId}</p>
+                      {task?.description && <p className="text-[10px] text-gray-600 mt-0.5 leading-relaxed">{task.description}</p>}
+                    </div>
+                  </div>
+                );
+              })}
               {mission.tasks.length === 0 && (
                 <p className="text-xs text-gray-600 text-center py-4">No tasks defined</p>
               )}
@@ -411,6 +463,33 @@ export default function MissionDetailPage() {
             )}
           </div>
         </div>
+
+        {/* ── Exported rules ──────────────────────────────────────────── */}
+        {exportedRules.length > 0 && (
+          <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <FileText size={15} className="text-amber-400" />
+              <p className="text-sm font-bold text-white">Rules exported to client</p>
+              <span className="ml-auto text-xs text-gray-500">{exportedRules.length} rule{exportedRules.length !== 1 ? "s" : ""}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {exportedRules.map((r) => (
+                <div key={r.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-gray-800/40 border border-gray-800/40">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-white truncate">{r.titre ?? `Rule #${r.id}`}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {r.severite && (
+                        <span className="text-[10px] font-semibold text-gray-500 capitalize">{r.severite}</span>
+                      )}
+                      <span className="text-[10px] text-gray-600 capitalize">{r.sourceType}</span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-gray-600 shrink-0">{r.dateExport ? new Date(r.dateExport).toLocaleDateString("en-US") : "—"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── AI Report Modal ─────────────────────────────────────────────── */}

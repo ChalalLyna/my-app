@@ -179,9 +179,10 @@ export default function CTIPage() {
   const isConsultant = user?.role === "consultant";
 
   const [activeTab, setActiveTab] = useState<Tab>("cti");
-  const [exportMode, setExportMode]         = useState(false);
+  const [exportMode, setExportMode]           = useState(false);
   const [selectedRuleIds, setSelectedRuleIds] = useState<Set<number>>(new Set());
-  const [exportDone, setExportDone]         = useState(false);
+  const [exporting, setExporting]             = useState(false);
+  const [exportDone, setExportDone]           = useState(false);
 
   const toggleRuleSelection = (id: number) => {
     setSelectedRuleIds(prev => {
@@ -191,9 +192,22 @@ export default function CTIPage() {
     });
   };
 
-  const handleExportToMission = () => {
-    setExportDone(true);
-    setTimeout(() => { setExportDone(false); setExportMode(false); setSelectedRuleIds(new Set()); }, 2500);
+  const handleExportToMission = async () => {
+    if (!activeMission || selectedRuleIds.size === 0) return;
+    setExporting(true);
+    try {
+      const res = await fetch(`/api/missions/${activeMission.id}/rules/export`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ ruleIds: Array.from(selectedRuleIds) }),
+      });
+      if (res.ok) {
+        setExportDone(true);
+        setTimeout(() => { setExportDone(false); setExportMode(false); setSelectedRuleIds(new Set()); }, 2500);
+      }
+    } finally {
+      setExporting(false);
+    }
   };
 
   // ── CTI state ────────────────────────────────────────────────
@@ -422,7 +436,7 @@ export default function CTIPage() {
         </div>
 
         {/* ── Mission export banner ────────────────────────────────── */}
-        {activeMission && isConsultant && activeTab === "cti" && (
+        {activeMission && isConsultant && (
           <div className="mb-5 flex items-center justify-between gap-4 px-4 py-3 rounded-xl border border-amber-800/50 bg-amber-950/30">
             <div className="flex items-center gap-2.5">
               <Flag size={14} className="text-amber-400 shrink-0" />
@@ -448,11 +462,11 @@ export default function CTIPage() {
                   </button>
                   <button
                     onClick={handleExportToMission}
-                    disabled={selectedRuleIds.size === 0}
+                    disabled={selectedRuleIds.size === 0 || exporting}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
-                    <PackageCheck size={12} />
-                    Export {selectedRuleIds.size > 0 ? `${selectedRuleIds.size} ` : ""}rule{selectedRuleIds.size !== 1 ? "s" : ""} to client
+                    {exporting ? <Loader2 size={12} className="animate-spin" /> : <PackageCheck size={12} />}
+                    {exporting ? "Exporting…" : `Export ${selectedRuleIds.size > 0 ? `${selectedRuleIds.size} ` : ""}rule${selectedRuleIds.size !== 1 ? "s" : ""} to client`}
                   </button>
                 </>
               ) : (
@@ -716,6 +730,7 @@ export default function CTIPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-800/60">
+                    {exportMode && <th className="w-10 px-4 py-3" />}
                     <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-5 py-3">Name</th>
                     <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Severity</th>
                     <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">MITRE Techniques</th>
@@ -725,22 +740,37 @@ export default function CTIPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {consultantRules.map((rule: ConsultantRule) => (
+                  {consultantRules.map((rule: ConsultantRule) => {
+                    const ruleNumId  = Number(rule.id);
+                    const isSelected = selectedRuleIds.has(ruleNumId);
+                    return (
                     <tr
                       key={rule.id}
-                      onClick={() => setXmlPreview({
-                        title:    rule.nom,
-                        xml:      rule.xml,
-                        severite: rule.severite,
-                        rows: [
-                          ...(rule.description ? [{ label: "Description", value: rule.description }] : []),
-                          { label: "Consultant",     value: rule.consultantName },
-                          { label: "Wazuh ID",       value: rule.wazuhRuleId ? `#${rule.wazuhRuleId}` : "—" },
-                          { label: "Creation Date",  value: fmtDate(rule.dateCreation) },
-                        ],
-                      })}
-                      className="border-b border-gray-800/30 last:border-0 hover:bg-gray-800/30 cursor-pointer transition-colors"
+                      onClick={() => exportMode
+                        ? toggleRuleSelection(ruleNumId)
+                        : setXmlPreview({
+                            title:    rule.nom,
+                            xml:      rule.xml,
+                            severite: rule.severite,
+                            rows: [
+                              ...(rule.description ? [{ label: "Description", value: rule.description }] : []),
+                              { label: "Consultant",    value: rule.consultantName },
+                              { label: "Wazuh ID",      value: rule.wazuhRuleId ? `#${rule.wazuhRuleId}` : "—" },
+                              { label: "Creation Date", value: fmtDate(rule.dateCreation) },
+                            ],
+                          })
+                      }
+                      className={`border-b border-gray-800/30 last:border-0 cursor-pointer transition-colors ${
+                        exportMode && isSelected ? "bg-amber-950/30 hover:bg-amber-950/40" : "hover:bg-gray-800/30"
+                      }`}
                     >
+                      {exportMode && (
+                        <td className="px-4 py-3.5">
+                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${isSelected ? "bg-amber-500 border-amber-500" : "border-gray-600"}`}>
+                            {isSelected && <svg viewBox="0 0 10 8" className="w-2.5 h-2"><path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                          </div>
+                        </td>
+                      )}
                       <td className="px-5 py-3.5 max-w-xs">
                         <p className="text-white font-medium">{rule.nom}</p>
                         {rule.description && (
@@ -766,7 +796,8 @@ export default function CTIPage() {
                         {fmtDate(rule.dateCreation)}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -793,6 +824,7 @@ export default function CTIPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-800/60">
+                      {exportMode && <th className="w-10 px-4 py-3" />}
                       <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-5 py-3">Name</th>
                       <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">Action</th>
                       <th className="text-left text-xs text-gray-500 font-semibold uppercase tracking-wider px-4 py-3">MITRE Techniques</th>
@@ -802,32 +834,44 @@ export default function CTIPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {approvedRules.map((rule) => (
+                    {approvedRules.map((rule) => {
+                      const ruleNumId  = Number(rule.id);
+                      const isSelected = selectedRuleIds.has(ruleNumId);
+                      return (
                       <tr
                         key={rule.id}
-                        onClick={() => setXmlPreview({
-                          title: rule.ruleName,
-                          xml:   rule.xml,
-                          rows: [
-                            { label: "File",         value: rule.filename },
-                            { label: "Learner",      value: rule.submittedBy },
-                            { label: "Submitted on", value: fmtDate(rule.submittedAt) },
-                            { label: "Approved by",  value: rule.reviewedBy ?? "—" },
-                            ...(rule.comment ? [{ label: "Comment", value: rule.comment }] : []),
-                          ],
-                        })}
-                        className="border-b border-gray-800/30 last:border-0 hover:bg-gray-800/30 cursor-pointer transition-colors"
+                        onClick={() => exportMode
+                          ? toggleRuleSelection(ruleNumId)
+                          : setXmlPreview({
+                              title: rule.ruleName,
+                              xml:   rule.xml,
+                              rows: [
+                                { label: "File",         value: rule.filename },
+                                { label: "Learner",      value: rule.submittedBy },
+                                { label: "Submitted on", value: fmtDate(rule.submittedAt) },
+                                { label: "Approved by",  value: rule.reviewedBy ?? "—" },
+                                ...(rule.comment ? [{ label: "Comment", value: rule.comment }] : []),
+                              ],
+                            })
+                        }
+                        className={`border-b border-gray-800/30 last:border-0 cursor-pointer transition-colors ${
+                          exportMode && isSelected ? "bg-amber-950/30 hover:bg-amber-950/40" : "hover:bg-gray-800/30"
+                        }`}
                       >
+                        {exportMode && (
+                          <td className="px-4 py-3.5">
+                            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${isSelected ? "bg-amber-500 border-amber-500" : "border-gray-600"}`}>
+                              {isSelected && <svg viewBox="0 0 10 8" className="w-2.5 h-2"><path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                            </div>
+                          </td>
+                        )}
                         <td className="px-5 py-3.5 max-w-xs">
                           <p className="text-white font-medium">{rule.ruleName}</p>
                           <p className="text-gray-600 text-xs font-mono mt-0.5">{rule.filename}</p>
                         </td>
                         <td className="px-4 py-3.5">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-                            ${rule.action === "create"
-                              ? "bg-green-500/10 text-green-400"
-                              : "bg-blue-500/10 text-blue-400"
-                            }`}
+                            ${rule.action === "create" ? "bg-green-500/10 text-green-400" : "bg-blue-500/10 text-blue-400"}`}
                           >
                             {rule.action === "create" ? "Creation" : "Update"}
                           </span>
@@ -851,7 +895,8 @@ export default function CTIPage() {
                           {fmtDate(rule.reviewedAt ?? null)}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
