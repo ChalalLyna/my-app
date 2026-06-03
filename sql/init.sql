@@ -91,8 +91,10 @@ CREATE TABLE Utilisateur (
 CREATE TABLE Mission (
     IdMission           INT          NOT NULL AUTO_INCREMENT,
     titre               VARCHAR(255) NOT NULL,
+    type                ENUM('Red Team','Blue Team','Purple Team') NOT NULL,
     client              VARCHAR(255),
-    statut              VARCHAR(50),
+    statut              VARCHAR(50)  NOT NULL DEFAULT 'Planned',
+    taches              TEXT         NULL,
     DateDebut           DATE,
     DateFin             DATE,
     description         TEXT,
@@ -225,11 +227,14 @@ CREATE TABLE LabAmelioration (
 );
 
 CREATE TABLE LabMission (
+    IdMission       INT NOT NULL,
     IdUtilisateur   INT NOT NULL,
     IdActif         INT NOT NULL,
     IdTechnique     INT NOT NULL,
     IdAttaque       INT NOT NULL,
     PRIMARY KEY (IdUtilisateur, IdActif, IdTechnique, IdAttaque),
+    CONSTRAINT fk_lm_mission     FOREIGN KEY (IdMission)
+        REFERENCES Mission(IdMission),
     CONSTRAINT fk_lm_utilisateur FOREIGN KEY (IdUtilisateur)
         REFERENCES Utilisateur(IdUtilisateur),
     CONSTRAINT fk_lm_actif       FOREIGN KEY (IdActif)
@@ -311,8 +316,13 @@ CREATE TABLE RegleCTI (
 );
 
 CREATE TABLE RegleClient (
-    IdRegle     INT NOT NULL,
-    IdMission   INT NOT NULL,
+    IdRegle      INT          NOT NULL,
+    IdMission    INT          NOT NULL,
+    nom          VARCHAR(255) NULL,
+    description  TEXT         NULL,
+    severite     VARCHAR(50)  NULL,
+    dateImport   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    XmlWazuh     LONGTEXT     NULL,
     PRIMARY KEY (IdRegle),
     CONSTRAINT fk_rc_regle   FOREIGN KEY (IdRegle)
         REFERENCES RegleDeDetection(IdRegle),
@@ -335,17 +345,14 @@ CREATE TABLE RegleSIEM (
 -- ------------------------------------------------------------
 
 CREATE TABLE RegleExportee (
-    IdMission           INT  NOT NULL,
-    IdRegleAjoute       INT  NOT NULL,
-    IdRegleCTI          INT  NOT NULL,
-    DateExport          DATE NOT NULL DEFAULT (CURRENT_DATE),
-    PRIMARY KEY (IdMission, IdRegleAjoute, IdRegleCTI),
-    CONSTRAINT fk_re_mission      FOREIGN KEY (IdMission)
+    IdMission   INT  NOT NULL,
+    IdRegle     INT  NOT NULL,
+    DateExport  DATE NOT NULL DEFAULT (CURRENT_DATE),
+    PRIMARY KEY (IdMission, IdRegle),
+    CONSTRAINT fk_re_mission FOREIGN KEY (IdMission)
         REFERENCES Mission(IdMission),
-    CONSTRAINT fk_re_regle_ajoute FOREIGN KEY (IdRegleAjoute)
-        REFERENCES RegleAjouteParConsultant(IdRegle),
-    CONSTRAINT fk_re_regle_cti    FOREIGN KEY (IdRegleCTI)
-        REFERENCES RegleCTI(IdRegle)
+    CONSTRAINT fk_re_regle   FOREIGN KEY (IdRegle)
+        REFERENCES RegleDeDetection(IdRegle)
 );
 
 -- ------------------------------------------------------------

@@ -5,15 +5,6 @@ import { Search, Monitor, Server, Terminal, Laptop, Loader2, AlertCircle, Tag, C
 import { Asset } from "@/app/types/simulation";
 import { useMission } from "@/app/context/MissionContext";
 
-const MOCK_CLIENT_ASSETS: Asset[] = [
-  { id: "c1", name: "WS-CORP-042",     os: "Windows 10 Pro",        category: "Workstation",       description: "Finance department workstation" },
-  { id: "c2", name: "SRV-DC-01",       os: "Windows Server 2019",   category: "Domain Controller", description: "Primary domain controller" },
-  { id: "c3", name: "SRV-FILE-01",     os: "Windows Server 2016",   category: "File Server",       description: "Corporate file server" },
-  { id: "c4", name: "USER-LAPTOP-03",  os: "Windows 11 Pro",        category: "Workstation",       description: "HR department laptop" },
-  { id: "c5", name: "SRV-WEB-01",      os: "Ubuntu 22.04 LTS",      category: "Web Server",        description: "External web server" },
-  { id: "c6", name: "SRV-MAIL-01",     os: "Windows Server 2019",   category: "Mail Server",       description: "Exchange mail server" },
-];
-
 function getOsIcon(os: string): React.ComponentType<{ size: number; className?: string }> {
   const lower = os.toLowerCase();
   if (lower.includes("windows server")) return Server;
@@ -39,14 +30,12 @@ export default function StepSelectAsset({ selectedAssets, onToggleAsset }: Props
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
 
   const loadAssets = () => {
-    if (isClientEnv) {
-      setAssets(MOCK_CLIENT_ASSETS);
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     setError(null);
-    fetch("/api/assets")
+    const url = isClientEnv
+      ? `/api/assets?missionId=${activeMission!.id}`
+      : "/api/assets";
+    fetch(url)
       .then((r) => {
         if (!r.ok) throw new Error(`Error ${r.status}`);
         return r.json();
