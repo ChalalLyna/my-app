@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import { useAuth } from "@/app/context/AuthContext";
 import {
-  Flag, Crosshair, ClipboardCheck, PackageCheck,
+  Flag, Crosshair, ClipboardCheck,
   ChevronRight, Loader2, AlertCircle,
-  Clock, CheckCircle, Circle, Shield,
+  CheckCircle, Circle,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -17,7 +17,6 @@ interface Stats {
   labAttacks:     number;
   pendingReviews: number;
   reviewedByMe:   number;
-  rulesExported:  number;
 }
 
 interface MissionRow {
@@ -36,17 +35,11 @@ interface ReviewRow {
   severite: string | null; submittedBy: string;
 }
 
-interface ExportRow {
-  DateExport: string; missionName: string;
-  ruleTitle: string | null; severite: string | null;
-}
-
 interface DashboardData {
   stats:          Stats;
   recentMissions: MissionRow[];
   recentAttacks:  AttackRow[];
   pendingReviews: ReviewRow[];
-  recentExports:  ExportRow[];
 }
 
 // ─── Style maps ───────────────────────────────────────────────────────────────
@@ -76,6 +69,90 @@ const ATTACK_STATUS_STYLE: Record<string, string> = {
 function fmt(d: string | null) {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+// ─── Donut chart ──────────────────────────────────────────────────────────────
+
+function MissionDonut({ missions }: { missions: Stats["missions"] }) {
+  const segments = [
+    { label: "En cours",   value: missions.enCours,   color: "#3b82f6" },
+    { label: "Terminées",  value: missions.terminees,  color: "#10b981" },
+    { label: "Planifiées", value: missions.planifiees, color: "#f59e0b" },
+  ];
+
+  const total = missions.total;
+
+  if (total === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-2 py-8">
+        <Flag size={28} className="text-gray-700" />
+        <p className="text-xs text-gray-600">Aucune mission créée</p>
+      </div>
+    );
+  }
+
+  const r = 38, cx = 56, cy = 56, strokeW = 16;
+  const circumference = 2 * Math.PI * r;
+  let cumulative = 0;
+
+  const slices = segments
+    .filter((s) => s.value > 0)
+    .map((s) => {
+      const dash = (s.value / total) * circumference;
+      const slice = { ...s, dash, offset: cumulative };
+      cumulative += dash;
+      return slice;
+    });
+
+  return (
+    <div className="flex items-center justify-between gap-4 mt-1">
+      {/* SVG donut */}
+      <div className="relative shrink-0">
+        <svg viewBox="0 0 112 112" className="w-28 h-28 -rotate-90">
+          {/* background ring */}
+          <circle
+            cx={cx} cy={cy} r={r}
+            fill="none"
+            stroke="#1f2937"
+            strokeWidth={strokeW}
+          />
+          {slices.map((s, i) => (
+            <circle
+              key={i}
+              cx={cx} cy={cy} r={r}
+              fill="none"
+              stroke={s.color}
+              strokeWidth={strokeW}
+              strokeDasharray={`${s.dash} ${circumference - s.dash}`}
+              strokeDashoffset={-s.offset}
+              className="transition-all duration-700"
+            />
+          ))}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <p className="text-2xl font-bold text-white leading-none">{total}</p>
+          <p className="text-[9px] text-gray-500 mt-0.5">missions</p>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-col gap-3 flex-1">
+        {segments.map((s) => (
+          <div key={s.label} className="flex items-center gap-2">
+            <span
+              className="w-2.5 h-2.5 rounded-full shrink-0"
+              style={{ backgroundColor: s.color }}
+            />
+            <span className="text-xs text-gray-400 flex-1">{s.label}</span>
+            <span className="text-xs font-bold text-white tabular-nums">{s.value}</span>
+            <span className="text-[10px] text-gray-600 tabular-nums w-8 text-right">
+              {total > 0 ? Math.round((s.value / total) * 100) : 0}%
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
@@ -138,7 +215,7 @@ export default function ConsultantDashboard() {
         {loading && (
           <div className="flex items-center justify-center py-24 gap-3">
             <Loader2 size={22} className="text-brand animate-spin" />
-            <p className="text-gray-500 text-sm">Loading dashboard…</p>
+            <p className="text-gray-500 text-sm">Chargement…</p>
           </div>
         )}
 
@@ -152,7 +229,7 @@ export default function ConsultantDashboard() {
         {data && (
           <>
             {/* ── KPI cards ──────────────────────────────────────────── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <StatCard
                 icon={Flag}
                 label="Missions"
@@ -176,14 +253,6 @@ export default function ConsultantDashboard() {
                 color={data.stats.pendingReviews > 0 ? "text-amber-400" : "text-gray-500"}
                 bg={data.stats.pendingReviews > 0 ? "bg-amber-500/10" : "bg-gray-800/60"}
                 sub={`${data.stats.reviewedByMe} validées par moi`}
-              />
-              <StatCard
-                icon={PackageCheck}
-                label="Règles exportées"
-                value={data.stats.rulesExported}
-                color="text-emerald-400"
-                bg="bg-emerald-500/10"
-                sub="Livrées aux clients"
               />
             </div>
 
@@ -330,32 +399,15 @@ export default function ConsultantDashboard() {
                 )}
               </div>
 
-              {/* Recent exports */}
-              <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5 flex flex-col gap-3">
+              {/* Mission status chart */}
+              <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5 flex flex-col gap-4">
                 <div className="flex items-center gap-2">
-                  <Shield size={14} className="text-emerald-400" />
-                  <p className="text-sm font-bold text-white">Règles exportées récentes</p>
+                  <Flag size={14} className="text-violet-400" />
+                  <p className="text-sm font-bold text-white">Répartition des missions</p>
                 </div>
-
-                {data.recentExports.length === 0 ? (
-                  <p className="text-xs text-gray-600 text-center py-6">Aucune règle exportée</p>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {data.recentExports.map((e, i) => (
-                      <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-800/40 border border-gray-800/40">
-                        <PackageCheck size={13} className="text-emerald-400 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-white truncate">{e.ruleTitle ?? "Règle sans titre"}</p>
-                          <p className="text-[10px] text-gray-600 mt-0.5">{e.missionName} · {fmt(e.DateExport)}</p>
-                        </div>
-                        {e.severite && (
-                          <span className="text-[9px] font-semibold text-gray-500 capitalize shrink-0">{e.severite}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <MissionDonut missions={data.stats.missions} />
               </div>
+
             </div>
           </>
         )}

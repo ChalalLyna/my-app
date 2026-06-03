@@ -21,11 +21,9 @@ export async function GET(req: NextRequest) {
       [missionStatsRows],
       [attackStatsRows],
       [reviewStatsRows],
-      [exportStatsRows],
       [recentMissionsRows],
       [recentAttacksRows],
       [pendingReviewsRows],
-      [recentExportsRows],
     ] = await Promise.all([
 
       // ── Mission stats ────────────────────────────────────────────
@@ -52,15 +50,6 @@ export async function GET(req: NextRequest) {
            SUM(statut = 'pending')                              AS pending,
            SUM(statut != 'pending' AND IdConsultant = ?)        AS reviewedByMe
          FROM RegleAjouteeParApprenant`,
-        [id]
-      ),
-
-      // ── Rules exported across all my missions ────────────────────
-      pool.query<RowDataPacket[]>(
-        `SELECT COUNT(*) AS total
-         FROM RegleExportee re
-         JOIN Mission m ON re.IdMission = m.IdMission
-         WHERE m.IdConsultant = ?`,
         [id]
       ),
 
@@ -116,30 +105,11 @@ export async function GET(req: NextRequest) {
          ORDER BY rapa.dateCreation DESC
          LIMIT 5`
       ),
-
-      // ── Recent exports (5) ──────────────────────────────────────
-      pool.query<RowDataPacket[]>(
-        `SELECT
-           re.DateExport,
-           m.titre AS missionName,
-           COALESCE(cti.Titre, rapc.nom, rapa.nom)              AS ruleTitle,
-           COALESCE(cti.Severite, rapc.severite, rapa.severite) AS severite
-         FROM RegleExportee re
-         JOIN Mission m ON re.IdMission = m.IdMission
-         LEFT JOIN RegleCTI                 cti  ON re.IdRegle = cti.IdRegle
-         LEFT JOIN RegleAjouteParConsultant rapc ON re.IdRegle = rapc.IdRegle
-         LEFT JOIN RegleAjouteeParApprenant rapa ON re.IdRegle = rapa.IdRegle
-         WHERE m.IdConsultant = ?
-         ORDER BY re.DateExport DESC
-         LIMIT 5`,
-        [id]
-      ),
     ]);
 
-    const ms = missionStatsRows[0] ?? {};
-    const as_ = attackStatsRows[0]  ?? {};
-    const rs  = reviewStatsRows[0]  ?? {};
-    const es  = exportStatsRows[0]  ?? {};
+    const ms  = missionStatsRows[0]  ?? {};
+    const as_ = attackStatsRows[0]   ?? {};
+    const rs  = reviewStatsRows[0]   ?? {};
 
     return NextResponse.json({
       stats: {
@@ -149,15 +119,13 @@ export async function GET(req: NextRequest) {
           terminees:  Number(ms.terminees  ?? 0),
           planifiees: Number(ms.planifiees ?? 0),
         },
-        labAttacks:     Number(as_.total        ?? 0),
-        pendingReviews: Number(rs.pending       ?? 0),
-        reviewedByMe:   Number(rs.reviewedByMe  ?? 0),
-        rulesExported:  Number(es.total         ?? 0),
+        labAttacks:     Number(as_.total       ?? 0),
+        pendingReviews: Number(rs.pending      ?? 0),
+        reviewedByMe:   Number(rs.reviewedByMe ?? 0),
       },
       recentMissions: recentMissionsRows,
       recentAttacks:  recentAttacksRows,
       pendingReviews: pendingReviewsRows,
-      recentExports:  recentExportsRows,
     });
 
   } catch (err: any) {
