@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import { useMission } from "@/app/context/MissionContext";
+import { useAuth } from "@/app/context/AuthContext";
 import { MissionType, MissionStatus, MissionReport, MISSION_TASKS } from "@/app/data/missions";
 import {
   ArrowLeft, Calendar, Monitor, User,
   CheckCircle, FileText, ShieldAlert,
   Lightbulb, BarChart2, Clock,
   LogIn, LogOut, Loader2, AlertCircle,
-  Sparkles, X,
+  Sparkles, X, Upload,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -85,6 +86,7 @@ export default function MissionDetailPage() {
   const router = useRouter();
   const params = useParams();
   const { activeMission, enterMission, exitMission } = useMission();
+  const { user } = useAuth();
 
   const [mission, setMission]           = useState<MissionDetail | null>(null);
   const [loading, setLoading]           = useState(true);
@@ -94,6 +96,11 @@ export default function MissionDetailPage() {
   const [reportModal, setReportModal]   = useState<string | null>(null);
   const [exportedRules, setExportedRules] = useState<{ id: number; titre: string; severite: string; sourceType: string; dateExport: string }[]>([]);
   const [ending, setEnding]             = useState(false);
+
+  const [clientRules, setClientRules] = useState<{ id: number; nom: string | null; description: string | null; severite: string | null; dateImport: string; xml: string | null }[]>([]);
+  const [importing, setImporting]     = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef                  = useRef<HTMLInputElement>(null);
 
   const missionId = params.id as string;
 
@@ -109,6 +116,60 @@ export default function MissionDetailPage() {
     if (Array.isArray(d)) setExportedRules(d);
   };
 
+  const refreshClientRules = async () => {
+    const r = await fetch(`/api/missions/${missionId}/rules/client`);
+    const d = await r.json();
+    if (Array.isArray(d)) setClientRules(d);
+  };
+
+  const wazuhLevelToSeverity = (level: string | null): string => {
+    const n = parseInt(level ?? "5", 10);
+    if (n >= 14) return "Critical";
+    if (n >= 10) return "High";
+    if (n >= 5)  return "Medium";
+    return "Low";
+  };
+
+  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setImporting(true);
+    setImportError(null);
+    try {
+      const text = await file.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(text, "application/xml");
+      if (doc.querySelector("parsererror")) throw new Error("Invalid XML file");
+
+      const ruleEls = Array.from(doc.querySelectorAll("rule"));
+      if (!ruleEls.length) throw new Error("No <rule> elements found in file");
+
+      const rules = ruleEls.map((el) => {
+        const descText = el.querySelector("description")?.textContent?.trim();
+        return {
+          nom:         descText || `Rule #${el.getAttribute("id") ?? "?"}`,
+          description: descText || undefined,
+          severite:    wazuhLevelToSeverity(el.getAttribute("level")),
+          xml:         el.outerHTML,
+        };
+      });
+
+      const res = await fetch(`/api/missions/${missionId}/rules/client`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ rules }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Import failed");
+      await refreshClientRules();
+    } catch (err: unknown) {
+      setImportError(err instanceof Error ? err.message : "Import error");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   useEffect(() => {
     fetch(`/api/missions/${missionId}`)
       .then((r) => r.json())
@@ -119,6 +180,7 @@ export default function MissionDetailPage() {
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
     refreshExportedRules();
+    refreshClientRules();
   }, [missionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleEnterMission = async () => {
@@ -463,6 +525,73 @@ export default function MissionDetailPage() {
             )}
           </div>
         </div>
+
+        {/* ── Client rules import ─────────────────────────────────────── */}
+        {mission.tasks.includes("import-rules") && (
+          <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Upload size={15} className="text-brand" />
+              <p className="text-sm font-bold text-white">Client rules imported</p>
+              <span className="ml-auto text-xs text-gray-500">
+                {clientRules.length} rule{clientRules.length !== 1 ? "s" : ""}
+              </span>
+              {user?.role === "consultant" && (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".xml"
+                    className="hidden"
+                    onChange={handleFileImport}
+                  />
+                  <button
+                    onClick={() => { setImportError(null); fileInputRef.current?.click(); }}
+                    disabled={importing}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold transition-all ml-2"
+                  >
+                    {importing ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                    {importing ? "Importing…" : "Import client rules"}
+                  </button>
+                </>
+              )}
+            </div>
+
+            {importError && (
+              <div className="flex items-center gap-2 p-2.5 mb-3 rounded-lg bg-red-900/20 border border-red-800/40 text-red-400 text-xs">
+                <AlertCircle size={12} />
+                {importError}
+              </div>
+            )}
+
+            {clientRules.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2">
+                {clientRules.map((r) => (
+                  <div key={r.id} className="flex items-start gap-3 p-2.5 rounded-xl bg-gray-800/40 border border-gray-800/40">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-white truncate">{r.nom ?? `Rule #${r.id}`}</p>
+                      {r.description && (
+                        <p className="text-[10px] text-gray-500 mt-0.5 leading-relaxed line-clamp-2">{r.description}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-1">
+                        {r.severite && (
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${VULN_COLORS[r.severite] ?? "text-gray-400 bg-gray-800 border-gray-700"}`}>
+                            {r.severite}
+                          </span>
+                        )}
+                        {r.xml && <span className="text-[10px] text-gray-600 font-mono">XML</span>}
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-gray-600 shrink-0 mt-0.5">
+                      {r.dateImport ? new Date(r.dateImport).toLocaleDateString("en-US") : "—"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-600 text-center py-4">No client rules imported yet.</p>
+            )}
+          </div>
+        )}
 
         {/* ── Exported rules ──────────────────────────────────────────── */}
         {exportedRules.length > 0 && (

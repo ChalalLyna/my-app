@@ -207,7 +207,7 @@ export default function ConsultantDashboard() {
                 Consultant
               </span>
             </div>
-            <h1 className="text-2xl font-bold text-white">Hello, {prenom}</h1>
+            <h1 className="text-2xl font-bold text-white">Dashboard</h1>
             <p className="text-gray-500 text-sm mt-0.5">Here is a summary of your activity on the platform</p>
           </div>
         </div>
@@ -256,8 +256,8 @@ export default function ConsultantDashboard() {
               />
             </div>
 
-            {/* ── Main grid ──────────────────────────────────────────── */}
-            <div className="grid grid-cols-3 gap-5">
+            {/* ── Missions row ───────────────────────────────────────── */}
+            <div className="grid grid-cols-2 gap-5">
 
               {/* Recent missions */}
               <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5 flex flex-col gap-3">
@@ -317,7 +317,50 @@ export default function ConsultantDashboard() {
                 <MissionDonut missions={data.stats.missions} />
               </div>
 
-              {/* Pending rule reviews */}
+            </div>
+
+            {/* ── Attacks & reviews row ──────────────────────────────── */}
+            <div className="grid grid-cols-2 gap-5">
+
+              {/* Recent lab simulations */}
+              <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Crosshair size={14} className="text-indigo-400" />
+                    <p className="text-sm font-bold text-white">Recent Lab Simulations</p>
+                  </div>
+                  <button
+                    onClick={() => router.push("/attack-simulation")}
+                    className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-brand transition-colors"
+                  >
+                    Launch <ChevronRight size={11} />
+                  </button>
+                </div>
+
+                {data.recentAttacks.length === 0 ? (
+                  <p className="text-xs text-gray-600 text-center py-6">No simulations performed</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {data.recentAttacks.map((a) => {
+                      const statutColor = ATTACK_STATUS_STYLE[a.statut.toLowerCase()] ?? "text-gray-400";
+                      return (
+                        <div key={a.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-800/40 border border-gray-800/40">
+                          <span className="text-[10px] font-mono font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded shrink-0">
+                            {a.mitreID || "—"}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-white truncate">{a.techniqueName}</p>
+                            <p className="text-[10px] text-gray-600 mt-0.5">{a.actifNom} · {fmt(a.date)}</p>
+                          </div>
+                          <span className={`text-[10px] font-semibold shrink-0 ${statutColor}`}>{a.statut}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* To Validate */}
               <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -366,44 +409,6 @@ export default function ConsultantDashboard() {
                 )}
               </div>
             </div>
-
-            {/* ── Bottom ─────────────────────────────────────────────── */}
-            <div className="bg-gray-900 border border-gray-800/60 rounded-2xl p-5 flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Crosshair size={14} className="text-indigo-400" />
-                    <p className="text-sm font-bold text-white">Recent Lab Simulations</p>
-                  </div>
-                  <button
-                    onClick={() => router.push("/attack-simulation")}
-                    className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-brand transition-colors"
-                  >
-                    Launch <ChevronRight size={11} />
-                  </button>
-                </div>
-
-                {data.recentAttacks.length === 0 ? (
-                  <p className="text-xs text-gray-600 text-center py-6">No simulations performed</p>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {data.recentAttacks.map((a) => {
-                      const statutColor = ATTACK_STATUS_STYLE[a.statut.toLowerCase()] ?? "text-gray-400";
-                      return (
-                        <div key={a.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-800/40 border border-gray-800/40">
-                          <span className="text-[10px] font-mono font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded shrink-0">
-                            {a.mitreID || "—"}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-white truncate">{a.techniqueName}</p>
-                            <p className="text-[10px] text-gray-600 mt-0.5">{a.actifNom} · {fmt(a.date)}</p>
-                          </div>
-                          <span className={`text-[10px] font-semibold shrink-0 ${statutColor}`}>{a.statut}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
 
           </>
         )}
