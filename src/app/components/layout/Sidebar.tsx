@@ -6,11 +6,6 @@ import { Shield, LogOut } from "lucide-react";
 import { useAuth } from "@/app/context/AuthContext";
 import { NAV_ITEMS } from "@/app/config/navigation";
 
-const ROLE_COLORS = {
-  admin:      { badge: "bg-red-500/20 text-red-300",      dot: "bg-red-400",      label: "Administrator" },
-  consultant: { badge: "bg-indigo-500/20 text-indigo-300", dot: "bg-indigo-400",  label: "Consultant" },
-  apprenant:  { badge: "bg-emerald-500/20 text-emerald-300", dot: "bg-emerald-400", label: "Learner" },
-};
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
@@ -19,7 +14,6 @@ export default function Sidebar() {
   if (!user) return null;
 
   const items = NAV_ITEMS[user.role];
-  const roleStyle = ROLE_COLORS[user.role];
 
   return (
     <aside className="fixed left-0 top-0 h-full w-60 bg-gray-950 border-r border-gray-800/60 flex flex-col z-20">
@@ -29,14 +23,6 @@ export default function Sidebar() {
           <Shield size={16} className="text-white" strokeWidth={2.5} />
         </div>
         <span className="text-white font-bold text-lg tracking-tight">CyberLab</span>
-      </div>
-
-      {/* Role badge */}
-      <div className="px-4 py-3 border-b border-gray-800/40">
-        <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full ${roleStyle.badge}`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${roleStyle.dot}`} />
-          {roleStyle.label}
-        </span>
       </div>
 
       {/* Nav */}
@@ -91,16 +77,6 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* System status */}
-      <div className="px-5 py-3 border-t border-gray-800/40">
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-          </span>
-          <span className="text-xs text-gray-500 font-medium">System Active</span>
-        </div>
-      </div>
     </aside>
   );
 }

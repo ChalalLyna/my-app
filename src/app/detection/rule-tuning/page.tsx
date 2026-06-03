@@ -144,18 +144,18 @@ function EditorPanel({ rule, onSave, onCancel, saving, saveError, userRange }: E
     if (userRange) {
       const ids = [...xml.matchAll(/<rule\s[^>]*\bid="(\d+)"/g)].map(m => Number(m[1]));
       if (ids.length === 0) {
-        setRangeValidErr("Aucun ID de règle trouvé dans le XML. Ajoutez un attribut id=\"...\" à la balise <rule>.");
+        setRangeValidErr("No rule ID found in the XML. Add an id=\"...\" attribute to the <rule> tag.");
         return;
       }
       const overWazuhMax = ids.filter(id => id > 999999);
       if (overWazuhMax.length > 0) {
-        setRangeValidErr(`ID${overWazuhMax.length > 1 ? "s" : ""} invalide${overWazuhMax.length > 1 ? "s" : ""} : ${overWazuhMax.join(", ")}. Wazuh accepte les IDs jusqu'à 999 999 maximum.`);
+        setRangeValidErr(`Invalid ID${overWazuhMax.length > 1 ? "s" : ""}: ${overWazuhMax.join(", ")}. Wazuh accepts IDs up to 999,999.`);
         return;
       }
       const outOfRange = ids.filter(id => id < userRange.rangeStart || id > userRange.rangeEnd);
       if (outOfRange.length > 0) {
         setRangeValidErr(
-          `ID${outOfRange.length > 1 ? "s" : ""} hors plage : ${outOfRange.join(", ")}. Votre plage est ${userRange.rangeStart}–${userRange.rangeEnd}.`
+          `ID${outOfRange.length > 1 ? "s" : ""} out of range: ${outOfRange.join(", ")}. Your range is ${userRange.rangeStart}–${userRange.rangeEnd}.`
         );
         return;
       }
@@ -419,8 +419,8 @@ function RuleDetailModal({ rule, isOwned, onClose }: {
             <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-2">XML</p>
             <div className="bg-gray-950 border border-gray-800/60 rounded-xl p-4 overflow-auto max-h-52 font-mono text-xs leading-relaxed">
               {loadingXml
-                ? <div className="flex items-center gap-2 text-gray-600"><Loader2 size={12} className="animate-spin" />Chargement...</div>
-                : xml ? renderXml(xml) : <span className="text-gray-600">XML non disponible</span>
+                ? <div className="flex items-center gap-2 text-gray-600"><Loader2 size={12} className="animate-spin" />Loading...</div>
+                : xml ? renderXml(xml) : <span className="text-gray-600">XML unavailable</span>
               }
             </div>
           </div>
@@ -432,18 +432,18 @@ function RuleDetailModal({ rule, isOwned, onClose }: {
               "bg-amber-900/10 border-amber-800/30"
             }`}>
               <div className="flex items-center justify-between mb-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Révision</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Review</p>
                 <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full border ${
                   rule.reviewStatus === "approved" ? "text-emerald-400 bg-emerald-900/30 border-emerald-700/40" :
                   rule.reviewStatus === "rejected" ? "text-red-400 bg-red-900/30 border-red-700/40" :
                   "text-amber-400 bg-amber-900/30 border-amber-700/40"
                 }`}>
-                  {rule.reviewStatus === "approved" ? "Approuvée" : rule.reviewStatus === "rejected" ? "Rejetée" : "En attente"}
+                  {rule.reviewStatus === "approved" ? "Approved" : rule.reviewStatus === "rejected" ? "Rejected" : "Pending"}
                 </span>
               </div>
               {rule.reviewedBy && (
                 <p className="text-xs text-gray-400 mb-2">
-                  <span className="text-gray-600">Révisée par </span>
+                  <span className="text-gray-600">Reviewed by </span>
                   <span className="text-white font-medium">{rule.reviewedBy}</span>
                 </p>
               )}
@@ -452,7 +452,7 @@ function RuleDetailModal({ rule, isOwned, onClose }: {
                   <p className="text-xs text-gray-400 leading-relaxed italic">"{rule.reviewComment}"</p>
                 </div>
               ) : rule.reviewStatus === "pending" ? (
-                <p className="text-xs text-gray-600 italic">En attente de révision par un consultant.</p>
+                <p className="text-xs text-gray-600 italic">Awaiting review by a consultant.</p>
               ) : null}
             </div>
           )}
@@ -530,8 +530,8 @@ function RuleCard({ rule, onView, onEdit, onToggle, onDelete, loadingEdit, canEd
   );
 }
  
-// ─── CTI Modal ────────────────────────────────────────────────────────────────
- 
+// ─── Rule Base Modal ──────────────────────────────────────────────────────────
+
 function CtiModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -541,19 +541,32 @@ function CtiModal({ onClose }: { onClose: () => void }) {
           <div className="w-9 h-9 rounded-xl bg-amber-600/15 flex items-center justify-center shrink-0">
             <BookOpen size={16} className="text-amber-400" />
           </div>
-          <h3 className="text-white font-bold">CTI Rules</h3>
+          <h3 className="text-white font-bold">Rule Base</h3>
         </div>
-        <p className="text-gray-400 text-sm leading-relaxed">
-          The CTI database contains detection rules derived from Sigma, converted to Wazuh format.
-          Browse it for concrete examples to inspire and refine your own detection rules.
+        <p className="text-gray-400 text-sm leading-relaxed mb-3">
+          The Rule Base is a centralised library of detection rules grouped into three sources:
         </p>
-        <div className="flex flex-col gap-2 mt-5">
+        <ul className="space-y-2 text-sm mb-5">
+          <li className="flex items-start gap-2 text-gray-400">
+            <span className="mt-0.5 text-amber-400">·</span>
+            <span><span className="text-white font-semibold">CTI rules</span> — Sigma-based rules converted to Wazuh XML format.</span>
+          </li>
+          <li className="flex items-start gap-2 text-gray-400">
+            <span className="mt-0.5 text-amber-400">·</span>
+            <span><span className="text-white font-semibold">Consultant rules</span> — custom rules published by the security team.</span>
+          </li>
+          <li className="flex items-start gap-2 text-gray-400">
+            <span className="mt-0.5 text-amber-400">·</span>
+            <span><span className="text-white font-semibold">Learner rules</span> — learner-submitted rules approved by a consultant.</span>
+          </li>
+        </ul>
+        <div className="flex flex-col gap-2">
           <button
             onClick={() => window.open("/cti", "_blank")}
             className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl bg-amber-600/15 border border-amber-700/30 text-amber-400 hover:bg-amber-600/25 text-sm font-semibold transition-all"
           >
             <BookOpen size={14} />
-            Open CTI database
+            Open Rule Base
           </button>
           <button
             onClick={onClose}
@@ -942,8 +955,7 @@ function RuleTuningPageInner() {
     }
   };
 
-  const activeCount   = rules.filter(r => r.status === "active").length;
-  const inactiveCount = rules.filter(r => r.status === "inactive").length;
+  const activeCount = rules.filter(r => r.status === "active").length;
   const isEditorOpen  = editorTarget !== undefined;
  
   return (
@@ -993,12 +1005,12 @@ function RuleTuningPageInner() {
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600/15 border border-amber-700/30 text-amber-400 hover:bg-amber-600/25 text-sm font-semibold transition-all"
             >
               <BookOpen size={15} />
-              CTI rules
+              Rule Base
             </button>
             <button
               onClick={() => {
                 if (user?.role !== "admin" && !userRange) {
-                  alert("Aucune plage de règles assignée à votre compte. Contactez un administrateur.");
+                  alert("No rule range assigned to your account. Contact an administrator.");
                   return;
                 }
                 setSaveError(null); setEditorTarget(null);

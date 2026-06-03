@@ -108,8 +108,12 @@ export default function Topbar() {
               onClick={() => setDropdownOpen((v) => !v)}
               className="flex items-center gap-2.5 pl-3 border-l border-gray-800 hover:opacity-80 transition-opacity"
             >
-              <div className="flex flex-col items-end">
+              <div className="flex flex-col items-end gap-0.5">
                 <span className="text-sm text-white font-semibold -mt-0.5">{user.name}</span>
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${roleMeta.color} ${roleMeta.bg}`}>
+                  <roleMeta.Icon size={9} />
+                  {roleMeta.label}
+                </span>
               </div>
               <div className="w-8 h-8 rounded-full bg-linear-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white text-sm font-bold ring-2 ring-gray-800">
                 {user.avatar}
