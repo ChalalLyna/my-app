@@ -4,8 +4,8 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import DashboardLayout from "@/app/components/layout/DashboardLayout";
 import {
   Crosshair, X, FileText, ChevronDown, ChevronUp,
-  Shield, Monitor, Filter, Calendar, Search,
-  ClipboardList, Flag, CheckCircle, Construction,
+  Shield, Monitor, Calendar, Search,
+  Flag, CheckCircle,
   User, GraduationCap, Download, MessageSquare,
   CheckCircle2, XCircle,
 } from "lucide-react";
@@ -70,7 +70,19 @@ interface Filters {
   dateTo:   string;
 }
 
-type Tab = "all" | "attacks" | "rule-tuning" | "missions" | "validations";
+type Tab = "attacks" | "rule-tuning" | "missions" | "validations";
+
+interface MissionRow {
+  id:          string;
+  name:        string;
+  type:        string;
+  target:      string;
+  status:      string;
+  createdBy:   string;
+  createdAt:   string | null;
+  completedAt: string | null;
+  attackCount: number;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -813,16 +825,178 @@ function ValidationsTable({ entries, loading }: { entries: ValidationEntry[]; lo
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+const MISSION_STATUS_STYLE: Record<string, string> = {
+  "Planned":     "text-amber-400   bg-amber-500/10   border-amber-500/20",
+  "In Progress": "text-blue-400    bg-blue-500/10    border-blue-500/20",
+  "Completed":   "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+  "Failed":      "text-red-400     bg-red-500/10     border-red-500/20",
+};
+
+const MISSION_TYPE_STYLE: Record<string, string> = {
+  "Red Team":    "text-red-400    bg-red-500/10    border-red-500/20",
+  "Blue Team":   "text-blue-400   bg-blue-500/10   border-blue-500/20",
+  "Purple Team": "text-purple-400 bg-purple-500/10 border-purple-500/20",
+};
+
+// ─── Missions Table ───────────────────────────────────────────────────────────
+
+function MissionsTable({ missions, loading }: { missions: MissionRow[]; loading: boolean }) {
+  const [search, setSearch]   = useState("");
+  const [status, setStatus]   = useState("");
+  const [type,   setType]     = useState("");
+
+  const filtered = useMemo(() => missions.filter((m) => {
+    if (search) {
+      const q = search.toLowerCase();
+      if (!m.name.toLowerCase().includes(q) && !m.target.toLowerCase().includes(q) && !m.createdBy.toLowerCase().includes(q)) return false;
+    }
+    if (status && m.status !== status) return false;
+    if (type   && m.type   !== type)   return false;
+    return true;
+  }), [missions, search, status, type]);
+
+  const stats = useMemo(() => ({
+    total:    missions.length,
+    planned:  missions.filter((m) => m.status === "Planned").length,
+    ongoing:  missions.filter((m) => m.status === "In Progress").length,
+    done:     missions.filter((m) => m.status === "Completed").length,
+  }), [missions]);
+
+  if (loading) return <div className="flex items-center justify-center py-20 text-gray-600 text-sm">Loading…</div>;
+
+  return (
+    <div className="space-y-4">
+      {/* Stats */}
+      <div className="flex gap-3">
+        {[
+          { label: "Total",       value: stats.total,   color: "text-white",       border: "border-gray-800"       },
+          { label: "Planned",     value: stats.planned, color: "text-amber-400",   border: "border-amber-900/40"   },
+          { label: "In Progress", value: stats.ongoing, color: "text-blue-400",    border: "border-blue-900/40"    },
+          { label: "Completed",   value: stats.done,    color: "text-emerald-400", border: "border-emerald-900/40" },
+        ].map((s) => (
+          <div key={s.label} className={`bg-gray-900 border ${s.border} rounded-xl px-4 py-3 flex flex-col`}>
+            <span className={`text-lg font-bold ${s.color}`}>{s.value}</span>
+            <span className="text-[10px] text-gray-600 uppercase tracking-wider">{s.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex flex-wrap gap-3">
+        <div className="relative flex-1 min-w-[180px]">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
+          <input
+            type="text"
+            placeholder="Search by name, client or consultant…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 transition-colors"
+          />
+        </div>
+        <select value={type} onChange={(e) => setType(e.target.value)}
+          className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-indigo-500/50 transition-colors">
+          <option value="">All types</option>
+          <option value="Red Team">Red Team</option>
+          <option value="Blue Team">Blue Team</option>
+          <option value="Purple Team">Purple Team</option>
+        </select>
+        <select value={status} onChange={(e) => setStatus(e.target.value)}
+          className="bg-gray-900 border border-gray-800 rounded-xl px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-indigo-500/50 transition-colors">
+          <option value="">All statuses</option>
+          <option value="Planned">Planned</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Completed">Completed</option>
+          <option value="Failed">Failed</option>
+        </select>
+        {(search || status || type) && (
+          <button onClick={() => { setSearch(""); setStatus(""); setType(""); }}
+            className="text-[10px] text-gray-500 hover:text-white transition-colors underline">
+            Reset
+          </button>
+        )}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-gray-600">
+          <Flag size={32} className="mb-3 opacity-30" />
+          <p className="text-sm">No missions found</p>
+        </div>
+      ) : (
+        <div className="bg-gray-950/60 border border-gray-800/60 rounded-2xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-800/60">
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Mission</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Type</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Client</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Consultant</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Dates</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Attacks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((m) => (
+                  <tr key={m.id} className="border-b border-gray-800/50 hover:bg-gray-900/40 transition-colors">
+                    <td className="px-4 py-3 max-w-xs">
+                      <p className="text-xs text-white font-medium truncate">{m.name}</p>
+                      <p className="text-[10px] text-gray-600 font-mono mt-0.5">{m.id}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${MISSION_TYPE_STYLE[m.type] ?? "text-gray-400 bg-gray-500/10 border-gray-500/20"}`}>
+                        {m.type}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-400 max-w-[120px] truncate">
+                      {m.target || "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-5 h-5 rounded-full bg-violet-500/10 flex items-center justify-center shrink-0">
+                          <User size={10} className="text-violet-400" />
+                        </div>
+                        <span className="text-xs text-gray-300">{m.createdBy || "—"}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${MISSION_STATUS_STYLE[m.status] ?? "text-gray-400 bg-gray-500/10 border-gray-500/20"}`}>
+                        {m.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                      <div>{fmt(m.createdAt)} →</div>
+                      <div>{m.completedAt ? fmt(m.completedAt) : <span className="text-gray-700">ongoing</span>}</div>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`text-xs font-bold ${m.attackCount > 0 ? "text-indigo-400" : "text-gray-700"}`}>
+                        {m.attackCount}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-4 py-2 border-t border-gray-800/60 text-[10px] text-gray-600">
+            {filtered.length} mission{filtered.length !== 1 ? "s" : ""}
+            {filtered.length !== missions.length && ` (${missions.length} total)`}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: "all",          label: "All",          icon: <ClipboardList size={13} /> },
-  { id: "attacks",      label: "Attacks",      icon: <Crosshair size={13} />    },
-  { id: "rule-tuning",  label: "Rule Tuning",  icon: <Shield size={13} />       },
-  { id: "missions",     label: "Missions",     icon: <Flag size={13} />         },
-  { id: "validations",  label: "Validations",  icon: <CheckCircle size={13} />  },
+  { id: "attacks",      label: "Attack Simulation", icon: <Crosshair size={13} />    },
+  { id: "rule-tuning",  label: "Rule Tuning",       icon: <Shield size={13} />       },
+  { id: "missions",     label: "Missions",           icon: <Flag size={13} />         },
+  { id: "validations",  label: "Validations",        icon: <CheckCircle size={13} />  },
 ];
 
 export default function ActivityPage() {
-  const [activeTab, setActiveTab] = useState<Tab>("all");
+  const [activeTab, setActiveTab] = useState<Tab>("attacks");
 
   const [attacks,        setAttacks]        = useState<Attack[]>([]);
   const [attacksLoading, setAttacksLoading] = useState(true);
@@ -836,7 +1010,10 @@ export default function ActivityPage() {
   const [validationsLoading, setValidationsLoading] = useState(false);
   const [validationsFetched, setValidationsFetched] = useState(false);
 
-  // Fetch attacks
+  const [missions,        setMissions]        = useState<MissionRow[]>([]);
+  const [missionsLoading, setMissionsLoading] = useState(false);
+  const [missionsFetched, setMissionsFetched] = useState(false);
+
   const fetchAttacks = useCallback(async () => {
     setAttacksLoading(true);
     setAttacksError(null);
@@ -851,9 +1028,8 @@ export default function ActivityPage() {
     }
   }, []);
 
-  // Fetch rule tuning on tab open
   useEffect(() => {
-    if ((activeTab === "rule-tuning" || activeTab === "all") && !ruleTuningFetched) {
+    if (activeTab === "rule-tuning" && !ruleTuningFetched) {
       setRuleTuningLoading(true);
       fetch("/api/admin/rule-tuning")
         .then((r) => r.json())
@@ -863,9 +1039,8 @@ export default function ActivityPage() {
     }
   }, [activeTab, ruleTuningFetched]);
 
-  // Fetch validations on tab open
   useEffect(() => {
-    if ((activeTab === "validations" || activeTab === "all") && !validationsFetched) {
+    if (activeTab === "validations" && !validationsFetched) {
       setValidationsLoading(true);
       fetch("/api/admin/validations")
         .then((r) => r.json())
@@ -875,9 +1050,18 @@ export default function ActivityPage() {
     }
   }, [activeTab, validationsFetched]);
 
-  useEffect(() => { fetchAttacks(); }, [fetchAttacks]);
+  useEffect(() => {
+    if (activeTab === "missions" && !missionsFetched) {
+      setMissionsLoading(true);
+      fetch("/api/missions")
+        .then((r) => r.json())
+        .then((d) => { setMissions(Array.isArray(d) ? d : []); setMissionsFetched(true); })
+        .catch(console.error)
+        .finally(() => setMissionsLoading(false));
+    }
+  }, [activeTab, missionsFetched]);
 
-  const showAttacks = activeTab === "all" || activeTab === "attacks";
+  useEffect(() => { fetchAttacks(); }, [fetchAttacks]);
 
   return (
     <DashboardLayout>
@@ -908,20 +1092,18 @@ export default function ActivityPage() {
         </div>
 
         {/* Content */}
-        {attacksError && showAttacks ? (
-          <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
-            Error loading attacks: {attacksError}
-          </div>
-        ) : showAttacks ? (
-          <AttacksTable attacks={attacks} loading={attacksLoading} />
+        {activeTab === "attacks" ? (
+          attacksError ? (
+            <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+              Error loading attacks: {attacksError}
+            </div>
+          ) : (
+            <AttacksTable attacks={attacks} loading={attacksLoading} />
+          )
         ) : activeTab === "rule-tuning" ? (
           <RuleTuningTable entries={ruleTuning} loading={ruleTuningLoading} />
         ) : activeTab === "missions" ? (
-          <div className="flex flex-col items-center justify-center py-24 text-gray-700">
-            <Construction size={36} className="mb-4 opacity-40" />
-            <p className="text-sm font-medium text-gray-500">Mission History</p>
-            <p className="text-xs text-gray-700 mt-1">This section is not implemented yet.</p>
-          </div>
+          <MissionsTable missions={missions} loading={missionsLoading} />
         ) : (
           <ValidationsTable entries={validations} loading={validationsLoading} />
         )}

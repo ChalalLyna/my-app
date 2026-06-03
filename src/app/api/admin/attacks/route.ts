@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Access denied." }, { status: 403 });
 
   try {
+    // Union LabApprentissage (learners) + LabAmelioration (consultants hors mission)
     const [rows] = await pool.query(
       `SELECT
          a.IdAttaque                      AS id,
@@ -33,13 +34,17 @@ export async function GET(req: NextRequest) {
          u.nom                            AS userNom,
          u.prenom                         AS userPrenom,
          u.role                           AS userRole
-       FROM LabApprentissage la
-       JOIN Attaque          a   ON la.IdAttaque   = a.IdAttaque
-       JOIN Technique        t   ON la.IdTechnique = t.IdTechnique
-       JOIN Actif            act ON la.IdActif     = act.IdActif
-       JOIN MachineVirtuelle mv  ON act.IdVM       = mv.IdVM
+       FROM (
+         SELECT IdAttaque, IdTechnique, IdActif, IdUtilisateur FROM LabApprentissage
+         UNION ALL
+         SELECT IdAttaque, IdTechnique, IdActif, IdUtilisateur FROM LabAmelioration
+       ) lab
+       JOIN Attaque          a   ON lab.IdAttaque    = a.IdAttaque
+       JOIN Technique        t   ON lab.IdTechnique  = t.IdTechnique
+       JOIN Actif            act ON lab.IdActif      = act.IdActif
+       JOIN MachineVirtuelle mv  ON act.IdVM         = mv.IdVM
        JOIN ResultatAttaque  ra  ON a.IdResultatAttaque = ra.IdResultatAttaque
-       JOIN Utilisateur      u   ON la.IdUtilisateur    = u.IdUtilisateur
+       JOIN Utilisateur      u   ON lab.IdUtilisateur   = u.IdUtilisateur
        GROUP BY a.IdAttaque, a.DateExecution, a.statut, a.type,
                 t.mitreID, t.nom, t.tactique,
                 ra.description, ra.rapport,
