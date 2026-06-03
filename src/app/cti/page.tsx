@@ -239,11 +239,13 @@ export default function CTIPage() {
   const [consultantRules, setConsultantRules]     = useState<ConsultantRule[]>([]);
   const [consultantLoading, setConsultantLoading] = useState(false);
   const [consultantFetched, setConsultantFetched] = useState(false);
+  const [consultantSearch, setConsultantSearch]   = useState("");
 
   // ── Apprenant approved rules ─────────────────────────────────────
   const [approvedRules, setApprovedRules]   = useState<RuleReview[]>([]);
   const [approvedLoading, setApprovedLoading] = useState(false);
   const [approvedFetched, setApprovedFetched] = useState(false);
+  const [apprenantSearch, setApprenantSearch] = useState("");
 
   // ── XML preview modal (consultants + apprenants) ─────────────────
   const [xmlPreview, setXmlPreview] = useState<XmlPreviewState | null>(null);
@@ -384,6 +386,30 @@ export default function CTIPage() {
     if (!raw) return [];
     try { return JSON.parse(raw); } catch { return [raw]; }
   }
+
+  const filteredConsultantRules = consultantSearch.trim()
+    ? consultantRules.filter((r) => {
+        const q = consultantSearch.toLowerCase();
+        return (
+          r.nom.toLowerCase().includes(q) ||
+          (r.description ?? "").toLowerCase().includes(q) ||
+          r.consultantName.toLowerCase().includes(q) ||
+          (r.severite ?? "").toLowerCase().includes(q)
+        );
+      })
+    : consultantRules;
+
+  const filteredApprovedRules = apprenantSearch.trim()
+    ? approvedRules.filter((r) => {
+        const q = apprenantSearch.toLowerCase();
+        return (
+          r.ruleName.toLowerCase().includes(q) ||
+          r.filename.toLowerCase().includes(q) ||
+          r.submittedBy.toLowerCase().includes(q) ||
+          (r.reviewedBy ?? "").toLowerCase().includes(q)
+        );
+      })
+    : approvedRules;
 
   if (authLoading) return null;
 
@@ -715,6 +741,26 @@ export default function CTIPage() {
         {/* CONSULTANTS TAB                                            */}
         {/* ══════════════════════════════════════════════════════════ */}
         {activeTab === "consultants" && (
+          <>
+            {!consultantLoading && consultantRules.length > 0 && (
+              <div className="relative mb-4">
+                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input
+                  value={consultantSearch}
+                  onChange={(e) => setConsultantSearch(e.target.value)}
+                  placeholder="Search by name, description, consultant, severity…"
+                  className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50"
+                />
+                {consultantSearch && (
+                  <button
+                    onClick={() => setConsultantSearch("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+            )}
           <div className="bg-gray-900 border border-gray-800/60 rounded-2xl overflow-hidden">
             {consultantLoading ? (
               <div className="flex items-center justify-center py-20 text-gray-500">
@@ -724,6 +770,11 @@ export default function CTIPage() {
               <div className="flex flex-col items-center justify-center py-20 text-gray-500 gap-3">
                 <Users size={32} className="opacity-20" />
                 <p className="text-sm">No consultant rules yet.</p>
+              </div>
+            ) : filteredConsultantRules.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-gray-500 gap-3">
+                <Search size={32} className="opacity-20" />
+                <p className="text-sm">No rules match your search.</p>
               </div>
             ) : (
             <div className="overflow-x-auto">
@@ -740,7 +791,7 @@ export default function CTIPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {consultantRules.map((rule: ConsultantRule) => {
+                  {filteredConsultantRules.map((rule: ConsultantRule) => {
                     const ruleNumId  = Number(rule.id);
                     const isSelected = selectedRuleIds.has(ruleNumId);
                     return (
@@ -803,12 +854,33 @@ export default function CTIPage() {
             </div>
             )}
           </div>
+          </>
         )}
 
         {/* ══════════════════════════════════════════════════════════ */}
         {/* APPRENANTS TAB                                             */}
         {/* ══════════════════════════════════════════════════════════ */}
         {activeTab === "apprenants" && (
+          <>
+            {!approvedLoading && approvedRules.length > 0 && (
+              <div className="relative mb-4">
+                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input
+                  value={apprenantSearch}
+                  onChange={(e) => setApprenantSearch(e.target.value)}
+                  placeholder="Search by name, file, learner, reviewer…"
+                  className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-brand/50"
+                />
+                {apprenantSearch && (
+                  <button
+                    onClick={() => setApprenantSearch("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+            )}
           <div className="bg-gray-900 border border-gray-800/60 rounded-2xl overflow-hidden">
             {approvedLoading ? (
               <div className="flex items-center justify-center py-20 text-gray-500">
@@ -818,6 +890,11 @@ export default function CTIPage() {
               <div className="flex flex-col items-center justify-center py-20 text-gray-500 gap-3">
                 <GraduationCap size={32} className="opacity-20" />
                 <p className="text-sm">No approved rules yet.</p>
+              </div>
+            ) : filteredApprovedRules.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-gray-500 gap-3">
+                <Search size={32} className="opacity-20" />
+                <p className="text-sm">No rules match your search.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -834,7 +911,7 @@ export default function CTIPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {approvedRules.map((rule) => {
+                    {filteredApprovedRules.map((rule) => {
                       const ruleNumId  = Number(rule.id);
                       const isSelected = selectedRuleIds.has(ruleNumId);
                       return (
@@ -902,6 +979,7 @@ export default function CTIPage() {
               </div>
             )}
           </div>
+          </>
         )}
       </div>
 
