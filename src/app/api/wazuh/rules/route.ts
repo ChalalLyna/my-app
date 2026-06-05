@@ -225,11 +225,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Check rule ID uniqueness — allowed only if the current user already owns this ID (modification)
-    const ownerTable = user.role === "apprenant" ? "RegleAjouteeParApprenant" : "RegleAjouteParConsultant";
-    const ownerCol   = user.role === "apprenant" ? "IdApprenant"              : "IdConsultant";
+    const checkRuleId = ruleIds[0];
+    const ownerTable  = user.role === "apprenant" ? "RegleAjouteeParApprenant" : "RegleAjouteParConsultant";
+    const ownerCol    = user.role === "apprenant" ? "IdApprenant"              : "IdConsultant";
     const [ownRule] = await pool.query<RowDataPacket[]>(
       `SELECT 1 FROM ${ownerTable} WHERE ${ownerCol} = ? AND wazuhRuleId = ? LIMIT 1`,
-      [user.idUtilisateur, mainRuleId]
+      [user.idUtilisateur, checkRuleId]
     );
     if (ownRule.length === 0) {
       const [taken] = await pool.query<RowDataPacket[]>(
@@ -239,11 +240,11 @@ export async function POST(req: NextRequest) {
          UNION ALL
          SELECT 1 FROM RegleAjouteeParApprenant  WHERE wazuhRuleId = ?
          LIMIT 1`,
-        [mainRuleId, mainRuleId, mainRuleId]
+        [checkRuleId, checkRuleId, checkRuleId]
       );
       if (taken.length > 0) {
         return NextResponse.json(
-          { error: `L'ID de règle ${mainRuleId} est déjà utilisé par une autre règle.` },
+          { error: `L'ID de règle ${checkRuleId} est déjà utilisé par une autre règle.` },
           { status: 409 }
         );
       }
