@@ -417,12 +417,17 @@ export async function DELETE(req: NextRequest) {
 
   // Clean up DB records
   if (wazuhRuleId != null) {
-    await pool.execute(
-      "DELETE FROM RegleAjouteeParApprenant WHERE wazuhRuleId = ? AND IdApprenant = ?",
+    const delTable = user.role === "apprenant" ? "RegleAjouteeParApprenant" : "RegleAjouteParConsultant";
+    const delCol   = user.role === "apprenant" ? "IdApprenant"              : "IdConsultant";
+    const [ruleRow] = await pool.query<RowDataPacket[]>(
+      `SELECT IdRegle FROM ${delTable} WHERE wazuhRuleId = ? AND ${delCol} = ? LIMIT 1`,
       [wazuhRuleId, user.idUtilisateur]
     );
+    if (ruleRow.length > 0) {
+      await pool.execute("DELETE FROM CouvertureDetection WHERE IdRegle = ?", [ruleRow[0].IdRegle]);
+    }
     await pool.execute(
-      "DELETE FROM RegleAjouteParConsultant WHERE wazuhRuleId = ? AND IdConsultant = ?",
+      `DELETE FROM ${delTable} WHERE wazuhRuleId = ? AND ${delCol} = ?`,
       [wazuhRuleId, user.idUtilisateur]
     );
   }

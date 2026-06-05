@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { RowDataPacket, ResultSetHeader } from "mysql2";
 import pool from "@/lib/db";
 import { getWazuhManagerToken } from "../lib";
+import { syncCoverage } from "@/lib/coverage-sync";
 
 
 const PAGE_SIZE = 500;
@@ -114,6 +115,24 @@ export async function POST() {
       throw err;
     } finally {
       db.release();
+    }
+
+    // ── 4. Syncer les règles consultant ──────────────────────────────────
+    const [consultantRules] = await pool.query<RowDataPacket[]>(
+      "SELECT IdRegle, XmlWazuh FROM RegleAjouteParConsultant WHERE XmlWazuh IS NOT NULL"
+    );
+    for (const r of consultantRules) {
+      await syncCoverage(r.IdRegle as number, r.XmlWazuh as string);
+      coverageEntries++;
+    }
+
+    // ── 5. Syncer les règles apprenants approuvées ────────────────────────
+    const [apprenantRules] = await pool.query<RowDataPacket[]>(
+      "SELECT IdRegle, XmlWazuh FROM RegleAjouteeParApprenant WHERE statut = 'approved' AND XmlWazuh IS NOT NULL"
+    );
+    for (const r of apprenantRules) {
+      await syncCoverage(r.IdRegle as number, r.XmlWazuh as string);
+      coverageEntries++;
     }
 
     return NextResponse.json({ success: true, rulesProcessed, coverageEntries });
