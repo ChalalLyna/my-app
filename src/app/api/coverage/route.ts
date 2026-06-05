@@ -31,8 +31,13 @@ export async function GET() {
     );
 
     // Level 1 — rules configured to cover the technique (CouvertureDetection)
+    // Only count: RegleSIEM, consultant rules, and APPROVED apprenant rules
     const [covered] = await pool.query<RowDataPacket[]>(
-      `SELECT DISTINCT cd.IdTechnique FROM CouvertureDetection cd`
+      `SELECT DISTINCT cd.IdTechnique
+       FROM CouvertureDetection cd
+       WHERE EXISTS (SELECT 1 FROM RegleSIEM               WHERE IdRegle = cd.IdRegle)
+          OR EXISTS (SELECT 1 FROM RegleAjouteParConsultant WHERE IdRegle = cd.IdRegle)
+          OR EXISTS (SELECT 1 FROM RegleAjouteeParApprenant WHERE IdRegle = cd.IdRegle AND statut = 'approved')`
     );
     const coveredSet = new Set(covered.map((r) => r.IdTechnique as number));
 
