@@ -91,7 +91,8 @@ const CATEGORY_META: Record<string, { color: string; bg: string }> = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function extractMitre(xml: string): string[] {
+function extractMitre(xml: string | null | undefined): string[] {
+  if (!xml) return [];
   const m = xml.match(/<group[^>]*>([^<]+)<\/group>/);
   if (!m) return [];
   return m[1].split(",").map((s) => s.trim()).filter((s) => /^T\d{4}/.test(s));
@@ -150,7 +151,7 @@ function MitreBadges({ raw }: { raw: string | null }) {
   );
 }
 
-function MitreBadgesFromXml({ xml }: { xml: string }) {
+function MitreBadgesFromXml({ xml }: { xml: string | null }) {
   const techniques = extractMitre(xml);
   if (!techniques.length) return <span className="text-gray-600 text-xs">—</span>;
   return (

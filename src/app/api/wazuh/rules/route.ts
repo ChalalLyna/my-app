@@ -95,8 +95,9 @@ export async function GET(req: NextRequest) {
         `SELECT wazuhRuleId FROM ${table} WHERE ${idCol} = ?`,
         [user.idUtilisateur]
       );
-      if (dbRows.length > 0) {
-        const ruleIds = dbRows.map((r: RowDataPacket) => r.wazuhRuleId as number).join(",");
+      const validIds = dbRows.map((r: RowDataPacket) => r.wazuhRuleId as number).filter(id => id != null);
+      if (validIds.length > 0) {
+        const ruleIds = validIds.join(",");
         const customRes = await fetch(
           `${baseUrl}/rules?rule_ids=${ruleIds}&limit=500`,
           { headers: { Authorization: `Bearer ${token}` }, cache: "no-store", signal: AbortSignal.timeout(8000) }
