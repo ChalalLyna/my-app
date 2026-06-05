@@ -11,40 +11,47 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const [rules] = await pool.query<RowDataPacket[]>(
       `SELECT
-         s.wazuhRuleId,
-         s.titre,
-         s.niveau,
+         COALESCE(s1.wazuhRuleId, s2.wazuhRuleId, s3.wazuhRuleId) AS wazuhRuleId,
+         COALESCE(s1.titre, s2.nom, s3.nom)                        AS titre,
+         COALESCE(s1.niveau, 0)                                    AS niveau,
          CASE
-           WHEN s.niveau >= 12 THEN 'Critical'
-           WHEN s.niveau >= 8  THEN 'High'
-           WHEN s.niveau >= 4  THEN 'Medium'
+           WHEN COALESCE(s1.niveau, 0) >= 12 THEN 'Critical'
+           WHEN COALESCE(s1.niveau, 0) >= 8  THEN 'High'
+           WHEN COALESCE(s1.niveau, 0) >= 4  THEN 'Medium'
            ELSE 'Low'
          END AS severite
        FROM CouvertureDetection cd
-       JOIN RegleSIEM s ON s.IdRegle = cd.IdRegle
+       LEFT JOIN RegleSIEM               s1 ON s1.IdRegle = cd.IdRegle
+       LEFT JOIN RegleAjouteParConsultant s2 ON s2.IdRegle = cd.IdRegle
+       LEFT JOIN RegleAjouteeParApprenant s3 ON s3.IdRegle = cd.IdRegle
        WHERE cd.IdTechnique = ?
-       ORDER BY s.niveau DESC`,
+       ORDER BY COALESCE(s1.niveau, 0) DESC`,
       [idTechnique]
     );
 
     // Rules that actually fired during simulations targeting this technique
     const [firedRules] = await pool.query<RowDataPacket[]>(
-      `SELECT rs.wazuhRuleId, rs.titre, rs.niveau,
+      `SELECT
+         ANY_VALUE(COALESCE(s1.wazuhRuleId, s2.wazuhRuleId, s3.wazuhRuleId)) AS wazuhRuleId,
+         ANY_VALUE(COALESCE(s1.titre, s2.nom, s3.nom))                        AS titre,
+         ANY_VALUE(COALESCE(s1.niveau, 0))                                    AS niveau,
          CASE
-           WHEN rs.niveau >= 12 THEN 'Critical'
-           WHEN rs.niveau >= 8  THEN 'High'
-           WHEN rs.niveau >= 4  THEN 'Medium'
+           WHEN ANY_VALUE(COALESCE(s1.niveau, 0)) >= 12 THEN 'Critical'
+           WHEN ANY_VALUE(COALESCE(s1.niveau, 0)) >= 8  THEN 'High'
+           WHEN ANY_VALUE(COALESCE(s1.niveau, 0)) >= 4  THEN 'Medium'
            ELSE 'Low'
          END AS severite,
          COUNT(al.IdAlerte) AS alertCount
        FROM Alerte al
-       JOIN RegleSIEM rs ON rs.IdRegle = al.IdRegle
+       LEFT JOIN RegleSIEM               s1 ON s1.IdRegle = al.IdRegle
+       LEFT JOIN RegleAjouteParConsultant s2 ON s2.IdRegle = al.IdRegle
+       LEFT JOIN RegleAjouteeParApprenant s3 ON s3.IdRegle = al.IdRegle
        JOIN (
          SELECT IdAttaque FROM LabApprentissage WHERE IdTechnique = ?
          UNION
          SELECT IdAttaque FROM LabAmelioration WHERE IdTechnique = ?
        ) atq ON atq.IdAttaque = al.IdAttaque
-       GROUP BY rs.wazuhRuleId, rs.titre, rs.niveau
+       GROUP BY al.IdRegle
        ORDER BY alertCount DESC`,
       [idTechnique, idTechnique]
     );

@@ -3,6 +3,7 @@ import { getWazuhManagerToken } from "../lib";
 import { verifyToken, COOKIE_NAME } from "@/lib/auth";
 import pool from "@/lib/db";
 import { RowDataPacket, ResultSetHeader } from "mysql2";
+import { syncCoverage } from "@/lib/coverage-sync";
 
 function getUser(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
@@ -246,6 +247,7 @@ export async function POST(req: NextRequest) {
     // Record in DB (best-effort — Wazuh save already succeeded)
     const mainRuleId = ruleIds[0];
     const severity   = severite ?? levelToSeverity(0);
+    let consultantIdRegle = 0;
     try {
       const conn = await pool.getConnection();
       try {
@@ -278,6 +280,7 @@ export async function POST(req: NextRequest) {
                VALUES (?, ?, ?, ?, ?, ?, ?)`,
               [idRegle, user.idUtilisateur, ruleName, description ?? null, xml, mainRuleId, severity]
             );
+            consultantIdRegle = idRegle;
           }
         } else {
           // Existing rule — UPDATE (never INSERT a second row)
@@ -297,10 +300,13 @@ export async function POST(req: NextRequest) {
                WHERE IdConsultant = ? AND wazuhRuleId = ?`,
               [ruleName, description ?? null, xml, severity, user.idUtilisateur, mainRuleId]
             );
+            consultantIdRegle = existing[0].IdRegle as number;
           }
         }
 
         await conn.commit();
+        if (user.role === "consultant" && consultantIdRegle)
+          syncCoverage(consultantIdRegle, xml).catch((e) => console.error("Coverage sync:", e));
       } catch (dbErr) {
         await conn.rollback();
         console.error("DB record error (rule saved in Wazuh):", dbErr);

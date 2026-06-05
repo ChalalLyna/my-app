@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, COOKIE_NAME } from "@/lib/auth";
 import pool from "@/lib/db";
 import { RowDataPacket, ResultSetHeader } from "mysql2";
+import { syncCoverage } from "@/lib/coverage-sync";
 
 function getUser(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
@@ -69,6 +70,10 @@ export async function PATCH(
      WHERE rapa.IdRegle = ?`,
     [id]
   );
+
+  if (status === "approved" && rows[0]?.xml)
+    syncCoverage(rows[0].id as number, rows[0].xml as string)
+      .catch((e) => console.error("Coverage sync:", e));
 
   return NextResponse.json(rows[0]);
 }

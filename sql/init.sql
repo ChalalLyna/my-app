@@ -8,7 +8,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- Tables de base (sans dépendances)
 -- ------------------------------------------------------------
 
-CREATE TABLE Compte (
+CREATE TABLE Compte ( --done*
     IdCompte        INT          NOT NULL AUTO_INCREMENT,
     email           VARCHAR(255) NOT NULL UNIQUE,
     mdp             VARCHAR(255) NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE Compte (
     PRIMARY KEY (IdCompte)
 );
 
-CREATE TABLE MachineVirtuelle (
+CREATE TABLE MachineVirtuelle ( --done*
     IdVM            INT          NOT NULL AUTO_INCREMENT,
     nomMachine      VARCHAR(255) NOT NULL,
     OS              VARCHAR(100),
@@ -29,14 +29,14 @@ CREATE TABLE MachineVirtuelle (
     PRIMARY KEY (IdVM)
 );
 
-CREATE TABLE ResultatMission (
+CREATE TABLE ResultatMission ( --done*
     IdResultatMission   INT  NOT NULL AUTO_INCREMENT,
     description         TEXT,
     rapport             LONGTEXT,
     PRIMARY KEY (IdResultatMission)
 );
 
-CREATE TABLE ResultatAttaque (
+CREATE TABLE ResultatAttaque ( --done*
     IdResultatAttaque   INT  NOT NULL AUTO_INCREMENT,
     description         TEXT,
     rapport             TEXT,
@@ -46,12 +46,12 @@ CREATE TABLE ResultatAttaque (
         REFERENCES ResultatMission(IdResultatMission)
 );
 
-CREATE TABLE RegleDeDetection (
+CREATE TABLE RegleDeDetection ( --done*
     IdRegle         INT  NOT NULL AUTO_INCREMENT,
     PRIMARY KEY (IdRegle)
 );
 
-CREATE TABLE Technique (
+CREATE TABLE Technique ( --done*
     IdTechnique     INT          NOT NULL AUTO_INCREMENT,
     mitreID         VARCHAR(50)  NOT NULL,
     nom             VARCHAR(255) NOT NULL,
@@ -60,7 +60,7 @@ CREATE TABLE Technique (
     PRIMARY KEY (IdTechnique)
 );
 
-CREATE TABLE ProfilAdversaire (
+CREATE TABLE ProfilAdversaire ( --not used
     IdProfil        INT          NOT NULL AUTO_INCREMENT,
     nom             VARCHAR(255) NOT NULL,
     description     TEXT,
@@ -71,7 +71,7 @@ CREATE TABLE ProfilAdversaire (
 -- Utilisateur (dépend de Compte)
 -- ------------------------------------------------------------
 
-CREATE TABLE Utilisateur (
+CREATE TABLE Utilisateur ( --done*
     IdUtilisateur   INT          NOT NULL AUTO_INCREMENT,
     nom             VARCHAR(100) NOT NULL,
     prenom          VARCHAR(100) NOT NULL,
@@ -88,7 +88,7 @@ CREATE TABLE Utilisateur (
 -- Mission (dépend de Utilisateur et ResultatMission)
 -- ------------------------------------------------------------
 
-CREATE TABLE Mission (
+CREATE TABLE Mission ( --done*
     IdMission           INT          NOT NULL AUTO_INCREMENT,
     titre               VARCHAR(255) NOT NULL,
     type                ENUM('Red Team','Blue Team','Purple Team') NOT NULL,
@@ -111,7 +111,7 @@ CREATE TABLE Mission (
 -- Actif (dépend de MachineVirtuelle, Utilisateur, Mission)
 -- ------------------------------------------------------------
 
-CREATE TABLE Actif (
+CREATE TABLE Actif ( --done*
     IdActif             INT          NOT NULL AUTO_INCREMENT,
     nom                 VARCHAR(255) NOT NULL,
     catégorie                 VARCHAR(255) NOT NULL,
@@ -134,7 +134,7 @@ CREATE TABLE Actif (
 -- Attaque (dépend de ResultatAttaque)
 -- ------------------------------------------------------------
 
-CREATE TABLE Attaque (
+CREATE TABLE Attaque ( --done*
     IdAttaque           INT NOT NULL AUTO_INCREMENT,
     DateExecution       DATETIME,
     statut              VARCHAR(50),
@@ -150,7 +150,7 @@ CREATE TABLE Attaque (
 -- Alerte (dépend de Attaque et RegleDeDetection)
 -- ------------------------------------------------------------
 
-CREATE TABLE Alerte (
+CREATE TABLE Alerte ( --done*
     IdAlerte        INT     NOT NULL AUTO_INCREMENT,
     severite        VARCHAR(50),
     message         TEXT,
@@ -170,7 +170,7 @@ CREATE TABLE Alerte (
 -- Tables d'association (many-to-many)
 -- ------------------------------------------------------------
 
-CREATE TABLE CompositionProfil (
+CREATE TABLE CompositionProfil ( --not used
     IdProfil    INT NOT NULL,
     IdTechnique INT NOT NULL,
     PRIMARY KEY (IdProfil, IdTechnique),
@@ -180,19 +180,19 @@ CREATE TABLE CompositionProfil (
         REFERENCES Technique(IdTechnique)
 );
 
-CREATE TABLE CouvertureDetection (
+CREATE TABLE CouvertureDetection ( --done*
     IdRegle     INT NOT NULL,
     IdTechnique INT NOT NULL,
     PRIMARY KEY (IdRegle, IdTechnique),
-    CONSTRAINT fk_cd_siem      FOREIGN KEY (IdRegle)
-        REFERENCES RegleSIEM(IdRegle),
+    CONSTRAINT fk_cd_regle     FOREIGN KEY (IdRegle)
+        REFERENCES RegleDeDetection(IdRegle),
     CONSTRAINT fk_cd_technique FOREIGN KEY (IdTechnique)
         REFERENCES Technique(IdTechnique)
 );
 
 -- Labs (tables de participation aux attaques)
 
-CREATE TABLE LabApprentissage (
+CREATE TABLE LabApprentissage ( --done*
     IdLabApprentissage INT NOT NULL,
     IdUtilisateur   INT NOT NULL,
     IdActif         INT NOT NULL,
@@ -209,7 +209,7 @@ CREATE TABLE LabApprentissage (
         REFERENCES Attaque(IdAttaque)
 );
 
-CREATE TABLE LabAmelioration (
+CREATE TABLE LabAmelioration ( --done*
     IdLabAmelioration INT NOT NULL,
     IdUtilisateur   INT NOT NULL,
     IdActif         INT NOT NULL,
@@ -226,7 +226,7 @@ CREATE TABLE LabAmelioration (
         REFERENCES Attaque(IdAttaque)
 );
 
-CREATE TABLE LabMission (
+CREATE TABLE LabMission ( --done*
     IdMission       INT NOT NULL,
     IdUtilisateur   INT NOT NULL,
     IdActif         INT NOT NULL,
@@ -249,7 +249,7 @@ CREATE TABLE LabMission (
 -- Héritage de RegleDeDetection (table par sous-type)
 -- ------------------------------------------------------------
 
-CREATE TABLE RegleAjouteParConsultant (
+CREATE TABLE RegleAjouteParConsultant ( --done*
     IdRegle               INT NOT NULL,
     IdConsultant          INT NOT NULL,
     IdMission             INT,            -- NULL si hors mission
@@ -269,7 +269,7 @@ CREATE TABLE RegleAjouteParConsultant (
         REFERENCES Mission(IdMission)
 );
 
-CREATE TABLE RegleAjouteeParApprenant (
+CREATE TABLE RegleAjouteeParApprenant ( --done*
     IdRegle               INT NOT NULL,
     IdApprenant           INT NOT NULL,
     IdConsultant          INT,
@@ -294,7 +294,7 @@ CREATE TABLE RegleAjouteeParApprenant (
         REFERENCES Utilisateur(IdUtilisateur)
 );
 
-CREATE TABLE RegleCTI (
+CREATE TABLE RegleCTI ( --done*
     IdRegle                 INT          NOT NULL,
     IdSigma                 VARCHAR(255),
     Titre                   VARCHAR(255),
@@ -315,7 +315,7 @@ CREATE TABLE RegleCTI (
         REFERENCES RegleDeDetection(IdRegle)
 );
 
-CREATE TABLE RegleClient (
+CREATE TABLE RegleClient ( --done*
     IdRegle      INT          NOT NULL,
     IdMission    INT          NOT NULL,
     nom          VARCHAR(255) NULL,
@@ -330,7 +330,7 @@ CREATE TABLE RegleClient (
         REFERENCES Mission(IdMission)
 );
 
-CREATE TABLE RegleSIEM (
+CREATE TABLE RegleSIEM ( --done*
     IdRegle         INT          NOT NULL,
     wazuhRuleId     INT          NOT NULL UNIQUE,
     titre           VARCHAR(255),

@@ -40,16 +40,14 @@ export async function GET() {
       `SELECT DISTINCT la.IdTechnique
        FROM LabApprentissage la
        JOIN Alerte al ON al.IdAttaque = la.IdAttaque
-       JOIN RegleSIEM rs ON rs.IdRegle = al.IdRegle
-       JOIN CouvertureDetection cd ON cd.IdRegle = rs.IdRegle AND cd.IdTechnique = la.IdTechnique
+       JOIN CouvertureDetection cd ON cd.IdRegle = al.IdRegle AND cd.IdTechnique = la.IdTechnique
 
        UNION
 
        SELECT DISTINCT lam.IdTechnique
        FROM LabAmelioration lam
        JOIN Alerte al ON al.IdAttaque = lam.IdAttaque
-       JOIN RegleSIEM rs ON rs.IdRegle = al.IdRegle
-       JOIN CouvertureDetection cd ON cd.IdRegle = rs.IdRegle AND cd.IdTechnique = lam.IdTechnique`
+       JOIN CouvertureDetection cd ON cd.IdRegle = al.IdRegle AND cd.IdTechnique = lam.IdTechnique`
     );
     const detectedSet = new Set(detected.map((r) => r.IdTechnique as number));
 
