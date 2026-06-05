@@ -2,7 +2,13 @@ import pool from "@/lib/db";
 import { RowDataPacket } from "mysql2";
 
 function extractMitreIds(xml: string): string[] {
-  return [...xml.matchAll(/<id>(T\d+(?:\.\d+)?)<\/id>/g)].map((m) => m[1]);
+  // Format standard Wazuh : <mitre><id>T1234.001</id></mitre>
+  const fromMitre = [...xml.matchAll(/<id>(T\d+(?:\.\d+)?)<\/id>/g)].map((m) => m[1]);
+  if (fromMitre.length) return [...new Set(fromMitre)];
+  // Format groupe : <group>cyberlab,T1234.001,</group>
+  const m = xml.match(/<group[^>]*>([^<]+)<\/group>/);
+  if (!m) return [];
+  return m[1].split(",").map((s) => s.trim()).filter((s) => /^T\d{4}(?:\.\d+)?/.test(s));
 }
 
 export async function syncCoverage(idRegle: number, xml: string): Promise<void> {

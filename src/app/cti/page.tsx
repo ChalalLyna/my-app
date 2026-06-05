@@ -93,6 +93,10 @@ const CATEGORY_META: Record<string, { color: string; bg: string }> = {
 
 function extractMitre(xml: string | null | undefined): string[] {
   if (!xml) return [];
+  // Format standard Wazuh : <mitre><id>T1234.001</id></mitre>
+  const fromMitre = [...xml.matchAll(/<id>(T\d+(?:\.\d+)?)<\/id>/g)].map((m) => m[1]);
+  if (fromMitre.length) return [...new Set(fromMitre)];
+  // Format groupe : <group>cyberlab,T1234.001,</group>
   const m = xml.match(/<group[^>]*>([^<]+)<\/group>/);
   if (!m) return [];
   return m[1].split(",").map((s) => s.trim()).filter((s) => /^T\d{4}/.test(s));

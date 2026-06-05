@@ -224,6 +224,31 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Check rule ID uniqueness — allowed only if the current user already owns this ID (modification)
+    const ownerTable = user.role === "apprenant" ? "RegleAjouteeParApprenant" : "RegleAjouteParConsultant";
+    const ownerCol   = user.role === "apprenant" ? "IdApprenant"              : "IdConsultant";
+    const [ownRule] = await pool.query<RowDataPacket[]>(
+      `SELECT 1 FROM ${ownerTable} WHERE ${ownerCol} = ? AND wazuhRuleId = ? LIMIT 1`,
+      [user.idUtilisateur, mainRuleId]
+    );
+    if (ownRule.length === 0) {
+      const [taken] = await pool.query<RowDataPacket[]>(
+        `SELECT 1 FROM RegleSIEM                WHERE wazuhRuleId = ?
+         UNION ALL
+         SELECT 1 FROM RegleAjouteParConsultant  WHERE wazuhRuleId = ?
+         UNION ALL
+         SELECT 1 FROM RegleAjouteeParApprenant  WHERE wazuhRuleId = ?
+         LIMIT 1`,
+        [mainRuleId, mainRuleId, mainRuleId]
+      );
+      if (taken.length > 0) {
+        return NextResponse.json(
+          { error: `L'ID de règle ${mainRuleId} est déjà utilisé par une autre règle.` },
+          { status: 409 }
+        );
+      }
+    }
+
     // Save to Wazuh
     const { token, baseUrl } = await getWazuhManagerToken();
     const res = await fetch(

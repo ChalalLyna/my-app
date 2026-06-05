@@ -10,6 +10,7 @@ export interface TechniqueCoverage {
   nom:         string;
   tactique:    string;
   status:      TechniqueStatus;
+  hasCoverage: boolean;
 }
 
 export interface CoverageResponse {
@@ -80,6 +81,7 @@ export async function GET() {
         nom:         t.nom      as string,
         tactique:    t.tactique as string ?? "Unknown",
         status,
+        hasCoverage: coveredSet.has(id),
       };
     });
 
@@ -87,8 +89,8 @@ export async function GET() {
       total:       techniques.length,
       detected:    techniques.filter((t) => t.status === "detected").length,
       triggered:   techniques.filter((t) => t.status === "triggered").length,
-      covered:     techniques.filter((t) => t.status === "covered").length,
-      not_covered: techniques.filter((t) => t.status === "not_covered").length,
+      covered:     coveredSet.size,
+      not_covered: techniques.length - coveredSet.size,
     };
 
     return NextResponse.json({ techniques, stats } satisfies CoverageResponse);

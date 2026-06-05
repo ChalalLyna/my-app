@@ -15,6 +15,7 @@ interface TechniqueCoverage {
   nom:         string;
   tactique:    string;
   status:      TechniqueStatus;
+  hasCoverage: boolean;
 }
 
 interface CoverageData {
@@ -527,10 +528,8 @@ export default function CoveragePage() {
               const techs        = grouped[tactic];
               const detectedCount  = techs.filter((t) => t.status === "detected").length;
               const triggeredCount = techs.filter((t) => t.status === "triggered").length;
-              const coveredCount   = techs.filter((t) => t.status === "covered").length;
-              const pct = Math.round(
-                ((detectedCount + triggeredCount + coveredCount) / techs.length) * 100
-              );
+              const coveredCount   = techs.filter((t) => t.hasCoverage).length;
+              const pct = Math.round((coveredCount / techs.length) * 100);
 
               return (
                 <div key={tactic} className="rounded-xl border border-gray-700/40 bg-gray-800/20 overflow-hidden">
