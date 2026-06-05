@@ -398,14 +398,16 @@ export default function StepConfirmLaunch({ assets, step2 }: Props) {
         log("system", "[DB] No Wazuh alerts detected during this attack");
         return;
       }
+      const attackStart = new Date(since);
       const alerts = wazuhAlerts
+        .filter((a) => a.timestamp && new Date(a.timestamp) >= attackStart)
         .map((a) => ({
           wazuhRuleId:   parseInt((a.ttp ?? "").replace("R:", ""), 10),
           titre:         a.title ?? "",
           niveau:        a.ruleLevel ?? 0,
           severite:      a.severity ?? "Low",
           message:       a.description ?? "",
-          dateDetection: a.timestamp ?? new Date().toISOString(),
+          dateDetection: a.timestamp,
         }))
         .filter((a) => a.wazuhRuleId > 0);
 
