@@ -30,24 +30,34 @@ export async function POST(req: NextRequest) {
       await db.beginTransaction();
 
       for (const alert of alerts) {
-        // 1. Cherche si cette règle Wazuh est déjà dans RegleSIEM
-        const [existing] = await db.query<RowDataPacket[]>(
+        // 1. Cherche l'IdRegle dans toutes les tables de règles (priorité : apprenant/consultant avant SIEM)
+        const [fromApprenant] = await db.query<RowDataPacket[]>(
+          "SELECT IdRegle FROM RegleAjouteeParApprenant WHERE wazuhRuleId = ? LIMIT 1",
+          [alert.wazuhRuleId]
+        );
+        const [fromConsultant] = await db.query<RowDataPacket[]>(
+          "SELECT IdRegle FROM RegleAjouteParConsultant WHERE wazuhRuleId = ? LIMIT 1",
+          [alert.wazuhRuleId]
+        );
+        const [fromSIEM] = await db.query<RowDataPacket[]>(
           "SELECT IdRegle FROM RegleSIEM WHERE wazuhRuleId = ?",
           [alert.wazuhRuleId]
         );
 
         let idRegle: number;
 
-        if (existing.length > 0) {
-          idRegle = existing[0].IdRegle as number;
+        if (fromApprenant.length > 0) {
+          idRegle = fromApprenant[0].IdRegle as number;
+        } else if (fromConsultant.length > 0) {
+          idRegle = fromConsultant[0].IdRegle as number;
+        } else if (fromSIEM.length > 0) {
+          idRegle = fromSIEM[0].IdRegle as number;
         } else {
-          // 2. Crée l'entrée parente dans RegleDeDetection
+          // 2. Règle inconnue — crée une entrée dans RegleSIEM
           const [rd] = await db.execute<ResultSetHeader>(
             "INSERT INTO RegleDeDetection () VALUES ()"
           );
           idRegle = rd.insertId;
-
-          // 3. Crée l'entrée dans RegleSIEM
           await db.execute(
             `INSERT INTO RegleSIEM (IdRegle, wazuhRuleId, titre, niveau)
              VALUES (?, ?, ?, ?)`,

@@ -45,15 +45,27 @@ export async function POST(
     await db.beginTransaction();
 
     for (const alert of alerts) {
-      // Find or create the SIEM rule
-      const [existing] = await db.query<RowDataPacket[]>(
+      // Find IdRegle across all rule tables (apprenant/consultant take priority over SIEM)
+      const [fromApprenant] = await db.query<RowDataPacket[]>(
+        "SELECT IdRegle FROM RegleAjouteeParApprenant WHERE wazuhRuleId = ? LIMIT 1",
+        [alert.wazuhRuleId]
+      );
+      const [fromConsultant] = await db.query<RowDataPacket[]>(
+        "SELECT IdRegle FROM RegleAjouteParConsultant WHERE wazuhRuleId = ? LIMIT 1",
+        [alert.wazuhRuleId]
+      );
+      const [fromSIEM] = await db.query<RowDataPacket[]>(
         "SELECT IdRegle FROM RegleSIEM WHERE wazuhRuleId = ?",
         [alert.wazuhRuleId]
       );
 
       let idRegle: number;
-      if (existing.length > 0) {
-        idRegle = existing[0].IdRegle as number;
+      if (fromApprenant.length > 0) {
+        idRegle = fromApprenant[0].IdRegle as number;
+      } else if (fromConsultant.length > 0) {
+        idRegle = fromConsultant[0].IdRegle as number;
+      } else if (fromSIEM.length > 0) {
+        idRegle = fromSIEM[0].IdRegle as number;
       } else {
         const [rd] = await db.execute<ResultSetHeader>(
           "INSERT INTO RegleDeDetection () VALUES ()"
