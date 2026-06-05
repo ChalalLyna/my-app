@@ -74,13 +74,21 @@ export async function POST(req: NextRequest) {
 
     // Check if a record already exists for this user + filename (created at save time)
     const [existing] = await conn.query<RowDataPacket[]>(
-      "SELECT IdRegle FROM RegleAjouteeParApprenant WHERE IdApprenant = ? AND filename = ?",
+      "SELECT IdRegle, statut FROM RegleAjouteeParApprenant WHERE IdApprenant = ? AND filename = ?",
       [payload.idUtilisateur, filename]
     );
 
     let idRegle: number;
 
     if (existing.length > 0) {
+      if (existing[0].statut === "approved") {
+        await conn.rollback();
+        conn.release();
+        return NextResponse.json(
+          { error: "Cette règle a été approuvée et ne peut plus être modifiée." },
+          { status: 403 }
+        );
+      }
       // Record already exists — UPDATE instead of INSERT to avoid duplicates
       idRegle = existing[0].IdRegle;
       await conn.execute(
