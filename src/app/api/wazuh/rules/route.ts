@@ -276,9 +276,9 @@ export async function POST(req: NextRequest) {
           } else if (user.role === "consultant") {
             await conn.execute(
               `INSERT INTO RegleAjouteParConsultant
-                 (IdRegle, IdConsultant, nom, description, XmlWazuh, wazuhRuleId, severite)
-               VALUES (?, ?, ?, ?, ?, ?, ?)`,
-              [idRegle, user.idUtilisateur, ruleName, description ?? null, xml, mainRuleId, severity]
+                 (IdRegle, IdConsultant, nom, description, XmlWazuh, filename, wazuhRuleId, severite, action)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'create')`,
+              [idRegle, user.idUtilisateur, ruleName, description ?? null, xml, filename, mainRuleId, severity]
             );
             consultantIdRegle = idRegle;
           }
@@ -296,9 +296,10 @@ export async function POST(req: NextRequest) {
           } else if (user.role === "consultant") {
             await conn.execute(
               `UPDATE RegleAjouteParConsultant
-               SET nom = ?, description = ?, XmlWazuh = ?, severite = ?, derniereModification = NOW()
+               SET nom = ?, description = ?, XmlWazuh = ?, filename = ?, severite = ?,
+                   action = 'modify', derniereModification = NOW()
                WHERE IdConsultant = ? AND wazuhRuleId = ?`,
-              [ruleName, description ?? null, xml, severity, user.idUtilisateur, mainRuleId]
+              [ruleName, description ?? null, xml, filename, severity, user.idUtilisateur, mainRuleId]
             );
             consultantIdRegle = existing[0].IdRegle as number;
           }
